@@ -32,6 +32,8 @@ Onglet **Saison** du panneau admin : aperçu des mouvements (champion, montées,
 clôture en tapant `CLOTURER`. Le classement est archivé (palmarès), les teams changent de ligue,
 les points et stats repartent à 0. Une team doit avoir joué au moins `MATCHS_MIN_POUR_MONTER`
 match(s) pour monter ou être championne.
+Une team **inactive** (0 match de la saison) retourne en Ligue 10 ; les places libres d'une ligue sont
+données aux meilleures teams actives de la ligue juste en dessous (**repêchage**, une ligue max par saison).
 
 ## Structure
 - `app.py` : serveur, base de données, API

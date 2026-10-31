@@ -1128,7 +1128,10 @@ def calculer_fin_saison(db):
                 if not place['team_id']:
                     continue
                 destination, mouvement = ligue_num, place['statut'] or 'reste'
-                if mouvement == 'monte' and ligue_num > 1:
+                if place['joues'] == 0 and ligue_num < LIGUE_DEPART:
+                    # Inactive (aucun match de la saison) : retour en Ligue 10, sa place est libérée
+                    destination, mouvement = LIGUE_DEPART, 'inactive'
+                elif mouvement == 'monte' and ligue_num > 1:
                     destination = ligue_num - 1
                 elif mouvement == 'descend' and ligue_num < max(LIGUES):
                     destination = ligue_num + 1
@@ -1136,6 +1139,21 @@ def calculer_fin_saison(db):
                     mouvement = 'reste'
                 resultats.append({**place, 'ligue_num': ligue_num, 'poule': poule,
                                   'mouvement': mouvement, 'destination': destination})
+
+    # Repêchage : les places libres d'une ligue (inactives parties, XXXXX) sont données aux
+    # meilleures teams ACTIVES de la ligue juste en dessous. On remplit de haut en bas,
+    # et une team ne monte jamais de plus d'une ligue par saison.
+    for ligue_num in sorted(LIGUES)[:-1]:
+        places = LIGUES[ligue_num]['poules'] * TEAMS_PAR_POULE
+        libres = places - sum(r['destination'] == ligue_num for r in resultats)
+        if libres <= 0:
+            continue
+        candidates = [r for r in resultats
+                      if r['ligue_num'] == ligue_num + 1 and r['destination'] == ligue_num + 1
+                      and r['joues'] >= MATCHS_MIN_POUR_MONTER]
+        candidates.sort(key=lambda r: (r['rang'], -r['points'], -r['diff'], -r['victoires'], r['poule']))
+        for r in candidates[:libres]:
+            r['destination'], r['mouvement'] = ligue_num, 'repechage'
     return resultats
 
 
@@ -1153,8 +1171,10 @@ def api_admin_saison():
         'matchs_joues': matchs_joues,
         'teams': len(classement),
         'mouvements': mouvements,
-        'nb_montees': sum(m['mouvement'] == 'monte' for m in mouvements),
-        'nb_descentes': sum(m['mouvement'] == 'descend' for m in mouvements),
+        'nb_montees': sum(m['mouvement'] in ('monte', 'repechage') for m in mouvements),
+        'nb_descentes': sum(m['mouvement'] in ('descend', 'inactive') for m in mouvements),
+        'nb_repechages': sum(m['mouvement'] == 'repechage' for m in mouvements),
+        'nb_inactives': sum(m['mouvement'] == 'inactive' for m in mouvements),
         'historique': palmares(db),
     }), 200
 
@@ -1199,8 +1219,10 @@ def api_admin_cloturer_saison():
         'success': True,
         'saison_cloturee': saison,
         'nouvelle_saison': saison + 1,
-        'montees': sum(p['mouvement'] == 'monte' for p in partants),
-        'descentes': sum(p['mouvement'] == 'descend' for p in partants),
+        'montees': sum(p['mouvement'] in ('monte', 'repechage') for p in partants),
+        'descentes': sum(p['mouvement'] in ('descend', 'inactive') for p in partants),
+        'repechages': sum(p['mouvement'] == 'repechage' for p in partants),
+        'inactives': sum(p['mouvement'] == 'inactive' for p in partants),
         'champion': next((p['team_name'] for p in classement if p['mouvement'] == 'champion'), None),
     }), 200
 
