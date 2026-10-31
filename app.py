@@ -64,6 +64,9 @@ SHOP_DEFAUT = [
 # Types qu'on ne peut posséder qu'une fois
 TYPES_UNIQUES = {'badge', 'cosmetic'}
 
+# Nombre maximum de joueurs par team (3 titulaires + 2 remplaçants en 3v3)
+MAX_MEMBRES = 5
+
 # Barème des matchs (pas de match nul : un BO3 a toujours un gagnant)
 POINTS_VICTOIRE = 3
 POINTS_DEFAITE = 0
@@ -169,7 +172,8 @@ def reparer_coherence(c):
     c.execute('DELETE FROM ligue WHERE team_id NOT IN (SELECT id FROM teams)')
     c.execute(f'UPDATE ligue SET ligue_num = {LIGUE_DEPART} WHERE ligue_num IS NULL OR ligue_num NOT BETWEEN 1 AND 10')
     c.execute(f"""INSERT INTO ligue (team_id, ligue_num, points)
-                  SELECT id, {LIGUE_DEPART}, 0 FROM teams WHERE id NOT IN (SELECT team_id FROM ligue)""")
+                  SELECT id, {LIGUE_DEPART}, 0 FROM teams
+                  WHERE COALESCE(hors_classement, 0) = 0 AND id NOT IN (SELECT team_id FROM ligue)""")
     for row in c.execute('SELECT id, ligue_num, poule FROM ligue ORDER BY id').fetchall():
         if not row['poule'] or row['poule'] not in lettres_poules(row['ligue_num']):
             c.execute('UPDATE ligue SET poule = ? WHERE id = ?', (choisir_poule(c, row['ligue_num']), row['id']))
@@ -281,6 +285,7 @@ def init_db():
     ajouter_colonne(c, 'users', 'is_admin', 'INTEGER DEFAULT 0')
     ajouter_colonne(c, 'contact_messages', 'traite', 'INTEGER DEFAULT 0')
     ajouter_colonne(c, 'matchs', 'saison', 'INTEGER DEFAULT 1')
+    ajouter_colonne(c, 'teams', 'hors_classement', 'INTEGER DEFAULT 0')
     c.execute("UPDATE users SET created_at = datetime('now') WHERE created_at IS NULL")
     c.execute("UPDATE teams SET created_at = datetime('now') WHERE created_at IS NULL")
     c.execute("UPDATE users SET profile_pic = ? WHERE profile_pic IS NULL OR profile_pic NOT IN (%s)"
@@ -608,20 +613,25 @@ def api_teams():
         team['bio'] = team['bio'] or ''
         team['createur'] = team['createur'] or '—'
         team['is_creator'] = team['createur_id'] == uid
+        team['max_membres'] = MAX_MEMBRES
+        team['pleine'] = team['nb_membres'] >= MAX_MEMBRES
         teams_list.append(team)
 
     mine = db.execute('SELECT team_id FROM team_members WHERE user_id = ?', (uid,)).fetchone()
     user_team_id = mine['team_id'] if mine else None
     membres = []
     if user_team_id:
+        createur_id = db.execute('SELECT createur_id FROM teams WHERE id = ?', (user_team_id,)).fetchone()['createur_id']
         membres = [dict(m) for m in db.execute("""
-            SELECT u.username, u.profile_pic AS logo FROM team_members tm JOIN users u ON u.id = tm.user_id
+            SELECT u.id, u.username, u.profile_pic AS logo FROM team_members tm JOIN users u ON u.id = tm.user_id
             WHERE tm.team_id = ? ORDER BY tm.joined_at, tm.id""", (user_team_id,))]
         for m in membres:
             m['logo'] = logo_valide(m['logo'])
+            m['is_capitaine'] = m['id'] == createur_id
+            m['is_me'] = m['id'] == uid
     matchs = matchs_de_team(db, user_team_id, limite=10) if user_team_id else []
     return jsonify({'teams': teams_list, 'user_team_id': user_team_id, 'user_id': uid, 'membres': membres,
-                    'matchs': matchs}), 200
+                    'matchs': matchs, 'max_membres': MAX_MEMBRES}), 200
 
 
 @app.route('/api/teams', methods=['POST'])
@@ -663,6 +673,8 @@ def api_join_team(team_id):
         return jsonify({'success': False, 'error': 'Team introuvable'}), 404
     if db.execute('SELECT 1 FROM team_members WHERE user_id = ?', (uid,)).fetchone():
         return jsonify({'success': False, 'error': 'Vous êtes déjà dans une team'}), 400
+    if db.execute('SELECT COUNT(*) FROM team_members WHERE team_id = ?', (team_id,)).fetchone()[0] >= MAX_MEMBRES:
+        return jsonify({'success': False, 'error': f'Cette team est complète ({MAX_MEMBRES} joueurs maximum)'}), 400
     try:
         db.execute("INSERT INTO team_members (team_id, user_id, joined_at) VALUES (?, ?, datetime('now'))", (team_id, uid))
         db.execute('UPDATE users SET team_id = ? WHERE id = ?', (team_id, uid))
@@ -685,6 +697,99 @@ def api_delete_team(team_id):
     supprimer_team(db.cursor(), team_id)
     db.commit()
     return jsonify({'success': True}), 200
+
+
+def team_du_capitaine(db, team_id):
+    """Renvoie (team, erreur). Erreur si la team n'existe pas ou si l'utilisateur n'est pas le capitaine."""
+    team = db.execute('SELECT id, nom, createur_id FROM teams WHERE id = ?', (team_id,)).fetchone()
+    if not team:
+        return None, (jsonify({'success': False, 'error': 'Team introuvable'}), 404)
+    if team['createur_id'] != session['user_id']:
+        return None, (jsonify({'success': False, 'error': 'Réservé au capitaine de la team'}), 403)
+    return team, None
+
+
+@app.route('/api/teams/<int:team_id>/leave', methods=['POST'])
+@api_connectee
+def api_leave_team(team_id):
+    uid = session['user_id']
+    db = get_db()
+    if not db.execute('SELECT 1 FROM team_members WHERE team_id = ? AND user_id = ?', (team_id, uid)).fetchone():
+        return jsonify({'success': False, 'error': "Vous n'êtes pas dans cette team"}), 400
+    c = db.cursor()
+    retirer_membre(c, uid)  # transfert du rôle de capitaine ou suppression si seul
+    db.commit()
+    supprimee = not db.execute('SELECT 1 FROM teams WHERE id = ?', (team_id,)).fetchone()
+    return jsonify({'success': True, 'team_supprimee': supprimee}), 200
+
+
+@app.route('/api/teams/<int:team_id>/kick/<int:user_id>', methods=['POST'])
+@api_connectee
+def api_kick_member(team_id, user_id):
+    db = get_db()
+    team, erreur = team_du_capitaine(db, team_id)
+    if erreur:
+        return erreur
+    if user_id == session['user_id']:
+        return jsonify({'success': False, 'error': 'Utilisez « Quitter la team » pour partir'}), 400
+    if not db.execute('SELECT 1 FROM team_members WHERE team_id = ? AND user_id = ?', (team_id, user_id)).fetchone():
+        return jsonify({'success': False, 'error': "Ce joueur n'est pas dans votre team"}), 404
+    retirer_membre(db.cursor(), user_id)
+    db.commit()
+    return jsonify({'success': True}), 200
+
+
+@app.route('/api/teams/<int:team_id>/capitaine/<int:user_id>', methods=['POST'])
+@api_connectee
+def api_transfer_captain(team_id, user_id):
+    db = get_db()
+    team, erreur = team_du_capitaine(db, team_id)
+    if erreur:
+        return erreur
+    if user_id == session['user_id']:
+        return jsonify({'success': False, 'error': 'Vous êtes déjà capitaine'}), 400
+    if not db.execute('SELECT 1 FROM team_members WHERE team_id = ? AND user_id = ?', (team_id, user_id)).fetchone():
+        return jsonify({'success': False, 'error': "Ce joueur n'est pas dans votre team"}), 404
+    db.execute('UPDATE teams SET createur_id = ? WHERE id = ?', (user_id, team_id))
+    db.commit()
+    return jsonify({'success': True}), 200
+
+
+@app.route('/api/teams/<int:team_id>/reintegrer', methods=['POST'])
+@api_connectee
+def api_reintegrer_team(team_id):
+    db = get_db()
+    team, erreur = team_du_capitaine(db, team_id)
+    if erreur:
+        return erreur
+    c = db.cursor()
+    if c.execute('SELECT 1 FROM ligue WHERE team_id = ?', (team_id,)).fetchone():
+        return jsonify({'success': False, 'error': 'Votre team est déjà au classement'}), 400
+    poule = choisir_poule(c, LIGUE_DEPART)
+    c.execute('INSERT INTO ligue (team_id, ligue_num, points, poule) VALUES (?, ?, 0, ?)', (team_id, LIGUE_DEPART, poule))
+    c.execute('UPDATE teams SET hors_classement = 0 WHERE id = ?', (team_id,))
+    db.commit()
+    return jsonify({'success': True, 'ligue_num': LIGUE_DEPART, 'poule': poule}), 200
+
+
+@app.route('/api/teams/<int:team_id>/update', methods=['POST'])
+@api_connectee
+def api_update_team(team_id):
+    db = get_db()
+    team, erreur = team_du_capitaine(db, team_id)
+    if erreur:
+        return erreur
+    data = donnees_json()
+    nom = texte(data, 'nom') if 'nom' in data else team['nom']
+    if not 2 <= len(nom) <= 30:
+        return jsonify({'success': False, 'error': 'Le nom de la team doit faire entre 2 et 30 caractères'}), 400
+    if db.execute('SELECT 1 FROM teams WHERE lower(nom) = lower(?) AND id != ?', (nom, team_id)).fetchone():
+        return jsonify({'success': False, 'error': 'Ce nom de team est déjà pris'}), 400
+    actuelle = db.execute('SELECT bio FROM teams WHERE id = ?', (team_id,)).fetchone()['bio'] or ''
+    bio = texte(data, 'bio', 300) if 'bio' in data else actuelle
+    db.execute('UPDATE teams SET nom = ?, bio = ? WHERE id = ?', (nom, bio, team_id))
+    db.commit()
+    return jsonify({'success': True, 'nom': nom, 'bio': bio}), 200
 
 
 # ---------------------------------------------------------------------------
@@ -994,9 +1099,16 @@ def api_admin_move_team(team_id):
         return jsonify({'success': False, 'error': 'Ligue invalide (1 à 10)'}), 400
     db = get_db()
     c = db.cursor()
-    actuelle = c.execute('SELECT ligue_num FROM ligue WHERE team_id = ?', (team_id,)).fetchone()
-    if not actuelle:
+    if not c.execute('SELECT 1 FROM teams WHERE id = ?', (team_id,)).fetchone():
         return jsonify({'success': False, 'error': 'Team introuvable'}), 404
+    actuelle = c.execute('SELECT ligue_num FROM ligue WHERE team_id = ?', (team_id,)).fetchone()
+    if not actuelle:  # team hors classement : on la remet dans la ligue choisie
+        c.execute('INSERT INTO ligue (team_id, ligue_num, points, poule) VALUES (?, ?, 0, ?)',
+                  (team_id, ligue_num, choisir_poule(c, ligue_num)))
+        c.execute('UPDATE teams SET hors_classement = 0 WHERE id = ?', (team_id,))
+        db.commit()
+        poule = c.execute('SELECT poule FROM ligue WHERE team_id = ?', (team_id,)).fetchone()['poule']
+        return jsonify({'success': True, 'ligue_num': ligue_num, 'poule': poule}), 200
     if actuelle['ligue_num'] == ligue_num:
         return jsonify({'success': False, 'error': f'La team est déjà en Ligue {ligue_num}'}), 400
     # Changement de ligue : nouvelle poule, les points repartent de 0
@@ -1128,9 +1240,10 @@ def calculer_fin_saison(db):
                 if not place['team_id']:
                     continue
                 destination, mouvement = ligue_num, place['statut'] or 'reste'
-                if place['joues'] == 0 and ligue_num < LIGUE_DEPART:
-                    # Inactive (aucun match de la saison) : retour en Ligue 10, sa place est libérée
-                    destination, mouvement = LIGUE_DEPART, 'inactive'
+                if place['joues'] == 0:
+                    # Inactive (aucun match de toute la saison) : retirée du classement, quelle que
+                    # soit sa ligue. Sa place est libérée pour le repêchage.
+                    destination, mouvement = None, 'retiree'
                 elif mouvement == 'monte' and ligue_num > 1:
                     destination = ligue_num - 1
                 elif mouvement == 'descend' and ligue_num < max(LIGUES):
@@ -1172,9 +1285,9 @@ def api_admin_saison():
         'teams': len(classement),
         'mouvements': mouvements,
         'nb_montees': sum(m['mouvement'] in ('monte', 'repechage') for m in mouvements),
-        'nb_descentes': sum(m['mouvement'] in ('descend', 'inactive') for m in mouvements),
+        'nb_descentes': sum(m['mouvement'] == 'descend' for m in mouvements),
         'nb_repechages': sum(m['mouvement'] == 'repechage' for m in mouvements),
-        'nb_inactives': sum(m['mouvement'] == 'inactive' for m in mouvements),
+        'nb_retirees': sum(m['mouvement'] == 'retiree' for m in mouvements),
         'historique': palmares(db),
     }), 200
 
@@ -1202,7 +1315,13 @@ def api_admin_cloturer_saison():
                        p['joues'], p['victoires'], p['defaites'], p['diff'], p['mouvement'], p['destination']))
 
         # 1) on sort toutes les teams qui changent de ligue de leur poule
-        partants = [p for p in classement if p['destination'] != p['ligue_num']]
+        # 0) les teams inactives sortent du classement (elles pourront réintégrer la Ligue 10)
+        retirees = [p for p in classement if p['mouvement'] == 'retiree']
+        for p in retirees:
+            c.execute('DELETE FROM ligue WHERE team_id = ?', (p['team_id'],))
+            c.execute('UPDATE teams SET hors_classement = 1 WHERE id = ?', (p['team_id'],))
+        # 1) on sort de leur poule toutes les teams qui changent de ligue
+        partants = [p for p in classement if p['destination'] is not None and p['destination'] != p['ligue_num']]
         for p in partants:
             c.execute('UPDATE ligue SET ligue_num = ?, poule = NULL WHERE team_id = ?', (p['destination'], p['team_id']))
         # 2) on les place dans les places libérées de leur nouvelle ligue (les mieux classées d'abord)
@@ -1220,9 +1339,9 @@ def api_admin_cloturer_saison():
         'saison_cloturee': saison,
         'nouvelle_saison': saison + 1,
         'montees': sum(p['mouvement'] in ('monte', 'repechage') for p in partants),
-        'descentes': sum(p['mouvement'] in ('descend', 'inactive') for p in partants),
+        'descentes': sum(p['mouvement'] == 'descend' for p in partants),
         'repechages': sum(p['mouvement'] == 'repechage' for p in partants),
-        'inactives': sum(p['mouvement'] == 'inactive' for p in partants),
+        'retirees': len(retirees),
         'champion': next((p['team_name'] for p in classement if p['mouvement'] == 'champion'), None),
     }), 200
 

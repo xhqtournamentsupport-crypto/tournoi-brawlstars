@@ -190,6 +190,100 @@
             margin-top: 1rem;
         }
 
+        .membres-liste {
+            margin-top: 1.2rem;
+        }
+        
+        .membres-liste h4, .team-edit h4 {
+            color: #51cf66;
+            font-size: 0.9rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 0.6rem;
+        }
+        
+        .membre-ligne {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            flex-wrap: wrap;
+            padding: 0.6rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        
+        .membre-ligne:last-child { border-bottom: none; }
+        .membre-nom { flex: 1; font-weight: 700; color: #e0e0e0; overflow-wrap: anywhere; min-width: 120px; }
+        .membre-role { color: #ffd700; font-size: 0.8rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
+        .membre-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+        
+        .btn-mini {
+            padding: 0.45rem 0.9rem;
+            border-radius: 8px;
+            border: 1px solid rgba(102, 126, 234, 0.5);
+            background: rgba(102, 126, 234, 0.12);
+            color: #e0e0e0;
+            font-family: inherit;
+            font-weight: 800;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-mini:hover { border-color: #00d9ff; color: #00d9ff; }
+        .btn-mini.rouge { border-color: rgba(255, 107, 107, 0.6); background: rgba(255, 107, 107, 0.12); color: #ff8787; }
+        .btn-mini.rouge:hover { border-color: #ff6b6b; color: #ff6b6b; }
+        
+        .team-actions.col {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        
+        .btn-ghost {
+            background: rgba(255, 255, 255, 0.04);
+            color: #e0e0e0;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .btn-ghost:hover { border-color: #ff6b6b; color: #ff6b6b; }
+        
+        .team-edit {
+            display: none;
+            margin-top: 1.2rem;
+            padding: 1.2rem;
+            border-radius: 12px;
+            background: rgba(0, 0, 0, 0.15);
+        }
+        
+        .team-edit.open { display: block; }
+        .team-edit .form-group { margin-bottom: 1rem; }
+        .team-edit input, .team-edit textarea { padding: 0.9rem; }
+        
+        .muted { color: #8888a8; font-weight: 600; }
+        
+        .hors-classement {
+            display: inline-flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.6rem;
+            color: #ffd43b;
+            font-weight: 700;
+        }
+        
+        .places {
+            display: inline-block;
+            margin-left: 0.4rem;
+            padding: 0.15rem 0.6rem;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            font-weight: 800;
+            background: rgba(102, 126, 234, 0.2);
+            color: #b8c4ff;
+        }
+        
+        .places.pleine { background: rgba(255, 107, 107, 0.2); color: #ff8787; }
+        
         .member-chip {
             background: rgba(81, 207, 102, 0.12);
             border: 1px solid rgba(81, 207, 102, 0.5);
@@ -464,6 +558,7 @@
         let userTeamId = null;
         let membres = [];
         let mesMatchs = [];
+        let maxMembres = 5;
 
         function showMessage(text, type) {
             const el = document.getElementById('page-message');
@@ -483,6 +578,7 @@
             userTeamId = data.user_team_id;
             membres = data.membres || [];
             mesMatchs = data.matchs || [];
+            maxMembres = data.max_membres || maxMembres;
             document.getElementById('create-team-section').style.display = userTeamId ? 'none' : 'block';
             renderMyTeam();
             renderTeams();
@@ -496,17 +592,44 @@
                 return;
             }
             container.style.display = 'block';
-            const ligue = myTeam.ligue_num ? `Ligue ${myTeam.ligue_num} · Poule ${escapeHtml(myTeam.poule || '-')} · ${Number(myTeam.points) || 0} pts` : '';
+            const ligue = myTeam.ligue_num
+                ? `Ligue ${myTeam.ligue_num} · Poule ${escapeHtml(myTeam.poule || '-')} · ${Number(myTeam.points) || 0} pts`
+                : `<span class="hors-classement">⏸ Hors classement : votre team n'a joué aucun match la saison dernière.
+                   ${myTeam.is_creator ? `<button class="btn-mini" type="button" onclick="reintegrer(${myTeam.id})">Réintégrer la Ligue 10</button>` : 'Le capitaine peut la réinscrire en Ligue 10.'}</span>`;
             document.getElementById('my-team-card').innerHTML = `
                 <div class="team-card my-team">
                     <div class="team-info">
                         <h3>${escapeHtml(myTeam.nom)}</h3>
                         <p>${escapeHtml(myTeam.bio || 'Pas de description')}</p>
-                        <div class="team-creator">Créée par : ${escapeHtml(myTeam.createur)}</div>
+                        <div class="team-creator">👑 Capitaine : ${escapeHtml(myTeam.createur)}</div>
                         <div class="team-meta">${ligue}</div>
-                        <div class="team-members">
-                            ${membres.map(m => `<span class="member-chip">${escapeHtml(m.logo)} ${escapeHtml(m.username)}</span>`).join('')}
+                        <div class="membres-liste">
+                            <h4>Membres <span class="places ${membres.length >= maxMembres ? 'pleine' : ''}">${membres.length}/${maxMembres}</span></h4>
+                            ${membres.map(m => `
+                                <div class="membre-ligne">
+                                    <span class="member-chip">${escapeHtml(m.logo)}</span>
+                                    <span class="membre-nom">${escapeHtml(m.username)}${m.is_me ? ' <span class="muted">(vous)</span>' : ''}</span>
+                                    ${m.is_capitaine ? '<span class="membre-role">👑 Capitaine</span>' : ''}
+                                    ${myTeam.is_creator && !m.is_me ? `
+                                        <span class="membre-actions">
+                                            <button class="btn-mini" type="button" onclick="nommerCapitaine(${myTeam.id}, ${Number(m.id)})">Nommer capitaine</button>
+                                            <button class="btn-mini rouge" type="button" onclick="exclure(${myTeam.id}, ${Number(m.id)})">Exclure</button>
+                                        </span>` : ''}
+                                </div>`).join('')}
                         </div>
+                        ${myTeam.is_creator ? `
+                        <div class="team-edit" id="team-edit">
+                            <h4>Modifier la team</h4>
+                            <div class="form-group">
+                                <label for="edit-nom">Nom</label>
+                                <input type="text" id="edit-nom" maxlength="30" value="${escapeHtml(myTeam.nom)}">
+                            </div>
+                            <div class="form-group">
+                                <label for="edit-bio">Bio</label>
+                                <textarea id="edit-bio" maxlength="300">${escapeHtml(myTeam.bio)}</textarea>
+                            </div>
+                            <button class="btn btn-primary" type="button" onclick="modifierTeam(${myTeam.id})">Enregistrer</button>
+                        </div>` : ''}
                         <div class="team-matchs">
                             <h4>Derniers matchs</h4>
                             ${mesMatchs.length ? mesMatchs.map(m => `
@@ -518,8 +641,11 @@
                                 </div>`).join('') : '<p>Aucun match joué pour le moment</p>'}
                         </div>
                     </div>
-                    <div class="team-actions">
-                        ${myTeam.is_creator ? `<button class="btn btn-danger" type="button" onclick="deleteTeam(${myTeam.id})">Supprimer</button>` : ''}
+                    <div class="team-actions col">
+                        ${myTeam.is_creator ? `
+                            <button class="btn btn-primary" type="button" onclick="document.getElementById('team-edit').classList.toggle('open')">Modifier</button>
+                            <button class="btn btn-danger" type="button" onclick="deleteTeam(${myTeam.id})">Supprimer</button>` : ''}
+                        <button class="btn btn-ghost" type="button" onclick="quitterTeam(${myTeam.id})">Quitter la team</button>
                     </div>
                 </div>
             `;
@@ -548,13 +674,15 @@
                     <div class="team-info">
                         <h3>${escapeHtml(team.nom)}</h3>
                         <p>${escapeHtml(team.bio || 'Pas de description')}</p>
-                        <div class="team-creator">Créée par : ${escapeHtml(team.createur)}</div>
-                        <div class="team-meta">${Number(team.nb_membres) || 0} membre(s)${team.ligue_num ? ' · Ligue ' + team.ligue_num : ''}</div>
+                        <div class="team-creator">👑 Capitaine : ${escapeHtml(team.createur)}</div>
+                        <div class="team-meta">${Number(team.nb_membres) || 0}/${Number(team.max_membres) || maxMembres} joueurs${team.ligue_num ? ' · Ligue ' + team.ligue_num : ''}</div>
                     </div>
                     <div class="team-actions">
                         ${userTeamId
                             ? '<button class="btn btn-primary" type="button" disabled>Déjà dans une team</button>'
-                            : `<button class="btn btn-primary" type="button" onclick="joinTeam(${team.id})">Rejoindre</button>`}
+                            : team.pleine
+                                ? '<button class="btn btn-primary" type="button" disabled>Complète</button>'
+                                : `<button class="btn btn-primary" type="button" onclick="joinTeam(${team.id})">Rejoindre</button>`}
                     </div>
                 </div>
             `).join('');
@@ -599,6 +727,61 @@
             loadTeams();
         }
 
+        async function quitterTeam(teamId) {
+            const myTeam = allTeams.find(t => t.id === teamId);
+            let texte = 'Quitter cette team ?';
+            if (myTeam && myTeam.is_creator) {
+                texte = membres.length > 1
+                    ? 'Vous êtes capitaine : le rôle passera au membre le plus ancien. Quitter la team ?'
+                    : 'Vous êtes seul dans la team : elle sera supprimée. Quitter quand même ?';
+            }
+            if (!confirm(texte)) return;
+            const { ok, data } = await api(`/api/teams/${teamId}/leave`, { method: 'POST' });
+            if (ok && data.success) {
+                showMessage(data.team_supprimee ? '✓ Vous avez quitté la team (elle a été supprimée)' : '✓ Vous avez quitté la team', 'success');
+            } else {
+                showMessage(data.error || 'Erreur', 'error');
+            }
+            loadTeams();
+        }
+        
+        const nomMembre = userId => (membres.find(m => m.id === userId) || {}).username || 'ce joueur';
+        
+        async function exclure(teamId, userId) {
+            const nom = nomMembre(userId);
+            if (!confirm(`Exclure ${nom} de la team ?`)) return;
+            const { ok, data } = await api(`/api/teams/${teamId}/kick/${userId}`, { method: 'POST' });
+            showMessage(ok && data.success ? `✓ ${nom} a été exclu de la team` : (data.error || 'Erreur'), ok && data.success ? 'success' : 'error');
+            loadTeams();
+        }
+        
+        async function nommerCapitaine(teamId, userId) {
+            const nom = nomMembre(userId);
+            if (!confirm(`Nommer ${nom} capitaine ? Vous ne pourrez plus gérer la team.`)) return;
+            const { ok, data } = await api(`/api/teams/${teamId}/capitaine/${userId}`, { method: 'POST' });
+            showMessage(ok && data.success ? `✓ ${nom} est maintenant capitaine` : (data.error || 'Erreur'), ok && data.success ? 'success' : 'error');
+            loadTeams();
+        }
+        
+        async function reintegrer(teamId) {
+            const { ok, data } = await api(`/api/teams/${teamId}/reintegrer`, { method: 'POST' });
+            showMessage(ok && data.success ? `✓ Team réinscrite en Ligue ${data.ligue_num}, poule ${data.poule}` : (data.error || 'Erreur'),
+                ok && data.success ? 'success' : 'error');
+            loadTeams();
+        }
+        
+        async function modifierTeam(teamId) {
+            const nom = document.getElementById('edit-nom').value.trim();
+            const bio = document.getElementById('edit-bio').value.trim();
+            const { ok, data } = await api(`/api/teams/${teamId}/update`, { method: 'POST', body: { nom, bio } });
+            if (ok && data.success) {
+                showMessage('✓ Team modifiée', 'success');
+                loadTeams();
+            } else {
+                showMessage(data.error || 'Erreur', 'error');
+            }
+        }
+        
         document.getElementById('search-team').addEventListener('input', renderTeams);
 
         loadTeams();

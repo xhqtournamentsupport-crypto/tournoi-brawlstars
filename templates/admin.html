@@ -327,7 +327,7 @@
         
         .saison-resume {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(5, 1fr);
             gap: 1rem;
             margin-bottom: 1.5rem;
         }
@@ -467,7 +467,7 @@
                 <p class="hint">Déplacer une team la met dans la première poule libre de la nouvelle ligue, avec 0 point.</p>
                 <input type="text" class="recherche" id="recherche-teams" placeholder="Rechercher une team...">
                 <div class="table-wrap"><table>
-                    <thead><tr><th>Team</th><th>Ligue</th><th>Points</th><th>Membres</th><th>Créateur</th><th>Actions</th></tr></thead>
+                    <thead><tr><th>Team</th><th>Ligue</th><th>Points</th><th>Membres</th><th>Capitaine</th><th>Actions</th></tr></thead>
                     <tbody id="liste-teams"></tbody>
                 </table></div>
             </div>
@@ -477,12 +477,13 @@
         <div class="panel" id="panel-saison">
             <div class="section">
                 <h2 class="section-title" id="saison-titre">Fin de saison</h2>
-                <p class="hint">Aperçu de ce qui se passera si tu clôtures la saison maintenant. Rien n'est modifié tant que tu n'as pas confirmé. Une team doit avoir joué au moins 1 match pour monter ou être championne. Une team <strong>inactive</strong> (0 match) retourne en Ligue 10, et sa place est donnée à la meilleure team active de la ligue du dessous (<strong>repêchage</strong>, une seule ligue par saison).</p>
+                <p class="hint">Aperçu de ce qui se passera si tu clôtures la saison maintenant. Rien n'est modifié tant que tu n'as pas confirmé. Une team doit avoir joué au moins 1 match pour monter ou être championne. Une team <strong>inactive</strong> (aucun match de la saison, quelle que soit sa ligue) est <strong>retirée du classement</strong> ; son capitaine pourra la réinscrire en Ligue 10. Sa place est donnée à la meilleure team active de la ligue du dessous (<strong>repêchage</strong>, une seule ligue par saison).</p>
                 <div class="saison-resume">
                     <div class="stat"><div class="stat-label">Matchs joués</div><div class="stat-value" id="s-matchs">…</div></div>
                     <div class="stat"><div class="stat-label">Teams classées</div><div class="stat-value" id="s-teams">…</div></div>
                     <div class="stat"><div class="stat-label">Montées</div><div class="stat-value" id="s-montees" style="color:#51cf66">…</div></div>
                     <div class="stat"><div class="stat-label">Descentes</div><div class="stat-value" id="s-descentes" style="color:#ff6b6b">…</div></div>
+                    <div class="stat"><div class="stat-label">Retirées</div><div class="stat-value" id="s-retirees" style="color:#a0a0b0">…</div></div>
                 </div>
                 <div class="table-wrap"><table>
                     <thead><tr><th>Team</th><th>Actuellement</th><th>Rang</th><th>Points</th><th>Mouvement</th></tr></thead>
@@ -707,13 +708,13 @@
             tbody.innerHTML = liste.map(t => `
                 <tr>
                     <td><strong>${escapeHtml(t.nom)}</strong></td>
-                    <td><span class="tag">L${Number(t.ligue_num)} · Poule ${escapeHtml(t.poule)}</span></td>
+                    <td>${t.ligue_num ? `<span class="tag">L${Number(t.ligue_num)} · Poule ${escapeHtml(t.poule)}</span>` : '<span class="tag" style="color:#ff8787">Hors classement</span>'}</td>
                     <td class="score">${Number(t.points) || 0}</td>
                     <td>${Number(t.nb_membres) || 0}</td>
                     <td class="muted">${escapeHtml(t.createur || '—')}</td>
                     <td><div class="actions">
                         <select id="move-${t.id}">${optionsLigue(t)}</select>
-                        <button class="btn petit secondaire" type="button" onclick="deplacerTeam(${Number(t.id)})">Déplacer</button>
+                        <button class="btn petit secondaire" type="button" onclick="deplacerTeam(${Number(t.id)})">${t.ligue_num ? 'Déplacer' : 'Remettre'}</button>
                         <button class="btn petit danger" type="button" onclick="supprimerTeam(${Number(t.id)})">Supprimer</button>
                     </div></td>
                 </tr>`).join('');
@@ -751,7 +752,7 @@
             monte: l => `<span class="mvt monte">↑ Monte en Ligue ${l}</span>`,
             descend: l => `<span class="mvt descend">↓ Descend en Ligue ${l}</span>`,
             repechage: l => `<span class="mvt repechage">⤴ Repêchée en Ligue ${l}</span>`,
-            inactive: l => `<span class="mvt inactive">⏸ Inactive → Ligue ${l}</span>`
+            retiree: () => '<span class="mvt inactive">✖ Retirée du classement (0 match)</span>'
         };
         
         async function chargerSaison() {
@@ -763,6 +764,7 @@
             document.getElementById('s-teams').textContent = data.teams;
             document.getElementById('s-montees').textContent = data.nb_montees;
             document.getElementById('s-descentes').textContent = data.nb_descentes;
+            document.getElementById('s-retirees').textContent = data.nb_retirees;
             
             const tbody = document.getElementById('liste-mouvements');
             tbody.innerHTML = data.mouvements.length ? data.mouvements.map(m => `
@@ -798,7 +800,7 @@
             const { ok, data } = await api('/api/admin/saison/cloturer', { method: 'POST', body: { confirmation } });
             document.getElementById('s-confirmation').value = '';
             if (ok && data.success) {
-                showMessage(`✓ Saison ${data.saison_cloturee} clôturée : ${data.montees} montée(s) dont ${data.repechages} repêchage(s), ${data.descentes} descente(s) dont ${data.inactives} inactive(s)` +
+                showMessage(`✓ Saison ${data.saison_cloturee} clôturée : ${data.montees} montée(s) dont ${data.repechages} repêchage(s), ${data.descentes} descente(s), ${data.retirees} team(s) retirée(s)` +
                     (data.champion ? `, champion : ${data.champion}` : '') + `. Bienvenue en saison ${data.nouvelle_saison} !`, 'success');
                 chargerSaison();
                 chargerStats();
