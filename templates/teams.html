@@ -200,6 +200,48 @@
             font-weight: 700;
         }
 
+        .team-matchs {
+            margin-top: 1.5rem;
+        }
+        
+        .team-matchs h4 {
+            color: #51cf66;
+            font-size: 0.9rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 0.8rem;
+        }
+        
+        .match-ligne {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            padding: 0.6rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            font-size: 0.95rem;
+        }
+        
+        .match-ligne:last-child { border-bottom: none; }
+        
+        .match-res {
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            font-size: 0.8rem;
+            flex-shrink: 0;
+        }
+        
+        .match-res.v { background: rgba(81, 207, 102, 0.2); color: #51cf66; }
+        .match-res.d { background: rgba(255, 107, 107, 0.2); color: #ff6b6b; }
+        .match-score { color: #00d9ff; font-weight: 900; }
+        .match-adv { color: #e0e0e0; font-weight: 700; flex: 1; overflow-wrap: anywhere; }
+        .match-pts { color: #a0a0b0; font-size: 0.85rem; white-space: nowrap; }
+        
         .team-actions {
             display: flex;
             gap: 1rem;
@@ -421,6 +463,7 @@
         let allTeams = [];
         let userTeamId = null;
         let membres = [];
+        let mesMatchs = [];
 
         function showMessage(text, type) {
             const el = document.getElementById('page-message');
@@ -439,6 +482,7 @@
             allTeams = data.teams;
             userTeamId = data.user_team_id;
             membres = data.membres || [];
+            mesMatchs = data.matchs || [];
             document.getElementById('create-team-section').style.display = userTeamId ? 'none' : 'block';
             renderMyTeam();
             renderTeams();
@@ -462,6 +506,16 @@
                         <div class="team-meta">${ligue}</div>
                         <div class="team-members">
                             ${membres.map(m => `<span class="member-chip">${escapeHtml(m.logo)} ${escapeHtml(m.username)}</span>`).join('')}
+                        </div>
+                        <div class="team-matchs">
+                            <h4>Derniers matchs</h4>
+                            ${mesMatchs.length ? mesMatchs.map(m => `
+                                <div class="match-ligne">
+                                    <span class="match-res ${m.victoire ? 'v' : 'd'}">${m.victoire ? 'V' : 'D'}</span>
+                                    <span class="match-score">${Number(m.score_pour)} - ${Number(m.score_contre)}</span>
+                                    <span class="match-adv">vs ${escapeHtml(m.adversaire)}</span>
+                                    <span class="match-pts">+${Number(m.points_gagnes)} pts</span>
+                                </div>`).join('') : '<p>Aucun match joué pour le moment</p>'}
                         </div>
                     </div>
                     <div class="team-actions">

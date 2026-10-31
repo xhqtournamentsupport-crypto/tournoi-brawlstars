@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - XHQ Tournament</title>
+    {% include '_head.html' %}
+    <style>
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header-nav {
+            background: linear-gradient(135deg, rgba(30, 30, 60, 0.95) 0%, rgba(50, 50, 80, 0.85) 100%);
+            padding: 2rem;
+            border-radius: 20px;
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.15);
+            border: 2px solid rgba(255, 215, 0, 0.35);
+            backdrop-filter: blur(10px);
+        }
+
+        .header-nav h1 {
+            margin: 0;
+            font-size: 2.5rem;
+            font-weight: 900;
+            letter-spacing: -1px;
+            background: linear-gradient(135deg, #ffd700 0%, #00d9ff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-nav p {
+            margin: 0.3rem 0 0;
+            color: #a0a0b0;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat {
+            background: rgba(102, 126, 234, 0.1);
+            border: 2px solid rgba(102, 126, 234, 0.3);
+            border-radius: 20px;
+            padding: 1.5rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .stat-label {
+            color: #00d9ff;
+            font-size: 0.8rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+        }
+
+        .stat-value {
+            color: #fff;
+            font-size: 2.2rem;
+            font-weight: 900;
+            margin-top: 0.3rem;
+        }
+
+        .stat.alerte { border-color: rgba(255, 215, 0, 0.6); }
+        .stat.alerte .stat-value { color: #ffd700; }
+
+        .tabs {
+            display: flex;
+            gap: 0.8rem;
+            flex-wrap: wrap;
+            margin-bottom: 2rem;
+        }
+
+        .tab {
+            color: #e0e0e0;
+            background: rgba(102, 126, 234, 0.08);
+            border: 2px solid rgba(102, 126, 234, 0.4);
+            border-radius: 25px;
+            padding: 0.8rem 1.6rem;
+            font-family: inherit;
+            font-weight: 800;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .tab:hover { color: #00d9ff; border-color: #667eea; }
+
+        .tab.active {
+            color: #fff;
+            border-color: transparent;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .tab .pastille {
+            display: inline-block;
+            min-width: 1.4rem;
+            padding: 0 0.4rem;
+            margin-left: 0.4rem;
+            border-radius: 10px;
+            background: #ffd700;
+            color: #1a1a2e;
+            font-size: 0.75rem;
+        }
+
+        .panel { display: none; }
+        .panel.active { display: block; }
+
+        .section {
+            background: linear-gradient(135deg, rgba(30, 30, 60, 0.95) 0%, rgba(50, 50, 80, 0.85) 100%);
+            padding: 2.5rem;
+            border-radius: 20px;
+            margin-bottom: 2rem;
+            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.15);
+            border: 2px solid rgba(102, 126, 234, 0.3);
+            backdrop-filter: blur(10px);
+        }
+
+        .section-title {
+            color: #fff;
+            font-size: 1.6rem;
+            font-weight: 900;
+            margin: 0 0 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 3px solid rgba(102, 126, 234, 0.3);
+        }
+
+        .hint {
+            color: #a0a0b0;
+            font-size: 0.9rem;
+            margin: -0.5rem 0 1.5rem;
+            line-height: 1.6;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.6rem;
+            color: #00d9ff;
+            font-weight: 800;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 0.9rem 1rem;
+            border: 2px solid rgba(102, 126, 234, 0.3);
+            border-radius: 12px;
+            background: rgba(20, 20, 40, 0.8);
+            color: #e0e0e0;
+            font-size: 1rem;
+            font-family: inherit;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .match-form {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.2rem;
+        }
+
+        .versus {
+            display: grid;
+            grid-template-columns: 1fr 90px auto 90px 1fr;
+            align-items: end;
+            gap: 1rem;
+            grid-column: 1 / -1;
+        }
+
+        .versus .vs {
+            color: #ffd700;
+            font-weight: 900;
+            padding-bottom: 0.9rem;
+            text-align: center;
+        }
+
+        .versus input { text-align: center; font-weight: 900; font-size: 1.2rem; }
+
+        .form-actions {
+            grid-column: 1 / -1;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 0.9rem 1.8rem;
+            border: none;
+            border-radius: 12px;
+            font-weight: 800;
+            font-family: inherit;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: #fff;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            white-space: nowrap;
+        }
+
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(102, 126, 234, 0.35); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+        .btn.petit { padding: 0.55rem 1rem; font-size: 0.75rem; border-radius: 10px; }
+        .btn.danger { background: linear-gradient(135deg, #ff6b6b 0%, #c92a2a 100%); }
+        .btn.secondaire { background: rgba(102, 126, 234, 0.15); border: 2px solid rgba(102, 126, 234, 0.4); }
+        .btn.or { background: linear-gradient(135deg, #ffd700 0%, #ff922b 100%); color: #1a1a2e; }
+
+        .message {
+            padding: 1rem 1.2rem;
+            border-radius: 10px;
+            margin-bottom: 1.5rem;
+            display: none;
+            font-weight: 700;
+        }
+
+        .message.show { display: block; }
+        .message.success { background: rgba(81, 207, 102, 0.15); border-left: 5px solid #51cf66; color: #51cf66; }
+        .message.error { background: rgba(255, 107, 107, 0.15); border-left: 5px solid #ff6b6b; color: #ff6b6b; }
+
+        .mdp-box {
+            display: none;
+            background: rgba(255, 215, 0, 0.1);
+            border: 2px solid rgba(255, 215, 0, 0.5);
+            border-radius: 12px;
+            padding: 1.2rem 1.5rem;
+            margin-bottom: 1.5rem;
+            line-height: 1.7;
+        }
+
+        .mdp-box.show { display: block; }
+        .mdp-box code {
+            background: rgba(0, 0, 0, 0.35);
+            color: #ffd700;
+            padding: 0.2rem 0.6rem;
+            border-radius: 6px;
+            font-size: 1.1rem;
+            font-weight: 800;
+            user-select: all;
+        }
+
+        .table-wrap { overflow-x: auto; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 640px;
+        }
+
+        th {
+            text-align: left;
+            color: #00d9ff;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 0.8rem;
+            border-bottom: 2px solid rgba(102, 126, 234, 0.3);
+        }
+
+        td {
+            padding: 0.8rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            vertical-align: middle;
+            overflow-wrap: anywhere;
+        }
+
+        tr:hover td { background: rgba(102, 126, 234, 0.06); }
+
+        .actions { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+        .actions select { width: auto; padding: 0.5rem; font-size: 0.85rem; }
+
+        .tag {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            font-weight: 800;
+            background: rgba(102, 126, 234, 0.2);
+            color: #b8c4ff;
+            white-space: nowrap;
+        }
+
+        .tag.or { background: rgba(255, 215, 0, 0.2); color: #ffd700; }
+        .gagnant { color: #51cf66; font-weight: 800; }
+        .score { color: #00d9ff; font-weight: 900; white-space: nowrap; }
+        .muted { color: #8888a8; }
+
+        .recherche { margin-bottom: 1.5rem; }
+
+        .msg-card {
+            background: rgba(102, 126, 234, 0.08);
+            border-left: 5px solid #ffd700;
+            border-radius: 12px;
+            padding: 1.3rem 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .msg-card.traite { border-left-color: rgba(102, 126, 234, 0.4); opacity: 0.65; }
+        .msg-head { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.6rem; }
+        .msg-sujet { color: #fff; font-weight: 900; font-size: 1.05rem; }
+        .msg-meta { color: #a0a0b0; font-size: 0.85rem; }
+        .msg-body { color: #c0c0c0; white-space: pre-wrap; line-height: 1.6; margin-bottom: 1rem; overflow-wrap: anywhere; }
+
+        .vide { color: #a0a0b0; text-align: center; padding: 2rem 1rem; }
+
+        @media (max-width: 900px) {
+            .stats { grid-template-columns: repeat(2, 1fr); }
+            .match-form { grid-template-columns: 1fr; }
+            .versus { grid-template-columns: 1fr 70px; }
+            .versus .vs { display: none; }
+        }
+
+        @media (max-width: 600px) {
+            .section { padding: 1.5rem 1rem; }
+            .header-nav h1 { font-size: 2rem; }
+            .stat-value { font-size: 1.7rem; }
+        }
+    </style>
+</head>
+<body>
+    {% include '_nav.html' %}
+    <main class="xhq-main">
+    <div class="container">
+        <div class="header-nav">
+            <div>
+                <h1>Panneau Admin</h1>
+                <p>Connecté en tant que {{ current_user.username }}</p>
+            </div>
+        </div>
+
+        <div class="stats">
+            <div class="stat"><div class="stat-label">Joueurs</div><div class="stat-value" id="st-joueurs">…</div></div>
+            <div class="stat"><div class="stat-label">Teams</div><div class="stat-value" id="st-teams">…</div></div>
+            <div class="stat"><div class="stat-label">Matchs joués</div><div class="stat-value" id="st-matchs">…</div></div>
+            <div class="stat" id="st-messages-card"><div class="stat-label">Messages à traiter</div><div class="stat-value" id="st-messages">…</div></div>
+        </div>
+
+        <div class="tabs" role="tablist">
+            <button class="tab active" type="button" data-tab="matchs">Matchs</button>
+            <button class="tab" type="button" data-tab="teams">Teams</button>
+            <button class="tab" type="button" data-tab="joueurs">Joueurs</button>
+            <button class="tab" type="button" data-tab="messages">Messages<span class="pastille" id="pastille" hidden></span></button>
+        </div>
+
+        <div class="message" id="admin-message"></div>
+
+        <!-- ============ MATCHS ============ -->
+        <div class="panel active" id="panel-matchs">
+            <div class="section">
+                <h2 class="section-title">Enregistrer un résultat</h2>
+                <p class="hint">Victoire = {{ points_victoire }} pts, défaite = {{ points_defaite }} pt. Pas de match nul. Les deux teams doivent être dans la même ligue et la même poule.</p>
+                <div class="match-form">
+                    <div>
+                        <label for="m-ligue">Ligue</label>
+                        <select id="m-ligue">
+                            {% for n in range(1, 11) %}<option value="{{ n }}"{% if n == 10 %} selected{% endif %}>Ligue {{ n }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label for="m-poule">Poule</label>
+                        <select id="m-poule"></select>
+                    </div>
+                    <div class="versus">
+                        <div>
+                            <label for="m-team1">Team 1</label>
+                            <select id="m-team1"></select>
+                        </div>
+                        <div>
+                            <label for="m-score1">Score</label>
+                            <input type="number" id="m-score1" min="0" max="99" value="0">
+                        </div>
+                        <div class="vs">VS</div>
+                        <div>
+                            <label for="m-score2">Score</label>
+                            <input type="number" id="m-score2" min="0" max="99" value="0">
+                        </div>
+                        <div>
+                            <label for="m-team2">Team 2</label>
+                            <select id="m-team2"></select>
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button class="btn" type="button" id="m-submit" onclick="enregistrerMatch()">Enregistrer le résultat</button>
+                        <span class="muted" id="m-info"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">Derniers matchs</h2>
+                <p class="hint">Supprimer un match retire les points qu'il avait donnés.</p>
+                <div class="table-wrap"><table>
+                    <thead><tr><th>Date</th><th>Ligue</th><th>Team 1</th><th>Score</th><th>Team 2</th><th></th></tr></thead>
+                    <tbody id="liste-matchs"></tbody>
+                </table></div>
+            </div>
+        </div>
+
+        <!-- ============ TEAMS ============ -->
+        <div class="panel" id="panel-teams">
+            <div class="section">
+                <h2 class="section-title">Toutes les teams</h2>
+                <p class="hint">Déplacer une team la met dans la première poule libre de la nouvelle ligue, avec 0 point.</p>
+                <input type="text" class="recherche" id="recherche-teams" placeholder="Rechercher une team...">
+                <div class="table-wrap"><table>
+                    <thead><tr><th>Team</th><th>Ligue</th><th>Points</th><th>Membres</th><th>Créateur</th><th>Actions</th></tr></thead>
+                    <tbody id="liste-teams"></tbody>
+                </table></div>
+            </div>
+        </div>
+
+        <!-- ============ JOUEURS ============ -->
+        <div class="panel" id="panel-joueurs">
+            <div class="section">
+                <h2 class="section-title">Joueurs</h2>
+                <div class="mdp-box" id="mdp-box"></div>
+                <input type="text" class="recherche" id="recherche-joueurs" placeholder="Rechercher par pseudo ou email...">
+                <div class="table-wrap"><table>
+                    <thead><tr><th>Pseudo</th><th>Email</th><th>Team</th><th>Inscrit le</th><th>Actions</th></tr></thead>
+                    <tbody id="liste-joueurs"></tbody>
+                </table></div>
+            </div>
+        </div>
+
+        <!-- ============ MESSAGES ============ -->
+        <div class="panel" id="panel-messages">
+            <div class="section">
+                <h2 class="section-title">Messages de contact</h2>
+                <div class="mdp-box" id="mdp-box-msg"></div>
+                <div id="liste-messages"></div>
+            </div>
+        </div>
+    </div>
+    </main>
+    {% include '_footer.html' %}
+
+    <script>
+        const NB_POULES = {{ ligues | tojson }};
+        const LETTRES = 'ABCDEFGH';
+        let teams = [];
+
+        // ---------- utilitaires ----------
+        function showMessage(text, type) {
+            const el = document.getElementById('admin-message');
+            el.textContent = text;
+            el.className = 'message show ' + type;
+            clearTimeout(showMessage.timer);
+            showMessage.timer = setTimeout(() => el.classList.remove('show'), 5000);
+        }
+
+        function dateCourte(d) {
+            if (!d) return '';
+            const dt = new Date(d.replace(' ', 'T') + 'Z');
+            return isNaN(dt) ? escapeHtml(d) : dt.toLocaleDateString('fr-FR') + ' ' + dt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function afficherMdp(boxId, r) {
+            const box = document.getElementById(boxId);
+            box.innerHTML = `🔑 Nouveau mot de passe temporaire pour <strong>${escapeHtml(r.username)}</strong> (${escapeHtml(r.email)}) :
+                <code>${escapeHtml(r.mot_de_passe)}</code><br>
+                <span class="muted">Envoie-le au joueur par email, puis demande-lui de le changer dans son profil. Il ne sera plus affiché ensuite.</span>`;
+            box.classList.add('show');
+        }
+
+        async function resetMdp(userId, boxId) {
+            if (!confirm('Générer un nouveau mot de passe pour ce joueur ? L\'ancien ne marchera plus.')) return;
+            const { ok, data } = await api(`/api/admin/users/${userId}/reset-password`, { method: 'POST' });
+            if (ok && data.success) afficherMdp(boxId, data);
+            else showMessage(data.error || 'Erreur', 'error');
+        }
+
+        // ---------- onglets ----------
+        function ouvrirOnglet(nom) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === nom));
+            document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + nom));
+            if (nom === 'joueurs') chargerJoueurs();
+            if (nom === 'messages') chargerMessages();
+            if (nom === 'teams') chargerTeams();
+        }
+        document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => ouvrirOnglet(t.dataset.tab)));
+
+        // ---------- stats ----------
+        async function chargerStats() {
+            const { ok, data } = await api('/api/admin/stats');
+            if (!ok) return;
+            document.getElementById('st-joueurs').textContent = data.joueurs;
+            document.getElementById('st-teams').textContent = data.teams;
+            document.getElementById('st-matchs').textContent = data.matchs;
+            document.getElementById('st-messages').textContent = data.messages_non_traites;
+            document.getElementById('st-messages-card').classList.toggle('alerte', data.messages_non_traites > 0);
+            const pastille = document.getElementById('pastille');
+            pastille.textContent = data.messages_non_traites;
+            pastille.hidden = data.messages_non_traites === 0;
+        }
+
+        // ---------- matchs ----------
+        function remplirPoules() {
+            const ligue = Number(document.getElementById('m-ligue').value);
+            const select = document.getElementById('m-poule');
+            const avant = select.value;
+            const lettres = LETTRES.slice(0, NB_POULES[ligue].poules).split('');
+            select.innerHTML = lettres.map(l => {
+                const nb = teams.filter(t => t.ligue_num === ligue && t.poule === l).length;
+                return `<option value="${l}">Poule ${l} (${nb} team${nb > 1 ? 's' : ''})</option>`;
+            }).join('');
+            if (lettres.includes(avant)) select.value = avant;
+            remplirTeamsMatch();
+        }
+
+        function remplirTeamsMatch() {
+            const ligue = Number(document.getElementById('m-ligue').value);
+            const poule = document.getElementById('m-poule').value;
+            const dispo = teams.filter(t => t.ligue_num === ligue && t.poule === poule);
+            const options = dispo.map(t => `<option value="${t.id}">${escapeHtml(t.nom)} (${Number(t.points) || 0} pts)</option>`).join('');
+            const s1 = document.getElementById('m-team1'), s2 = document.getElementById('m-team2');
+            const v1 = s1.value, v2 = s2.value;
+            s1.innerHTML = '<option value="">— Choisir —</option>' + options;
+            s2.innerHTML = '<option value="">— Choisir —</option>' + options;
+            if (dispo.some(t => String(t.id) === v1)) s1.value = v1;
+            if (dispo.some(t => String(t.id) === v2)) s2.value = v2;
+            const info = document.getElementById('m-info');
+            info.textContent = dispo.length < 2 ? 'Il faut au moins 2 teams dans cette poule pour enregistrer un match.' : '';
+            document.getElementById('m-submit').disabled = dispo.length < 2;
+        }
+
+        async function enregistrerMatch() {
+            const body = {
+                team1_id: document.getElementById('m-team1').value,
+                team2_id: document.getElementById('m-team2').value,
+                score1: document.getElementById('m-score1').value,
+                score2: document.getElementById('m-score2').value
+            };
+            if (!body.team1_id || !body.team2_id) {
+                showMessage('Choisissez les deux teams', 'error');
+                return;
+            }
+            const { ok, data } = await api('/api/admin/matchs', { method: 'POST', body });
+            if (ok && data.success) {
+                showMessage(`✓ Résultat enregistré : victoire de ${data.gagnant}`, 'success');
+                document.getElementById('m-score1').value = 0;
+                document.getElementById('m-score2').value = 0;
+                await chargerTeams();
+                chargerMatchs();
+                chargerStats();
+            } else {
+                showMessage(data.error || 'Erreur', 'error');
+            }
+        }
+
+        async function chargerMatchs() {
+            const { ok, data } = await api('/api/matchs?limit=30');
+            const tbody = document.getElementById('liste-matchs');
+            if (!ok || !Array.isArray(data)) return;
+            if (!data.length) {
+                tbody.innerHTML = '<tr><td colspan="6" class="vide">Aucun match enregistré</td></tr>';
+                return;
+            }
+            tbody.innerHTML = data.map(m => `
+                <tr>
+                    <td class="muted">${dateCourte(m.created_at)}</td>
+                    <td><span class="tag">L${Number(m.ligue_num)} · ${escapeHtml(m.poule)}</span></td>
+                    <td class="${m.score1 > m.score2 ? 'gagnant' : ''}">${escapeHtml(m.team1_nom)} <span class="muted">+${Number(m.points1)}</span></td>
+                    <td class="score">${Number(m.score1)} - ${Number(m.score2)}</td>
+                    <td class="${m.score2 > m.score1 ? 'gagnant' : ''}">${escapeHtml(m.team2_nom)} <span class="muted">+${Number(m.points2)}</span></td>
+                    <td><button class="btn petit danger" type="button" onclick="supprimerMatch(${Number(m.id)})">Supprimer</button></td>
+                </tr>`).join('');
+        }
+
+        async function supprimerMatch(id) {
+            if (!confirm('Supprimer ce match ? Les points seront retirés aux deux teams.')) return;
+            const { ok, data } = await api(`/api/admin/matchs/${id}/delete`, { method: 'POST' });
+            if (ok && data.success) {
+                showMessage('✓ Match supprimé, points retirés', 'success');
+                await chargerTeams();
+                chargerMatchs();
+                chargerStats();
+            } else {
+                showMessage(data.error || 'Erreur', 'error');
+            }
+        }
+
+        document.getElementById('m-ligue').addEventListener('change', remplirPoules);
+        document.getElementById('m-poule').addEventListener('change', remplirTeamsMatch);
+
+        // ---------- teams ----------
+        async function chargerTeams() {
+            const { ok, data } = await api('/api/admin/teams');
+            if (!ok || !Array.isArray(data)) return;
+            teams = data;
+            remplirPoules();
+            afficherTeams();
+        }
+
+        function afficherTeams() {
+            const q = document.getElementById('recherche-teams').value.trim().toLowerCase();
+            const liste = teams.filter(t => t.nom.toLowerCase().includes(q));
+            const tbody = document.getElementById('liste-teams');
+            if (!liste.length) {
+                tbody.innerHTML = '<tr><td colspan="6" class="vide">Aucune team</td></tr>';
+                return;
+            }
+            // Garde la ligue déjà choisie dans un menu si la liste se réaffiche
+            const choix = {};
+            tbody.querySelectorAll('select[id^="move-"]').forEach(s => { choix[s.id] = Number(s.value); });
+            const optionsLigue = t => {
+                const n = choix['move-' + t.id] || t.ligue_num;
+                return Array.from({ length: 10 }, (_, i) => i + 1)
+                    .map(l => `<option value="${l}"${l === n ? ' selected' : ''}>Ligue ${l}</option>`).join('');
+            };
+            tbody.innerHTML = liste.map(t => `
+                <tr>
+                    <td><strong>${escapeHtml(t.nom)}</strong></td>
+                    <td><span class="tag">L${Number(t.ligue_num)} · Poule ${escapeHtml(t.poule)}</span></td>
+                    <td class="score">${Number(t.points) || 0}</td>
+                    <td>${Number(t.nb_membres) || 0}</td>
+                    <td class="muted">${escapeHtml(t.createur || '—')}</td>
+                    <td><div class="actions">
+                        <select id="move-${t.id}">${optionsLigue(t)}</select>
+                        <button class="btn petit secondaire" type="button" onclick="deplacerTeam(${Number(t.id)})">Déplacer</button>
+                        <button class="btn petit danger" type="button" onclick="supprimerTeam(${Number(t.id)})">Supprimer</button>
+                    </div></td>
+                </tr>`).join('');
+        }
+
+        async function deplacerTeam(id) {
+            const ligue_num = Number(document.getElementById('move-' + id).value);
+            const { ok, data } = await api(`/api/admin/teams/${id}/move`, { method: 'POST', body: { ligue_num } });
+            if (ok && data.success) {
+                showMessage(`✓ Team déplacée en Ligue ${data.ligue_num}, poule ${data.poule}`, 'success');
+                chargerTeams();
+            } else {
+                showMessage(data.error || 'Erreur', 'error');
+            }
+        }
+
+        async function supprimerTeam(id) {
+            const team = teams.find(t => t.id === id);
+            if (!confirm(`Supprimer définitivement la team « ${team ? team.nom : id} » ? Ses membres se retrouveront sans team.`)) return;
+            const { ok, data } = await api(`/api/admin/teams/${id}/delete`, { method: 'POST' });
+            if (ok && data.success) {
+                showMessage('✓ Team supprimée', 'success');
+                chargerTeams();
+                chargerStats();
+            } else {
+                showMessage(data.error || 'Erreur', 'error');
+            }
+        }
+
+        document.getElementById('recherche-teams').addEventListener('input', afficherTeams);
+
+        // ---------- joueurs ----------
+        let timerRecherche;
+        async function chargerJoueurs() {
+            const q = document.getElementById('recherche-joueurs').value.trim();
+            const { ok, data } = await api('/api/admin/users?q=' + encodeURIComponent(q));
+            const tbody = document.getElementById('liste-joueurs');
+            if (!ok || !Array.isArray(data)) return;
+            if (!data.length) {
+                tbody.innerHTML = '<tr><td colspan="5" class="vide">Aucun joueur trouvé</td></tr>';
+                return;
+            }
+            tbody.innerHTML = data.map(u => `
+                <tr>
+                    <td><strong>${escapeHtml(u.username)}</strong> ${u.is_admin ? '<span class="tag or">ADMIN</span>' : ''}</td>
+                    <td class="muted">${escapeHtml(u.email)}</td>
+                    <td>${u.team_name ? escapeHtml(u.team_name) : '<span class="muted">—</span>'}</td>
+                    <td class="muted">${dateCourte(u.created_at)}</td>
+                    <td><div class="actions">
+                        <button class="btn petit secondaire" type="button" onclick="resetMdp(${Number(u.id)}, 'mdp-box')">Nouveau mot de passe</button>
+                        ${u.is_me ? '' : (u.is_admin
+                            ? `<button class="btn petit danger" type="button" onclick="changerAdmin(${Number(u.id)}, false)">Retirer admin</button>`
+                            : `<button class="btn petit or" type="button" onclick="changerAdmin(${Number(u.id)}, true)">Rendre admin</button>`)}
+                    </div></td>
+                </tr>`).join('');
+        }
+
+        async function changerAdmin(id, valeur) {
+            const texte = valeur ? 'Donner les droits admin à ce joueur ? Il pourra tout gérer.' : 'Retirer les droits admin à ce joueur ?';
+            if (!confirm(texte)) return;
+            const { ok, data } = await api(`/api/admin/users/${id}/admin`, { method: 'POST', body: { is_admin: valeur } });
+            if (ok && data.success) {
+                showMessage(valeur ? '✓ Droits admin donnés' : '✓ Droits admin retirés', 'success');
+                chargerJoueurs();
+            } else {
+                showMessage(data.error || 'Erreur', 'error');
+            }
+        }
+
+        document.getElementById('recherche-joueurs').addEventListener('input', () => {
+            clearTimeout(timerRecherche);
+            timerRecherche = setTimeout(chargerJoueurs, 250);
+        });
+
+        // ---------- messages ----------
+        async function chargerMessages() {
+            const { ok, data } = await api('/api/admin/messages');
+            const box = document.getElementById('liste-messages');
+            if (!ok || !Array.isArray(data)) return;
+            if (!data.length) {
+                box.innerHTML = '<p class="vide">Aucun message pour le moment</p>';
+                return;
+            }
+            box.innerHTML = data.map(m => `
+                <div class="msg-card ${m.traite ? 'traite' : ''}">
+                    <div class="msg-head">
+                        <span class="msg-sujet">${escapeHtml(m.sujet)}</span>
+                        <span class="msg-meta">${dateCourte(m.created_at)}</span>
+                    </div>
+                    <div class="msg-meta" style="margin-bottom: 0.8rem;">
+                        De <strong>${escapeHtml(m.nom)}</strong> · <a href="mailto:${encodeURIComponent(m.email).replace(/%40/g, '@')}" style="color:#00d9ff">${escapeHtml(m.email)}</a>
+                        ${m.compte_id ? '<span class="tag">compte existant</span>' : '<span class="tag">pas de compte</span>'}
+                    </div>
+                    <div class="msg-body">${escapeHtml(m.message)}</div>
+                    <div class="actions">
+                        <button class="btn petit ${m.traite ? 'secondaire' : ''}" type="button" onclick="marquerTraite(${Number(m.id)}, ${!m.traite})">${m.traite ? 'Marquer non traité' : '✓ Marquer traité'}</button>
+                        ${m.compte_id ? `<button class="btn petit or" type="button" onclick="resetMdp(${Number(m.compte_id)}, 'mdp-box-msg')">Nouveau mot de passe pour ce compte</button>` : ''}
+                        <button class="btn petit danger" type="button" onclick="supprimerMessage(${Number(m.id)})">Supprimer</button>
+                    </div>
+                </div>`).join('');
+        }
+
+        async function marquerTraite(id, valeur) {
+            const { ok, data } = await api(`/api/admin/messages/${id}/traite`, { method: 'POST', body: { traite: valeur } });
+            if (ok && data.success) {
+                chargerMessages();
+                chargerStats();
+            } else {
+                showMessage(data.error || 'Erreur', 'error');
+            }
+        }
+
+        async function supprimerMessage(id) {
+            if (!confirm('Supprimer ce message ?')) return;
+            const { ok, data } = await api(`/api/admin/messages/${id}/delete`, { method: 'POST' });
+            if (ok && data.success) {
+                chargerMessages();
+                chargerStats();
+            } else {
+                showMessage(data.error || 'Erreur', 'error');
+            }
+        }
+
+        // ---------- démarrage ----------
+        chargerStats();
+        chargerTeams();
+        chargerMatchs();
+    </script>
+</body>
+</html>

@@ -321,6 +321,44 @@
             overflow-wrap: anywhere;
         }
 
+        .player-stats {
+            color: #8888a8;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-top: 0.3rem;
+            letter-spacing: 0.3px;
+        }
+        
+        .resultats {
+            margin-top: 3rem;
+        }
+        
+        .resultats h3 {
+            color: #fff;
+            font-size: 1.5rem;
+            font-weight: 900;
+            margin-bottom: 1.5rem;
+        }
+        
+        .resultat {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr auto;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem 1.3rem;
+            margin-bottom: 0.7rem;
+            background: rgba(102, 126, 234, 0.08);
+            border: 1px solid rgba(102, 126, 234, 0.2);
+            border-radius: 12px;
+        }
+        
+        .resultat .equipe { font-weight: 800; color: #e0e0e0; overflow-wrap: anywhere; }
+        .resultat .equipe.gagnant { color: #51cf66; }
+        .resultat .equipe:first-child { text-align: right; }
+        .resultat .equipe:nth-child(3) { text-align: left; }
+        .resultat .score { color: #00d9ff; font-weight: 900; font-size: 1.2rem; white-space: nowrap; }
+        .resultat .poule-tag { color: #8888a8; font-size: 0.8rem; font-weight: 700; white-space: nowrap; }
+        
         .player-points {
             color: #00d9ff;
             font-weight: 900;
@@ -367,6 +405,8 @@
         }
 
         @media (max-width: 600px) {
+            .resultat { grid-template-columns: 1fr auto 1fr; }
+            .resultat .poule-tag { grid-column: 1 / -1; text-align: center; }
             .poule { padding: 1.5rem 1rem; }
             .leaderboard-item { padding: 1rem 0.8rem; flex-wrap: wrap; }
             .player-info { margin: 0 0.8rem; }
@@ -448,6 +488,7 @@
                     <span class="rank ${rankClass}">#${rang}</span>
                     <div class="player-info">
                         <div class="player-name">${nom}</div>
+                        ${vide ? '' : `<div class="player-stats">J ${place.joues} · V ${place.victoires} · D ${place.defaites} · ${place.diff > 0 ? '+' : ''}${place.diff}</div>`}
                     </div>
                     <div class="player-points">${vide ? 0 : Number(place.points) || 0} pts</div>
                     ${BADGES[statut] || ''}
@@ -456,7 +497,20 @@
         }
 
         // N'affiche QUE les teams renvoyées par l'API pour cette ligue
-        function renderLigue(data) {
+        function renderResultats(matchs) {
+            if (!matchs.length) {
+                return '<div class="resultats"><h3>Derniers résultats</h3><p class="ligue-message">Aucun match joué dans cette ligue pour le moment</p></div>';
+            }
+            return '<div class="resultats"><h3>Derniers résultats</h3>' + matchs.map(m => `
+                <div class="resultat">
+                    <span class="equipe ${m.score1 > m.score2 ? 'gagnant' : ''}">${escapeHtml(m.team1_nom)}</span>
+                    <span class="score">${Number(m.score1)} - ${Number(m.score2)}</span>
+                    <span class="equipe ${m.score2 > m.score1 ? 'gagnant' : ''}">${escapeHtml(m.team2_nom)}</span>
+                    <span class="poule-tag">Poule ${escapeHtml(m.poule)}</span>
+                </div>`).join('') + '</div>';
+        }
+        
+        function renderLigue(data, matchs) {
             const unique = data.poules.length === 1;
             let html = `<h2 class="ligue-title">Ligue ${data.ligue_num}</h2>`;
             html += '<div class="poules-grid">';
@@ -468,12 +522,16 @@
                 html += '</ul></div>';
             }
             html += '</div>';
+            html += renderResultats(matchs);
             document.getElementById('ligue-content').innerHTML = html;
         }
 
         async function loadLigue(ligue) {
             const requete = ++derniereRequete;
-            const { ok, data } = await api('/api/ligue?ligue_num=' + encodeURIComponent(ligue));
+            const [{ ok, data }, resMatchs] = await Promise.all([
+                api('/api/ligue?ligue_num=' + encodeURIComponent(ligue)),
+                api('/api/matchs?limit=10&ligue_num=' + encodeURIComponent(ligue))
+            ]);
             // Si l'utilisateur a changé de ligue entre-temps, on ignore cette réponse
             if (requete !== derniereRequete) return;
             if (!ok || !Array.isArray(data.poules)) {
@@ -481,7 +539,7 @@
                     `<p class="ligue-message">${escapeHtml(data.error || 'Impossible de charger la ligue')}</p>`;
                 return;
             }
-            renderLigue(data);
+            renderLigue(data, resMatchs.ok && Array.isArray(resMatchs.data) ? resMatchs.data : []);
         }
 
         document.addEventListener('click', (e) => {

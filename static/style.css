@@ -62,6 +62,8 @@ body {
 }
 .xhq-nav-btn:hover { color: #00d9ff; border-color: #667eea; }
 .xhq-nav-btn.active { color: #00d9ff; border-color: #00d9ff; }
+.xhq-nav-btn.admin { color: #ffd700; border-color: rgba(255, 215, 0, 0.5); }
+.xhq-nav-btn.admin:hover, .xhq-nav-btn.admin.active { color: #ffd700; border-color: #ffd700; }
 .xhq-nav-btn.outline { color: #667eea; border-color: #667eea; }
 .xhq-nav-btn.primary {
     color: #fff;

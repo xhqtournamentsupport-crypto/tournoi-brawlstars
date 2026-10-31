@@ -1,8 +1,10 @@
 import os
+import secrets
+import sys
 import sqlite3
 from functools import wraps
 
-from flask import Flask, render_template, request, jsonify, session, redirect, g
+from flask import Flask, render_template, request, jsonify, session, redirect, g, abort
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
@@ -41,6 +43,11 @@ SHOP_DEFAUT = [
 ]
 # Types qu'on ne peut posséder qu'une fois
 TYPES_UNIQUES = {'badge', 'cosmetic'}
+
+# Barème des matchs (pas de match nul : un BO3 a toujours un gagnant)
+POINTS_VICTOIRE = 3
+POINTS_DEFAITE = 0
+SCORE_MAX = 99
 
 
 # ---------------------------------------------------------------------------
@@ -194,6 +201,21 @@ def init_db():
             item_id INTEGER NOT NULL,
             bought_at TEXT
         );
+        CREATE TABLE IF NOT EXISTS matchs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ligue_num INTEGER NOT NULL,
+            poule TEXT NOT NULL,
+            team1_id INTEGER,
+            team2_id INTEGER,
+            team1_nom TEXT,
+            team2_nom TEXT,
+            score1 INTEGER NOT NULL,
+            score2 INTEGER NOT NULL,
+            points1 INTEGER NOT NULL,
+            points2 INTEGER NOT NULL,
+            saisi_par INTEGER,
+            created_at TEXT
+        );
         CREATE TABLE IF NOT EXISTS contact_messages (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER,
@@ -211,6 +233,8 @@ def init_db():
     ajouter_colonne(c, 'ligue', 'poule', 'TEXT')
     ajouter_colonne(c, 'shop_items', 'description', "TEXT DEFAULT ''")
     ajouter_colonne(c, 'shop_items', 'type', "TEXT DEFAULT ''")
+    ajouter_colonne(c, 'users', 'is_admin', 'INTEGER DEFAULT 0')
+    ajouter_colonne(c, 'contact_messages', 'traite', 'INTEGER DEFAULT 0')
     c.execute("UPDATE users SET created_at = datetime('now') WHERE created_at IS NULL")
     c.execute("UPDATE teams SET created_at = datetime('now') WHERE created_at IS NULL")
     c.execute("UPDATE users SET profile_pic = ? WHERE profile_pic IS NULL OR profile_pic NOT IN (%s)"
@@ -243,7 +267,7 @@ def utilisateur_connecte():
     if uid is None:
         return None
     if 'user' not in g:
-        g.user = get_db().execute('SELECT id, username, email, profile_pic FROM users WHERE id = ?', (uid,)).fetchone()
+        g.user = get_db().execute('SELECT id, username, email, profile_pic, is_admin FROM users WHERE id = ?', (uid,)).fetchone()
         if g.user is None:  # compte supprimé entre-temps
             session.clear()
     return g.user
@@ -258,7 +282,8 @@ def injecter_utilisateur():
     user = utilisateur_connecte()
     current_user = None
     if user:
-        current_user = {'username': user['username'], 'email': user['email'], 'logo': logo_valide(user['profile_pic'])}
+        current_user = {'username': user['username'], 'email': user['email'], 'logo': logo_valide(user['profile_pic']),
+                        'is_admin': bool(user['is_admin'])}
     return {'current_user': current_user}
 
 
@@ -276,6 +301,33 @@ def api_connectee(f):
     def wrapper(*args, **kwargs):
         if not utilisateur_connecte():
             return jsonify({'success': False, 'error': 'Non connecté'}), 401
+        return f(*args, **kwargs)
+    return wrapper
+
+
+def est_admin():
+    user = utilisateur_connecte()
+    return bool(user and user['is_admin'])
+
+
+def page_admin(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if not utilisateur_connecte():
+            return redirect('/login')
+        if not est_admin():
+            abort(404)  # la page admin n'existe pas pour les joueurs
+        return f(*args, **kwargs)
+    return wrapper
+
+
+def api_admin(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if not utilisateur_connecte():
+            return jsonify({'success': False, 'error': 'Non connecté'}), 401
+        if not est_admin():
+            return jsonify({'success': False, 'error': 'Réservé aux admins'}), 403
         return f(*args, **kwargs)
     return wrapper
 
@@ -521,7 +573,9 @@ def api_teams():
             WHERE tm.team_id = ? ORDER BY tm.joined_at, tm.id""", (user_team_id,))]
         for m in membres:
             m['logo'] = logo_valide(m['logo'])
-    return jsonify({'teams': teams_list, 'user_team_id': user_team_id, 'user_id': uid, 'membres': membres}), 200
+    matchs = matchs_de_team(db, user_team_id, limite=10) if user_team_id else []
+    return jsonify({'teams': teams_list, 'user_team_id': user_team_id, 'user_id': uid, 'membres': membres,
+                    'matchs': matchs}), 200
 
 
 @app.route('/api/teams', methods=['POST'])
@@ -593,10 +647,24 @@ def api_delete_team(team_id):
 def classement_poule(db, ligue_num, poule):
     config = LIGUES[ligue_num]
     rows = db.execute("""
-        SELECT t.id AS team_id, t.nom AS team_name, l.points
+        SELECT t.id AS team_id, t.nom AS team_name, l.points, l.id AS ligue_id
         FROM ligue l JOIN teams t ON t.id = l.team_id
-        WHERE l.ligue_num = ? AND l.poule = ?
-        ORDER BY l.points DESC, l.id ASC""", (ligue_num, poule)).fetchall()
+        WHERE l.ligue_num = ? AND l.poule = ?""", (ligue_num, poule)).fetchall()
+
+    # Stats calculées à partir des matchs joués dans CETTE ligue / poule
+    stats = {r['team_id']: {'joues': 0, 'victoires': 0, 'defaites': 0, 'diff': 0} for r in rows}
+    for m in db.execute('SELECT team1_id, team2_id, score1, score2 FROM matchs WHERE ligue_num = ? AND poule = ?',
+                        (ligue_num, poule)):
+        for tid, pour, contre in ((m['team1_id'], m['score1'], m['score2']), (m['team2_id'], m['score2'], m['score1'])):
+            if tid in stats:
+                s = stats[tid]
+                s['joues'] += 1
+                s['victoires' if pour > contre else 'defaites'] += 1
+                s['diff'] += pour - contre
+
+    # Classement : points, puis différence de manches, puis victoires, puis ancienneté
+    rows = sorted(rows, key=lambda r: (-(r['points'] or 0), -stats[r['team_id']]['diff'],
+                                       -stats[r['team_id']]['victoires'], r['ligue_id']))
 
     places = []
     for i, r in enumerate(rows):
@@ -609,9 +677,10 @@ def classement_poule(db, ligue_num, poule):
         elif rang in config['descend']:
             statut = 'descend'
         places.append({'rang': rang, 'team_id': r['team_id'], 'team_name': r['team_name'],
-                       'points': r['points'] or 0, 'statut': statut})
+                       'points': r['points'] or 0, 'statut': statut, **stats[r['team_id']]})
     while len(places) < TEAMS_PAR_POULE:
-        places.append({'rang': len(places) + 1, 'team_id': None, 'team_name': 'XXXXX', 'points': 0, 'statut': ''})
+        places.append({'rang': len(places) + 1, 'team_id': None, 'team_name': 'XXXXX', 'points': 0, 'statut': '',
+                       'joues': 0, 'victoires': 0, 'defaites': 0, 'diff': 0})
     return places
 
 
@@ -701,5 +770,303 @@ def api_contact():
     return jsonify({'success': True}), 201
 
 
+# ---------------------------------------------------------------------------
+# Matchs
+# ---------------------------------------------------------------------------
+REQ_MATCHS = """
+    SELECT m.id, m.ligue_num, m.poule, m.team1_id, m.team2_id,
+           COALESCE(t1.nom, m.team1_nom) AS team1_nom, COALESCE(t2.nom, m.team2_nom) AS team2_nom,
+           m.score1, m.score2, m.points1, m.points2, m.created_at
+    FROM matchs m
+    LEFT JOIN teams t1 ON t1.id = m.team1_id
+    LEFT JOIN teams t2 ON t2.id = m.team2_id"""
+
+
+def matchs_de_team(db, team_id, limite=10):
+    resultats = []
+    for r in db.execute(REQ_MATCHS + ' WHERE m.team1_id = ? OR m.team2_id = ? ORDER BY m.id DESC LIMIT ?',
+                        (team_id, team_id, limite)):
+        m = dict(r)
+        domicile = m['team1_id'] == team_id
+        m['adversaire'] = m['team2_nom'] if domicile else m['team1_nom']
+        m['score_pour'], m['score_contre'] = (m['score1'], m['score2']) if domicile else (m['score2'], m['score1'])
+        m['victoire'] = m['score_pour'] > m['score_contre']
+        m['points_gagnes'] = m['points1'] if domicile else m['points2']
+        resultats.append(m)
+    return resultats
+
+
+def ajuster_points(c, team_id, ligue_num, poule, delta):
+    """Ajoute (ou retire) des points à une team, seulement si elle est toujours dans cette ligue/poule."""
+    c.execute('UPDATE ligue SET points = MAX(0, points + ?) WHERE team_id = ? AND ligue_num = ? AND poule = ?',
+              (delta, team_id, ligue_num, poule))
+
+
+@app.route('/api/matchs', methods=['GET'])
+@api_connectee
+def api_matchs():
+    ligue_num = request.args.get('ligue_num', type=int)
+    poule = request.args.get('poule', '').upper()
+    limite = max(1, min(request.args.get('limit', 20, type=int), 100))
+    conditions, params = [], []
+    if ligue_num is not None:
+        if ligue_num not in LIGUES:
+            return jsonify({'success': False, 'error': 'Ligue invalide (1 à 10)'}), 400
+        conditions.append('m.ligue_num = ?')
+        params.append(ligue_num)
+        if poule:
+            if poule not in lettres_poules(ligue_num):
+                return jsonify({'success': False, 'error': f'Poule invalide pour la Ligue {ligue_num}'}), 400
+            conditions.append('m.poule = ?')
+            params.append(poule)
+    where = (' WHERE ' + ' AND '.join(conditions)) if conditions else ''
+    rows = get_db().execute(REQ_MATCHS + where + ' ORDER BY m.id DESC LIMIT ?', (*params, limite)).fetchall()
+    return jsonify([dict(r) for r in rows]), 200
+
+
+# ---------------------------------------------------------------------------
+# Admin
+# ---------------------------------------------------------------------------
+@app.route('/admin')
+@page_admin
+def admin_page():
+    return render_template('admin.html', ligues=LIGUES, points_victoire=POINTS_VICTOIRE, points_defaite=POINTS_DEFAITE)
+
+
+def entier(valeur):
+    if isinstance(valeur, bool):
+        return None
+    if isinstance(valeur, int):
+        return valeur
+    if isinstance(valeur, str) and valeur.strip().lstrip('-').isdigit():
+        return int(valeur.strip())
+    return None
+
+
+@app.route('/api/admin/stats', methods=['GET'])
+@api_admin
+def api_admin_stats():
+    db = get_db()
+    compter = lambda req: db.execute(req).fetchone()[0]
+    return jsonify({
+        'joueurs': compter('SELECT COUNT(*) FROM users'),
+        'teams': compter('SELECT COUNT(*) FROM teams'),
+        'matchs': compter('SELECT COUNT(*) FROM matchs'),
+        'messages_non_traites': compter('SELECT COUNT(*) FROM contact_messages WHERE traite = 0 OR traite IS NULL'),
+    }), 200
+
+
+@app.route('/api/admin/matchs', methods=['POST'])
+@api_admin
+def api_admin_create_match():
+    data = donnees_json()
+    team1_id, team2_id = entier(data.get('team1_id')), entier(data.get('team2_id'))
+    score1, score2 = entier(data.get('score1')), entier(data.get('score2'))
+    if team1_id is None or team2_id is None:
+        return jsonify({'success': False, 'error': 'Choisissez les deux teams'}), 400
+    if team1_id == team2_id:
+        return jsonify({'success': False, 'error': 'Une team ne peut pas jouer contre elle-même'}), 400
+    if score1 is None or score2 is None or not (0 <= score1 <= SCORE_MAX and 0 <= score2 <= SCORE_MAX):
+        return jsonify({'success': False, 'error': f'Les scores doivent être des nombres entre 0 et {SCORE_MAX}'}), 400
+    if score1 == score2:
+        return jsonify({'success': False, 'error': "Pas de match nul : il faut un gagnant"}), 400
+
+    db = get_db()
+    c = db.cursor()
+    t1 = c.execute('SELECT t.nom, l.ligue_num, l.poule FROM teams t JOIN ligue l ON l.team_id = t.id WHERE t.id = ?',
+                   (team1_id,)).fetchone()
+    t2 = c.execute('SELECT t.nom, l.ligue_num, l.poule FROM teams t JOIN ligue l ON l.team_id = t.id WHERE t.id = ?',
+                   (team2_id,)).fetchone()
+    if not t1 or not t2:
+        return jsonify({'success': False, 'error': 'Team introuvable'}), 404
+    if (t1['ligue_num'], t1['poule']) != (t2['ligue_num'], t2['poule']):
+        return jsonify({'success': False,
+                        'error': 'Les deux teams doivent être dans la même ligue et la même poule'}), 400
+
+    ligue_num, poule = t1['ligue_num'], t1['poule']
+    points1 = POINTS_VICTOIRE if score1 > score2 else POINTS_DEFAITE
+    points2 = POINTS_VICTOIRE if score2 > score1 else POINTS_DEFAITE
+    c.execute("""INSERT INTO matchs (ligue_num, poule, team1_id, team2_id, team1_nom, team2_nom,
+                                     score1, score2, points1, points2, saisi_par, created_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))""",
+              (ligue_num, poule, team1_id, team2_id, t1['nom'], t2['nom'],
+               score1, score2, points1, points2, session['user_id']))
+    match_id = c.lastrowid
+    ajuster_points(c, team1_id, ligue_num, poule, points1)
+    ajuster_points(c, team2_id, ligue_num, poule, points2)
+    db.commit()
+    gagnant = t1['nom'] if score1 > score2 else t2['nom']
+    return jsonify({'success': True, 'match_id': match_id, 'gagnant': gagnant,
+                    'ligue_num': ligue_num, 'poule': poule}), 201
+
+
+@app.route('/api/admin/matchs/<int:match_id>/delete', methods=['POST'])
+@api_admin
+def api_admin_delete_match(match_id):
+    db = get_db()
+    c = db.cursor()
+    m = c.execute('SELECT * FROM matchs WHERE id = ?', (match_id,)).fetchone()
+    if not m:
+        return jsonify({'success': False, 'error': 'Match introuvable'}), 404
+    ajuster_points(c, m['team1_id'], m['ligue_num'], m['poule'], -m['points1'])
+    ajuster_points(c, m['team2_id'], m['ligue_num'], m['poule'], -m['points2'])
+    c.execute('DELETE FROM matchs WHERE id = ?', (match_id,))
+    db.commit()
+    return jsonify({'success': True}), 200
+
+
+@app.route('/api/admin/teams', methods=['GET'])
+@api_admin
+def api_admin_teams():
+    rows = get_db().execute("""
+        SELECT t.id, t.nom, u.username AS createur, l.ligue_num, l.poule, l.points,
+               (SELECT COUNT(*) FROM team_members tm WHERE tm.team_id = t.id) AS nb_membres
+        FROM teams t
+        LEFT JOIN users u ON u.id = t.createur_id
+        LEFT JOIN ligue l ON l.team_id = t.id
+        ORDER BY l.ligue_num, l.poule, t.nom COLLATE NOCASE""").fetchall()
+    return jsonify([dict(r) for r in rows]), 200
+
+
+@app.route('/api/admin/teams/<int:team_id>/move', methods=['POST'])
+@api_admin
+def api_admin_move_team(team_id):
+    ligue_num = entier(donnees_json().get('ligue_num'))
+    if ligue_num not in LIGUES:
+        return jsonify({'success': False, 'error': 'Ligue invalide (1 à 10)'}), 400
+    db = get_db()
+    c = db.cursor()
+    actuelle = c.execute('SELECT ligue_num FROM ligue WHERE team_id = ?', (team_id,)).fetchone()
+    if not actuelle:
+        return jsonify({'success': False, 'error': 'Team introuvable'}), 404
+    if actuelle['ligue_num'] == ligue_num:
+        return jsonify({'success': False, 'error': f'La team est déjà en Ligue {ligue_num}'}), 400
+    # Changement de ligue : nouvelle poule, les points repartent de 0
+    c.execute('UPDATE ligue SET ligue_num = ?, poule = NULL, points = 0 WHERE team_id = ?', (ligue_num, team_id))
+    poule = choisir_poule(c, ligue_num)
+    c.execute('UPDATE ligue SET poule = ? WHERE team_id = ?', (poule, team_id))
+    db.commit()
+    return jsonify({'success': True, 'ligue_num': ligue_num, 'poule': poule}), 200
+
+
+@app.route('/api/admin/teams/<int:team_id>/delete', methods=['POST'])
+@api_admin
+def api_admin_delete_team(team_id):
+    db = get_db()
+    if not db.execute('SELECT 1 FROM teams WHERE id = ?', (team_id,)).fetchone():
+        return jsonify({'success': False, 'error': 'Team introuvable'}), 404
+    supprimer_team(db.cursor(), team_id)
+    db.commit()
+    return jsonify({'success': True}), 200
+
+
+@app.route('/api/admin/users', methods=['GET'])
+@api_admin
+def api_admin_users():
+    q = request.args.get('q', '').strip().lower()[:100]
+    rows = get_db().execute("""
+        SELECT u.id, u.username, u.email, u.solde, u.is_admin, u.created_at, t.nom AS team_name
+        FROM users u
+        LEFT JOIN team_members tm ON tm.user_id = u.id
+        LEFT JOIN teams t ON t.id = tm.team_id
+        WHERE lower(u.username) LIKE ? OR lower(u.email) LIKE ?
+        ORDER BY u.id DESC LIMIT 50""", (f'%{q}%', f'%{q}%')).fetchall()
+    users = []
+    for r in rows:
+        u = dict(r)
+        u['is_admin'] = bool(u['is_admin'])
+        u['is_me'] = u['id'] == session['user_id']
+        users.append(u)
+    return jsonify(users), 200
+
+
+@app.route('/api/admin/users/<int:user_id>/reset-password', methods=['POST'])
+@api_admin
+def api_admin_reset_password(user_id):
+    db = get_db()
+    user = db.execute('SELECT username, email FROM users WHERE id = ?', (user_id,)).fetchone()
+    if not user:
+        return jsonify({'success': False, 'error': 'Joueur introuvable'}), 404
+    temporaire = secrets.token_urlsafe(8)
+    db.execute('UPDATE users SET password = ? WHERE id = ?', (generate_password_hash(temporaire), user_id))
+    db.commit()
+    return jsonify({'success': True, 'username': user['username'], 'email': user['email'],
+                    'mot_de_passe': temporaire}), 200
+
+
+@app.route('/api/admin/users/<int:user_id>/admin', methods=['POST'])
+@api_admin
+def api_admin_set_admin(user_id):
+    valeur = donnees_json().get('is_admin')
+    if not isinstance(valeur, bool):
+        return jsonify({'success': False, 'error': 'Valeur invalide'}), 400
+    if user_id == session['user_id'] and not valeur:
+        return jsonify({'success': False, 'error': 'Vous ne pouvez pas retirer vos propres droits admin'}), 400
+    db = get_db()
+    cur = db.execute('UPDATE users SET is_admin = ? WHERE id = ?', (1 if valeur else 0, user_id))
+    if cur.rowcount == 0:
+        return jsonify({'success': False, 'error': 'Joueur introuvable'}), 404
+    db.commit()
+    return jsonify({'success': True}), 200
+
+
+@app.route('/api/admin/messages', methods=['GET'])
+@api_admin
+def api_admin_messages():
+    rows = get_db().execute("""
+        SELECT m.id, m.nom, m.email, m.sujet, m.message, m.created_at, COALESCE(m.traite, 0) AS traite,
+               (SELECT u.id FROM users u WHERE lower(u.email) = lower(m.email)) AS compte_id
+        FROM contact_messages m
+        ORDER BY COALESCE(m.traite, 0) ASC, m.id DESC LIMIT 200""").fetchall()
+    messages = []
+    for r in rows:
+        m = dict(r)
+        m['traite'] = bool(m['traite'])
+        messages.append(m)
+    return jsonify(messages), 200
+
+
+@app.route('/api/admin/messages/<int:message_id>/traite', methods=['POST'])
+@api_admin
+def api_admin_message_traite(message_id):
+    valeur = donnees_json().get('traite', True)
+    db = get_db()
+    cur = db.execute('UPDATE contact_messages SET traite = ? WHERE id = ?', (1 if valeur else 0, message_id))
+    if cur.rowcount == 0:
+        return jsonify({'success': False, 'error': 'Message introuvable'}), 404
+    db.commit()
+    return jsonify({'success': True}), 200
+
+
+@app.route('/api/admin/messages/<int:message_id>/delete', methods=['POST'])
+@api_admin
+def api_admin_message_delete(message_id):
+    db = get_db()
+    cur = db.execute('DELETE FROM contact_messages WHERE id = ?', (message_id,))
+    if cur.rowcount == 0:
+        return jsonify({'success': False, 'error': 'Message introuvable'}), 404
+    db.commit()
+    return jsonify({'success': True}), 200
+
+
+def promouvoir_admin(email):
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.execute('UPDATE users SET is_admin = 1 WHERE lower(email) = lower(?)', (email.strip(),))
+    conn.commit()
+    conn.close()
+    return cur.rowcount > 0
+
+
 if __name__ == '__main__':
-    app.run(debug=True)
+    # python app.py admin email@exemple.fr  -> donne les droits admin à ce compte
+    if len(sys.argv) >= 2 and sys.argv[1] == 'admin':
+        if len(sys.argv) != 3:
+            print('Usage : python app.py admin email@exemple.fr')
+            sys.exit(1)
+        if promouvoir_admin(sys.argv[2]):
+            print(f'OK : {sys.argv[2]} est maintenant admin. Va sur http://localhost:5000/admin')
+        else:
+            print(f"Erreur : aucun compte avec l'email {sys.argv[2]}. Inscris-toi d'abord sur le site.")
+            sys.exit(1)
+    else:
+        app.run(debug=True)
