@@ -36,6 +36,11 @@ Une team **inactive** (aucun match de la saison, quelle que soit sa ligue) est *
 son capitaine peut la réinscrire en Ligue 10 depuis la page Teams. Les places libres d'une ligue sont
 données aux meilleures teams actives de la ligue juste en dessous (**repêchage**, une ligue max par saison).
 
+**Pénalités** (appliquées à la clôture, avant le classement final) : −1 pt par match non joué
+(matchs attendus = teams de la poule − 1), doublé si la team était déjà pénalisée ou retirée la
+saison d'avant, plafond −15. Réglages en haut de `app.py` (`PENALITE_PAR_MATCH`,
+`MULTIPLICATEUR_RECIDIVE`, `PENALITE_MAX`). Les teams voient leur participation (« 3 / 9 ») dans Ma Team.
+
 ## Teams
 - 5 joueurs maximum par team (`MAX_MEMBRES` en haut de `app.py`).
 - Tout membre peut **quitter** sa team ; si le capitaine part, le rôle passe au membre le plus ancien

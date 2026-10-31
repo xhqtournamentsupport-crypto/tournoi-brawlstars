@@ -75,6 +75,12 @@ SCORE_MAX = 99
 # Fin de saison : nombre de matchs minimum pour monter (ou être champion)
 MATCHS_MIN_POUR_MONTER = 1
 
+# Pénalités de fin de saison : -1 pt par match non joué (attendus = teams de la poule - 1),
+# doublé en cas de récidive (déjà pénalisée ou retirée la saison d'avant), plafond -15.
+PENALITE_PAR_MATCH = 1
+MULTIPLICATEUR_RECIDIVE = 2
+PENALITE_MAX = 15
+
 
 # ---------------------------------------------------------------------------
 # Base de données
@@ -286,6 +292,10 @@ def init_db():
     ajouter_colonne(c, 'contact_messages', 'traite', 'INTEGER DEFAULT 0')
     ajouter_colonne(c, 'matchs', 'saison', 'INTEGER DEFAULT 1')
     ajouter_colonne(c, 'teams', 'hors_classement', 'INTEGER DEFAULT 0')
+    ajouter_colonne(c, 'saison_classements', 'penalite', 'INTEGER DEFAULT 0')
+    ajouter_colonne(c, 'saison_classements', 'matchs_manques', 'INTEGER DEFAULT 0')
+    ajouter_colonne(c, 'saison_classements', 'points_avant', 'INTEGER')
+    ajouter_colonne(c, 'saison_classements', 'recidive', 'INTEGER DEFAULT 0')
     c.execute("UPDATE users SET created_at = datetime('now') WHERE created_at IS NULL")
     c.execute("UPDATE teams SET created_at = datetime('now') WHERE created_at IS NULL")
     c.execute("UPDATE users SET profile_pic = ? WHERE profile_pic IS NULL OR profile_pic NOT IN (%s)"
@@ -630,8 +640,23 @@ def api_teams():
             m['is_capitaine'] = m['id'] == createur_id
             m['is_me'] = m['id'] == uid
     matchs = matchs_de_team(db, user_team_id, limite=10) if user_team_id else []
+    participation, derniere_penalite = None, None
+    if user_team_id:
+        ligue = db.execute('SELECT ligue_num, poule FROM ligue WHERE team_id = ?', (user_team_id,)).fetchone()
+        if ligue:
+            place = next(p for p in classement_poule(db, ligue['ligue_num'], ligue['poule']) if p['team_id'] == user_team_id)
+            participation = {'joues': place['joues'], 'attendus': place['attendus'],
+                             'manques': place['matchs_manques'], 'recidive_possible': deja_penalisee(
+                                 db, user_team_id, saison_actuelle(db) - 1)}
+        dp = db.execute("""SELECT saison, penalite, matchs_manques, recidive FROM saison_classements
+                           WHERE team_id = ? AND saison = ? AND penalite > 0""",
+                        (user_team_id, saison_actuelle(db) - 1)).fetchone()
+        derniere_penalite = dict(dp) if dp else None
     return jsonify({'teams': teams_list, 'user_team_id': user_team_id, 'user_id': uid, 'membres': membres,
-                    'matchs': matchs, 'max_membres': MAX_MEMBRES}), 200
+                    'matchs': matchs, 'max_membres': MAX_MEMBRES, 'participation': participation,
+                    'derniere_penalite': derniere_penalite,
+                    'regle_penalite': {'par_match': PENALITE_PAR_MATCH, 'recidive': MULTIPLICATEUR_RECIDIVE,
+                                       'max': PENALITE_MAX}}), 200
 
 
 @app.route('/api/teams', methods=['POST'])
@@ -799,7 +824,27 @@ def saison_actuelle(db):
     return db.execute('SELECT COALESCE(MAX(numero), 0) + 1 FROM saisons').fetchone()[0]
 
 
-def classement_poule(db, ligue_num, poule):
+def deja_penalisee(db, team_id, saison):
+    """La team a-t-elle été pénalisée (ou retirée du classement) lors de la saison indiquée ?"""
+    return db.execute("""SELECT 1 FROM saison_classements WHERE team_id = ? AND saison = ?
+                         AND (penalite > 0 OR mouvement = 'retiree')""", (team_id, saison)).fetchone() is not None
+
+
+def calculer_penalite(db, team_id, joues, attendus, saison):
+    """(pénalité, matchs manqués, récidive) pour une team en fin de saison."""
+    manques = max(0, attendus - joues)
+    if joues == 0 or manques == 0:  # 0 match = retirée du classement, pas de pénalité en points
+        return 0, manques, False
+    penalite = manques * PENALITE_PAR_MATCH
+    recidive = deja_penalisee(db, team_id, saison - 1)
+    if recidive:
+        penalite *= MULTIPLICATEUR_RECIDIVE
+    return min(penalite, PENALITE_MAX), manques, recidive
+
+
+def classement_poule(db, ligue_num, poule, penalites=False):
+    """Classement d'une poule. Avec penalites=True (fin de saison), les points des matchs non joués
+    sont retirés avant de classer, et les teams sans aucun match passent en dernier."""
     config = LIGUES[ligue_num]
     saison = saison_actuelle(db)
     rows = db.execute("""
@@ -818,8 +863,23 @@ def classement_poule(db, ligue_num, poule):
                 s['victoires' if pour > contre else 'defaites'] += 1
                 s['diff'] += pour - contre
 
-    # Classement : points, puis différence de manches, puis victoires, puis ancienneté
-    rows = sorted(rows, key=lambda r: (-(r['points'] or 0), -stats[r['team_id']]['diff'],
+    # Pénalités (fin de saison uniquement)
+    attendus = len(rows) - 1
+    finaux = {}
+    for r in rows:
+        s = stats[r['team_id']]
+        s['attendus'] = attendus
+        s['points_avant'] = r['points'] or 0
+        if penalites:
+            s['penalite'], s['matchs_manques'], s['recidive'] = calculer_penalite(db, r['team_id'], s['joues'], attendus, saison)
+        else:
+            s['penalite'], s['matchs_manques'], s['recidive'] = 0, max(0, attendus - s['joues']), False
+        finaux[r['team_id']] = s['points_avant'] - s['penalite']
+
+    # Classement : (en fin de saison, teams sans match en dernier) puis points, différence de manches,
+    # victoires, ancienneté
+    rows = sorted(rows, key=lambda r: (penalites and stats[r['team_id']]['joues'] == 0,
+                                       -finaux[r['team_id']], -stats[r['team_id']]['diff'],
                                        -stats[r['team_id']]['victoires'], r['ligue_id']))
 
     places = []
@@ -834,10 +894,11 @@ def classement_poule(db, ligue_num, poule):
         elif rang in config['descend']:
             statut = 'descend'
         places.append({'rang': rang, 'team_id': r['team_id'], 'team_name': r['team_name'],
-                       'points': r['points'] or 0, 'statut': statut, **stats[r['team_id']]})
+                       **stats[r['team_id']], 'points': finaux[r['team_id']], 'statut': statut})
     while len(places) < TEAMS_PAR_POULE:
         places.append({'rang': len(places) + 1, 'team_id': None, 'team_name': 'XXXXX', 'points': 0, 'statut': '',
-                       'joues': 0, 'victoires': 0, 'defaites': 0, 'diff': 0})
+                       'joues': 0, 'victoires': 0, 'defaites': 0, 'diff': 0, 'attendus': attendus,
+                       'points_avant': 0, 'penalite': 0, 'matchs_manques': 0, 'recidive': False})
     return places
 
 
@@ -1236,7 +1297,7 @@ def calculer_fin_saison(db):
     resultats = []
     for ligue_num in LIGUES:
         for poule in lettres_poules(ligue_num):
-            for place in classement_poule(db, ligue_num, poule):
+            for place in classement_poule(db, ligue_num, poule, penalites=True):
                 if not place['team_id']:
                     continue
                 destination, mouvement = ligue_num, place['statut'] or 'reste'
@@ -1276,7 +1337,7 @@ def api_admin_saison():
     db = get_db()
     saison = saison_actuelle(db)
     classement = calculer_fin_saison(db)
-    mouvements = [m for m in classement if m['mouvement'] != 'reste']
+    mouvements = [m for m in classement if m['mouvement'] != 'reste' or m['penalite'] > 0]
     mouvements.sort(key=lambda m: (m['ligue_num'], m['poule'], m['rang']))
     matchs_joues = db.execute('SELECT COUNT(*) FROM matchs WHERE saison = ?', (saison,)).fetchone()[0]
     return jsonify({
@@ -1288,6 +1349,7 @@ def api_admin_saison():
         'nb_descentes': sum(m['mouvement'] == 'descend' for m in mouvements),
         'nb_repechages': sum(m['mouvement'] == 'repechage' for m in mouvements),
         'nb_retirees': sum(m['mouvement'] == 'retiree' for m in mouvements),
+        'nb_penalisees': sum(m['penalite'] > 0 for m in mouvements),
         'historique': palmares(db),
     }), 200
 
@@ -1309,10 +1371,12 @@ def api_admin_cloturer_saison():
                   (saison, session['user_id']))
         for p in classement:
             c.execute("""INSERT INTO saison_classements (saison, team_id, team_nom, ligue_num, poule, rang, points,
-                                                         joues, victoires, defaites, diff, mouvement, destination)
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                                                         joues, victoires, defaites, diff, mouvement, destination,
+                                                         penalite, matchs_manques, points_avant, recidive)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                       (saison, p['team_id'], p['team_name'], p['ligue_num'], p['poule'], p['rang'], p['points'],
-                       p['joues'], p['victoires'], p['defaites'], p['diff'], p['mouvement'], p['destination']))
+                       p['joues'], p['victoires'], p['defaites'], p['diff'], p['mouvement'], p['destination'],
+                       p['penalite'], p['matchs_manques'], p['points_avant'], 1 if p['recidive'] else 0))
 
         # 1) on sort toutes les teams qui changent de ligue de leur poule
         # 0) les teams inactives sortent du classement (elles pourront réintégrer la Ligue 10)
@@ -1342,6 +1406,7 @@ def api_admin_cloturer_saison():
         'descentes': sum(p['mouvement'] == 'descend' for p in partants),
         'repechages': sum(p['mouvement'] == 'repechage' for p in partants),
         'retirees': len(retirees),
+        'penalisees': sum(p['penalite'] > 0 for p in classement),
         'champion': next((p['team_name'] for p in classement if p['mouvement'] == 'champion'), None),
     }), 200
 

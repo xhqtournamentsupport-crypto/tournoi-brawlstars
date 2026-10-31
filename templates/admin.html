@@ -327,7 +327,7 @@
         
         .saison-resume {
             display: grid;
-            grid-template-columns: repeat(5, 1fr);
+            grid-template-columns: repeat(6, 1fr);
             gap: 1rem;
             margin-bottom: 1.5rem;
         }
@@ -368,6 +368,10 @@
         @media (max-width: 900px) {
             .stats { grid-template-columns: repeat(2, 1fr); }
             .saison-resume { grid-template-columns: repeat(2, 1fr); }
+        }
+        
+        @media (min-width: 901px) and (max-width: 1150px) {
+            .saison-resume { grid-template-columns: repeat(3, 1fr); }
             .match-form { grid-template-columns: 1fr; }
             .versus { grid-template-columns: 1fr 70px; }
             .versus .vs { display: none; }
@@ -477,16 +481,17 @@
         <div class="panel" id="panel-saison">
             <div class="section">
                 <h2 class="section-title" id="saison-titre">Fin de saison</h2>
-                <p class="hint">Aperçu de ce qui se passera si tu clôtures la saison maintenant. Rien n'est modifié tant que tu n'as pas confirmé. Une team doit avoir joué au moins 1 match pour monter ou être championne. Une team <strong>inactive</strong> (aucun match de la saison, quelle que soit sa ligue) est <strong>retirée du classement</strong> ; son capitaine pourra la réinscrire en Ligue 10. Sa place est donnée à la meilleure team active de la ligue du dessous (<strong>repêchage</strong>, une seule ligue par saison).</p>
+                <p class="hint">Aperçu de ce qui se passera si tu clôtures la saison maintenant. Rien n'est modifié tant que tu n'as pas confirmé. Une team doit avoir joué au moins 1 match pour monter ou être championne. Une team <strong>inactive</strong> (aucun match de la saison, quelle que soit sa ligue) est <strong>retirée du classement</strong> ; son capitaine pourra la réinscrire en Ligue 10. Sa place est donnée à la meilleure team active de la ligue du dessous (<strong>repêchage</strong>, une seule ligue par saison). <strong>Pénalité</strong> : −1 pt par match non joué (matchs attendus = teams de la poule − 1), doublée en cas de récidive, plafond −15. Elle est appliquée avant le classement final.</p>
                 <div class="saison-resume">
                     <div class="stat"><div class="stat-label">Matchs joués</div><div class="stat-value" id="s-matchs">…</div></div>
                     <div class="stat"><div class="stat-label">Teams classées</div><div class="stat-value" id="s-teams">…</div></div>
                     <div class="stat"><div class="stat-label">Montées</div><div class="stat-value" id="s-montees" style="color:#51cf66">…</div></div>
                     <div class="stat"><div class="stat-label">Descentes</div><div class="stat-value" id="s-descentes" style="color:#ff6b6b">…</div></div>
                     <div class="stat"><div class="stat-label">Retirées</div><div class="stat-value" id="s-retirees" style="color:#a0a0b0">…</div></div>
+                    <div class="stat"><div class="stat-label">Pénalisées</div><div class="stat-value" id="s-penalisees" style="color:#ff922b">…</div></div>
                 </div>
                 <div class="table-wrap"><table>
-                    <thead><tr><th>Team</th><th>Actuellement</th><th>Rang</th><th>Points</th><th>Mouvement</th></tr></thead>
+                    <thead><tr><th>Team</th><th>Actuellement</th><th>Rang final</th><th>Matchs</th><th>Pénalité</th><th>Points finaux</th><th>Mouvement</th></tr></thead>
                     <tbody id="liste-mouvements"></tbody>
                 </table></div>
                 
@@ -765,6 +770,7 @@
             document.getElementById('s-montees').textContent = data.nb_montees;
             document.getElementById('s-descentes').textContent = data.nb_descentes;
             document.getElementById('s-retirees').textContent = data.nb_retirees;
+            document.getElementById('s-penalisees').textContent = data.nb_penalisees;
             
             const tbody = document.getElementById('liste-mouvements');
             tbody.innerHTML = data.mouvements.length ? data.mouvements.map(m => `
@@ -772,10 +778,14 @@
                     <td><strong>${escapeHtml(m.team_name)}</strong></td>
                     <td><span class="tag">L${Number(m.ligue_num)} · Poule ${escapeHtml(m.poule)}</span></td>
                     <td>#${Number(m.rang)}</td>
-                    <td class="score">${Number(m.points)} <span class="muted">(${Number(m.joues)} J)</span></td>
-                    <td>${m.mouvement === 'champion' ? MVT.champion : MVT[m.mouvement](Number(m.destination))}</td>
+                    <td>${Number(m.joues)} / ${Number(m.attendus)}</td>
+                    <td>${m.penalite > 0
+                        ? `<span class="mvt descend">−${Number(m.penalite)}</span>${m.recidive ? ' <span class="tag or">récidive ×2</span>' : ''}`
+                        : '<span class="muted">—</span>'}</td>
+                    <td class="score">${Number(m.points)}${m.penalite > 0 ? ` <span class="muted">(${Number(m.points_avant)} avant)</span>` : ''}</td>
+                    <td>${m.mouvement === 'champion' ? MVT.champion : (MVT[m.mouvement] ? MVT[m.mouvement](Number(m.destination)) : '<span class="muted">Reste en Ligue ' + Number(m.ligue_num) + '</span>')}</td>
                 </tr>`).join('')
-                : '<tr><td colspan="5" class="vide">Aucun mouvement prévu pour le moment (aucune team n\'a encore joué)</td></tr>';
+                : '<tr><td colspan="7" class="vide">Aucun mouvement prévu pour le moment (aucune team n\'a encore joué)</td></tr>';
             
             const pal = document.getElementById('liste-palmares');
             pal.innerHTML = data.historique.length ? data.historique.map(s => `
@@ -800,7 +810,7 @@
             const { ok, data } = await api('/api/admin/saison/cloturer', { method: 'POST', body: { confirmation } });
             document.getElementById('s-confirmation').value = '';
             if (ok && data.success) {
-                showMessage(`✓ Saison ${data.saison_cloturee} clôturée : ${data.montees} montée(s) dont ${data.repechages} repêchage(s), ${data.descentes} descente(s), ${data.retirees} team(s) retirée(s)` +
+                showMessage(`✓ Saison ${data.saison_cloturee} clôturée : ${data.montees} montée(s) dont ${data.repechages} repêchage(s), ${data.descentes} descente(s), ${data.retirees} team(s) retirée(s), ${data.penalisees} pénalisée(s)` +
                     (data.champion ? `, champion : ${data.champion}` : '') + `. Bienvenue en saison ${data.nouvelle_saison} !`, 'success');
                 chargerSaison();
                 chargerStats();

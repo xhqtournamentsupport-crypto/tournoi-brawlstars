@@ -262,6 +262,32 @@
         
         .muted { color: #8888a8; font-weight: 600; }
         
+        .participation {
+            margin-top: 1.2rem;
+            padding: 1rem 1.2rem;
+            border-radius: 12px;
+            background: rgba(0, 0, 0, 0.15);
+        }
+        
+        .participation-haut { display: flex; justify-content: space-between; gap: 1rem; color: #e0e0e0; font-weight: 700; }
+        .participation-haut strong { color: #00d9ff; }
+        .participation-bas { color: #a0a0b0; font-size: 0.85rem; margin-top: 0.6rem; line-height: 1.5; }
+        .participation-bas strong { color: #ff922b; }
+        .barre { height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.08); margin-top: 0.6rem; overflow: hidden; }
+        .barre-remplie { height: 100%; background: linear-gradient(90deg, #ff922b, #ffd43b); border-radius: 4px; }
+        .barre-remplie.ok { background: linear-gradient(90deg, #51cf66, #00d9ff); }
+        
+        .alerte-penalite {
+            margin-top: 1rem;
+            padding: 0.9rem 1.2rem;
+            border-radius: 12px;
+            border-left: 5px solid #ff6b6b;
+            background: rgba(255, 107, 107, 0.12);
+            color: #ffa8a8;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+        
         .hors-classement {
             display: inline-flex;
             flex-wrap: wrap;
@@ -559,6 +585,8 @@
         let membres = [];
         let mesMatchs = [];
         let maxMembres = 5;
+        let participation = null, dernierePenalite = null;
+        let reglePenalite = { par_match: 1, recidive: 2, max: 15 };
 
         function showMessage(text, type) {
             const el = document.getElementById('page-message');
@@ -579,6 +607,9 @@
             membres = data.membres || [];
             mesMatchs = data.matchs || [];
             maxMembres = data.max_membres || maxMembres;
+            participation = data.participation;
+            dernierePenalite = data.derniere_penalite;
+            reglePenalite = data.regle_penalite || reglePenalite;
             document.getElementById('create-team-section').style.display = userTeamId ? 'none' : 'block';
             renderMyTeam();
             renderTeams();
@@ -603,6 +634,7 @@
                         <p>${escapeHtml(myTeam.bio || 'Pas de description')}</p>
                         <div class="team-creator">👑 Capitaine : ${escapeHtml(myTeam.createur)}</div>
                         <div class="team-meta">${ligue}</div>
+                        ${renderParticipation()}
                         <div class="membres-liste">
                             <h4>Membres <span class="places ${membres.length >= maxMembres ? 'pleine' : ''}">${membres.length}/${maxMembres}</span></h4>
                             ${membres.map(m => `
@@ -651,6 +683,27 @@
             `;
         }
 
+        function renderParticipation() {
+            let html = '';
+            if (dernierePenalite) {
+                html += `<div class="alerte-penalite">⚠️ Saison ${Number(dernierePenalite.saison)} : pénalité de
+                    <strong>−${Number(dernierePenalite.penalite)} pts</strong> (${Number(dernierePenalite.matchs_manques)} match(s) non joué(s)${dernierePenalite.recidive ? ', récidive ×' + Number(reglePenalite.recidive) : ''}).</div>`;
+            }
+            if (participation && participation.attendus > 0) {
+                const p = participation;
+                const ratio = Math.min(100, Math.round(100 * p.joues / p.attendus));
+                const parMatch = reglePenalite.par_match * (p.recidive_possible ? reglePenalite.recidive : 1);
+                html += `<div class="participation">
+                    <div class="participation-haut"><span>Matchs joués cette saison</span><strong>${Number(p.joues)} / ${Number(p.attendus)}</strong></div>
+                    <div class="barre"><div class="barre-remplie ${ratio === 100 ? 'ok' : ''}" style="width:${ratio}%"></div></div>
+                    <div class="participation-bas">${p.manques > 0
+                        ? `Chaque match non joué = <strong>−${parMatch} pt</strong> en fin de saison${p.recidive_possible ? ' (récidive : pénalité doublée)' : ''}, plafond −${Number(reglePenalite.max)}. Aucun match = team retirée du classement.`
+                        : '✓ Tous les matchs sont joués : aucune pénalité.'}</div>
+                </div>`;
+            }
+            return html;
+        }
+        
         // Liste des autres teams, filtrée par la recherche
         function renderTeams() {
             const search = document.getElementById('search-team').value.trim().toLowerCase();
