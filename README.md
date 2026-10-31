@@ -22,6 +22,12 @@ Le lien **ADMIN** apparaît dans la nav. Le panneau `/admin` permet de :
 
 Le barème se change en haut de `app.py` (`POINTS_VICTOIRE`, `POINTS_DEFAITE`).
 
+## Fin de saison
+Onglet **Saison** du panneau admin : aperçu des mouvements (champion, montées, descentes), puis
+clôture en tapant `CLOTURER`. Le classement est archivé (palmarès), les teams changent de ligue,
+les points et stats repartent à 0. Une team doit avoir joué au moins `MATCHS_MIN_POUR_MONTER`
+match(s) pour monter ou être championne.
+
 ## Structure
 - `app.py` : serveur, base de données, API
 - `templates/_head.html`, `_nav.html`, `_footer.html` : morceaux communs inclus dans toutes les pages
