@@ -7,11 +7,31 @@ from functools import wraps
 from flask import Flask, render_template, request, jsonify, session, redirect, g, abort
 from werkzeug.security import generate_password_hash, check_password_hash
 
-app = Flask(__name__)
-app.secret_key = 'xhq-tournament-secret-2026'
-
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, 'tournois.db')
+SECRET_KEY_PATH = os.path.join(BASE_DIR, 'secret_key.txt')
+
+
+def charger_secret_key():
+    """Clé qui signe les sessions. Elle ne doit JAMAIS être dans le code (le dépôt est public).
+    1) variable d'environnement XHQ_SECRET_KEY si elle existe (pour la mise en ligne)
+    2) sinon le fichier secret_key.txt (créé automatiquement, ignoré par Git)"""
+    cle = os.environ.get('XHQ_SECRET_KEY', '').strip()
+    if cle:
+        return cle
+    if os.path.exists(SECRET_KEY_PATH):
+        with open(SECRET_KEY_PATH, encoding='utf-8') as f:
+            cle = f.read().strip()
+        if cle:
+            return cle
+    cle = secrets.token_hex(32)
+    with open(SECRET_KEY_PATH, 'w', encoding='utf-8') as f:
+        f.write(cle)
+    return cle
+
+
+app = Flask(__name__)
+app.secret_key = charger_secret_key()
 
 AVATARS = ['👤', '🎮', '🏆', '⚡', '🔥', '💎', '👑', '🚀', '⭐', '🎯', '💪', '🌟']
 AVATAR_DEFAUT = '👤'

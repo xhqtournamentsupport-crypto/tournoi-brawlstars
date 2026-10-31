@@ -9,6 +9,11 @@ python app.py
 ```
 Puis ouvrir http://localhost:5000 — `tournois.db` est créé (ou mis à jour) automatiquement.
 
+## Sécurité
+La clé qui signe les sessions n'est pas dans le code : elle est générée au premier lancement dans
+`secret_key.txt` (ignoré par Git, ne jamais le partager). En ligne, définir plutôt la variable
+d'environnement `XHQ_SECRET_KEY`.
+
 ## Devenir admin
 Inscris-toi sur le site, puis dans le terminal (serveur arrêté ou non) :
 ```
