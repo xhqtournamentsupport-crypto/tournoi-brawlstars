@@ -1,0 +1,114 @@
+/* ===== XHQ Tournament : styles communs (nav, footer, mise en page) ===== */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body { margin: 0; padding: 0; }
+
+body {
+    font-family: 'Inter', sans-serif;
+    background: linear-gradient(135deg, #0f0f1e 0%, #1a1a2e 100%);
+    background-attachment: fixed;
+    background-color: #0f0f1e;
+    color: #e0e0e0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ----- Nav (sticky) ----- */
+.xhq-nav {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    padding: 1rem 2rem;
+    background: linear-gradient(135deg, rgba(30, 30, 60, 0.95) 0%, rgba(50, 50, 80, 0.85) 100%);
+    border-bottom: 2px solid rgba(102, 126, 234, 0.3);
+    box-shadow: 0 8px 32px rgba(102, 126, 234, 0.2);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+.xhq-logo {
+    font-size: 2rem;
+    font-weight: 900;
+    letter-spacing: -1px;
+    text-decoration: none;
+    background: linear-gradient(135deg, #667eea 0%, #00d9ff 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.xhq-nav-right { display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; }
+.xhq-nav-links, .xhq-nav-auth { display: flex; gap: 0.8rem; flex-wrap: wrap; }
+
+.xhq-nav-btn {
+    color: #e0e0e0;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 0.9rem;
+    padding: 0.8rem 1.6rem;
+    border-radius: 25px;
+    border: 2px solid rgba(102, 126, 234, 0.4);
+    background: rgba(102, 126, 234, 0.08);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    transition: color 0.3s, border-color 0.3s, background 0.3s;
+}
+.xhq-nav-btn:hover { color: #00d9ff; border-color: #667eea; }
+.xhq-nav-btn.active { color: #00d9ff; border-color: #00d9ff; }
+.xhq-nav-btn.outline { color: #667eea; border-color: #667eea; }
+.xhq-nav-btn.primary {
+    color: #fff;
+    border-color: transparent;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+.xhq-nav-btn.primary:hover { color: #fff; box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4); }
+
+.xhq-avatar {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    text-decoration: none;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: 3px solid #00d9ff;
+    flex-shrink: 0;
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+.xhq-avatar:hover { transform: scale(1.08); box-shadow: 0 0 20px rgba(0, 217, 255, 0.5); }
+
+/* ----- Contenu ----- */
+.xhq-main { flex: 1; width: 100%; padding: 2rem; }
+.xhq-main.center { display: flex; align-items: center; justify-content: center; }
+
+/* ----- Footer ----- */
+.xhq-footer {
+    flex-shrink: 0;
+    text-align: center;
+    padding: 2.5rem 2rem;
+    background: linear-gradient(135deg, rgba(30, 30, 60, 0.6) 0%, rgba(50, 50, 80, 0.4) 100%);
+    border-top: 2px solid rgba(102, 126, 234, 0.3);
+}
+.xhq-footer p { color: #a0a0b0; margin: 0 0 1rem; }
+.xhq-footer-links { display: flex; justify-content: center; gap: 2.5rem; flex-wrap: wrap; }
+.xhq-footer-links a { color: #00d9ff; text-decoration: none; font-weight: 700; transition: color 0.3s; }
+.xhq-footer-links a:hover { color: #667eea; }
+
+@media (max-width: 700px) {
+    .xhq-nav { padding: 0.8rem 1rem; }
+    .xhq-nav-right { gap: 0.8rem; }
+    .xhq-nav-links, .xhq-nav-auth { gap: 0.5rem; }
+    .xhq-nav-btn { padding: 0.6rem 1rem; font-size: 0.8rem; }
+    .xhq-avatar { width: 42px; height: 42px; font-size: 1.25rem; }
+    .xhq-main { padding: 1.25rem 1rem; }
+    .xhq-footer-links { gap: 1.5rem; }
+}

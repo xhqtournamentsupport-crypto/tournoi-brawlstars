@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profil - XHQ Tournament</title>
+    {% include '_head.html' %}
+    <style>
+        .container {
+            max-width: 1300px;
+            margin: 0 auto;
+        }
+        .header-nav {
+            background: linear-gradient(135deg, rgba(30, 30, 60, 0.95) 0%, rgba(50, 50, 80, 0.85) 100%);
+            padding: 2rem;
+            border-radius: 20px;
+            margin-bottom: 3rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.15);
+            border: 2px solid rgba(102, 126, 234, 0.3);
+            animation: slideDown 0.6s ease-out;
+            backdrop-filter: blur(10px);
+        }
+
+        @keyframes slideDown {
+            from {
+                transform: translateY(-30px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .header-nav h1 {
+            color: #fff;
+            font-size: 2.5rem;
+            font-weight: 900;
+            letter-spacing: -1px;
+            background: linear-gradient(135deg, #667eea 0%, #00d9ff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-nav a {
+            color: #00d9ff;
+            text-decoration: none;
+            font-weight: 700;
+            transition: all 0.3s ease;
+            font-size: 1rem;
+            position: relative;
+        }
+
+        .header-nav a::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: linear-gradient(135deg, #667eea 0%, #00d9ff 100%);
+            transition: width 0.3s ease;
+        }
+
+        .header-nav a:hover {
+            color: #667eea;
+        }
+
+        .header-nav a:hover::after {
+            width: 100%;
+        }
+
+        .profil-main {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 3rem;
+            margin-bottom: 3rem;
+        }
+
+        @media (max-width: 1000px) {
+            .profil-main {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .profil-card {
+            background: linear-gradient(135deg, rgba(30, 30, 60, 0.95) 0%, rgba(50, 50, 80, 0.85) 100%);
+            padding: 3.5rem 3rem;
+            border-radius: 25px;
+            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.15);
+            border: 2px solid rgba(102, 126, 234, 0.3);
+            backdrop-filter: blur(10px);
+            animation: fadeInUp 0.8s ease-out;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .profil-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 250px;
+            height: 250px;
+            background: radial-gradient(circle, rgba(102, 126, 234, 0.1) 0%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                transform: translateY(40px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .profil-pic-wrapper {
+            position: relative;
+            margin-bottom: 2.5rem;
+            z-index: 1;
+        }
+
+        .profil-pic {
+            width: 200px;
+            height: 200px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #00d9ff 100%);
+            border-radius: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 5.5rem;
+            cursor: pointer;
+            border: 6px solid #00d9ff;
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 0 0 60px rgba(102, 126, 234, 0.4), inset 0 0 30px rgba(255, 255, 255, 0.1);
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .profil-pic:hover {
+            transform: scale(1.12) rotateY(8deg);
+            box-shadow: 0 0 100px rgba(0, 217, 255, 0.7), inset 0 0 30px rgba(255, 255, 255, 0.2);
+        }
+
+        .profil-pic::after {
+            content: '✏️';
+            position: absolute;
+            bottom: 15px;
+            right: 15px;
+            font-size: 1.8rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            width: 55px;
+            height: 55px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 3px solid #00d9ff;
+            opacity: 0;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .profil-pic:hover::after {
+            opacity: 1;
+            transform: scale(1.1);
+        }
+
+        .username {
+            color: #fff;
+            font-size: 2.3rem;
+            margin-bottom: 0.5rem;
+            font-weight: 900;
+            letter-spacing: -0.5px;
+            z-index: 1;
+            position: relative;
+            overflow-wrap: anywhere;
+        }
+
+        .email {
+            color: #a0a0b0;
+            font-size: 0.95rem;
+            margin-bottom: 2.5rem;
+            z-index: 1;
+            position: relative;
+            overflow-wrap: anywhere;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+            z-index: 1;
+            position: relative;
+        }
+
+        .stat-item {
+            background: rgba(102, 126, 234, 0.1);
+            padding: 1.8rem;
+            border-radius: 15px;
+            border-left: 5px solid #667eea;
+            transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .stat-item:hover {
+            background: rgba(102, 126, 234, 0.18);
+            transform: translateX(8px);
+            border-left-color: #00d9ff;
+        }
+
+        .stat-label {
+            color: #00d9ff;
+            font-weight: 800;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 0.6rem;
+        }
+
+        .stat-value {
+            color: #fff;
+            font-size: 1.7rem;
+            font-weight: 900;
+            overflow-wrap: anywhere;
+        }
+
+        .info-section {
+            background: linear-gradient(135deg, rgba(30, 30, 60, 0.95) 0%, rgba(50, 50, 80, 0.85) 100%);
+            padding: 3.5rem;
+            border-radius: 25px;
+            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.15);
+            border: 2px solid rgba(102, 126, 234, 0.3);
+            backdrop-filter: blur(10px);
+            animation: fadeInUp 0.8s ease-out 0.1s both;
+        }
+
+        .section-title {
+            color: #fff;
+            font-size: 1.8rem;
+            font-weight: 900;
+            margin-bottom: 2rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 3px solid rgba(102, 126, 234, 0.3);
+            letter-spacing: -0.5px;
+        }
+
+        .form-group {
+            margin-bottom: 2rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 1rem;
+            color: #00d9ff;
+            font-weight: 800;
+            font-size: 0.95rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+        }
+
+        textarea, input {
+            width: 100%;
+            padding: 1.5rem;
+            border: 2px solid rgba(102, 126, 234, 0.3);
+            border-radius: 15px;
+            font-size: 1rem;
+            font-family: inherit;
+            transition: all 0.3s;
+            background: rgba(102, 126, 234, 0.05);
+            color: #e0e0e0;
+        }
+
+        input {
+            padding: 1.2rem 1.5rem;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 150px;
+        }
+
+        textarea::placeholder, input::placeholder {
+            color: #666;
+        }
+
+        textarea:focus, input:focus {
+            outline: none;
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.1);
+            box-shadow: 0 0 30px rgba(102, 126, 234, 0.3);
+        }
+
+        .logo-selector {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        @media (max-width: 600px) {
+            .logo-selector {
+                grid-template-columns: repeat(4, 1fr);
+                gap: 0.8rem;
+            }
+        }
+
+        .logo-option {
+            width: 100%;
+            aspect-ratio: 1;
+            border-radius: 18px;
+            border: 3px solid rgba(102, 126, 234, 0.4);
+            background: rgba(102, 126, 234, 0.08);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.8rem;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .logo-option:hover {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.15);
+            transform: scale(1.12);
+        }
+
+        .logo-option.active {
+            border-color: #00d9ff;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.4) 0%, rgba(0, 217, 255, 0.3) 100%);
+            box-shadow: 0 0 40px rgba(0, 217, 255, 0.7), inset 0 0 20px rgba(255, 255, 255, 0.1);
+            animation: pulse 0.6s ease-out;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95); }
+            50% { transform: scale(1.08); }
+            100% { transform: scale(1); }
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            padding: 1.4rem 3rem;
+            border: none;
+            border-radius: 15px;
+            font-size: 1rem;
+            font-weight: 800;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 35px rgba(102, 126, 234, 0.5);
+        }
+
+        .btn:active {
+            transform: translateY(-2px);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ff6b6b 0%, #c92a2a 100%);
+            box-shadow: 0 8px 25px rgba(255, 107, 107, 0.3);
+        }
+
+        .btn-danger:hover {
+            box-shadow: 0 12px 35px rgba(255, 107, 107, 0.5);
+        }
+
+        .buttons {
+            display: flex;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+            margin-top: 2rem;
+        }
+
+        .section {
+            background: linear-gradient(135deg, rgba(30, 30, 60, 0.95) 0%, rgba(50, 50, 80, 0.85) 100%);
+            padding: 3.5rem;
+            border-radius: 25px;
+            margin-bottom: 3rem;
+            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.15);
+            border: 2px solid rgba(102, 126, 234, 0.3);
+            backdrop-filter: blur(10px);
+            animation: fadeInUp 0.8s ease-out 0.2s both;
+        }
+
+        .password-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+        }
+
+        @media (max-width: 900px) {
+            .password-grid { grid-template-columns: 1fr; gap: 0; }
+        }
+
+        .success-message, .error-message {
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            display: none;
+            font-weight: 700;
+            animation: slideDown 0.4s ease-out;
+        }
+
+        .success-message {
+            background: rgba(81, 207, 102, 0.15);
+            border-left: 5px solid #51cf66;
+            color: #51cf66;
+        }
+
+        .error-message {
+            background: rgba(255, 107, 107, 0.15);
+            border-left: 5px solid #ff6b6b;
+            color: #ff6b6b;
+        }
+
+        .success-message.show, .error-message.show {
+            display: block;
+        }
+
+        @media (max-width: 700px) {
+            .profil-card, .info-section, .section { padding: 2rem 1.5rem; }
+            .profil-pic { width: 160px; height: 160px; font-size: 4.5rem; }
+        }
+    </style>
+</head>
+<body>
+    {% include '_nav.html' %}
+    <main class="xhq-main">
+    <div class="container">
+        <div class="header-nav">
+            <h1>Profil</h1>
+            <a href="/">← Retour</a>
+        </div>
+
+        <div class="profil-main">
+            <div class="profil-card">
+                <div class="profil-pic-wrapper">
+                    <div class="profil-pic" id="profil-pic-display" onclick="openLogoSelector()" title="Changer d'avatar">{{ current_user.logo }}</div>
+                </div>
+                <div class="username" id="username-display">{{ current_user.username }}</div>
+                <div class="email" id="email-display">{{ current_user.email }}</div>
+
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-label">Team</div>
+                        <div class="stat-value" id="team-display">…</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Points Ligue</div>
+                        <div class="stat-value" id="points-display">…</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Solde</div>
+                        <div class="stat-value" id="solde-display">…</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-section">
+                <h2 class="section-title">Modifier ma bio</h2>
+                <div id="logo-selector" style="display: none;">
+                    <label>Choisir un logo</label>
+                    <div class="logo-selector">
+                        {% for avatar in avatars %}
+                        <div class="logo-option{% if avatar == current_user.logo %} active{% endif %}" data-logo="{{ avatar }}" onclick="selectLogo(this.dataset.logo)">{{ avatar }}</div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="bio-input">Bio</label>
+                    <textarea id="bio-input" maxlength="500" placeholder="Décrivez-vous, vos passions, votre niveau de jeu..."></textarea>
+                </div>
+
+                <div class="success-message" id="success-message">✓ Profil mis à jour avec succès !</div>
+                <div class="error-message" id="error-message"></div>
+
+                <button class="btn" type="button" onclick="updateProfil()">Sauvegarder les modifications</button>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">Changer mon mot de passe</h2>
+            <div class="success-message" id="pwd-success">✓ Mot de passe modifié !</div>
+            <div class="error-message" id="pwd-error"></div>
+            <div class="password-grid">
+                <div class="form-group">
+                    <label for="pwd-ancien">Actuel</label>
+                    <input type="password" id="pwd-ancien" autocomplete="current-password" placeholder="••••••••">
+                </div>
+                <div class="form-group">
+                    <label for="pwd-nouveau">Nouveau</label>
+                    <input type="password" id="pwd-nouveau" autocomplete="new-password" placeholder="6 caractères min.">
+                </div>
+                <div class="form-group">
+                    <label for="pwd-confirm">Confirmation</label>
+                    <input type="password" id="pwd-confirm" autocomplete="new-password" placeholder="••••••••">
+                </div>
+            </div>
+            <button class="btn" type="button" onclick="changePassword()">Changer le mot de passe</button>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">Actions de compte</h2>
+            <div class="buttons">
+                <button class="btn" type="button" onclick="logout()">Se déconnecter</button>
+                <button class="btn btn-danger" type="button" onclick="deleteAccount()">Supprimer mon compte</button>
+            </div>
+        </div>
+    </div>
+    </main>
+    {% include '_footer.html' %}
+
+    <script>
+        const AVATARS = {{ avatars | tojson }};
+        let currentLogo = {{ current_user.logo | tojson }};
+
+        function flash(id, text) {
+            const el = document.getElementById(id);
+            if (text) el.textContent = text;
+            el.classList.add('show');
+            clearTimeout(el._timer);
+            el._timer = setTimeout(() => el.classList.remove('show'), 3000);
+        }
+
+        async function loadProfil() {
+            const { ok, data } = await api('/api/profil');
+            if (!ok) return;  // 401 -> redirection vers /login gérée par api()
+            document.getElementById('username-display').textContent = data.username;
+            document.getElementById('email-display').textContent = data.email;
+            document.getElementById('team-display').textContent = data.team_name || 'Aucune team';
+            document.getElementById('points-display').textContent = (Number(data.points) || 0) + ' pts';
+            document.getElementById('solde-display').textContent = (Number(data.solde) || 0) + '€';
+            document.getElementById('bio-input').value = data.bio || '';
+            if (AVATARS.includes(data.logo)) {
+                currentLogo = data.logo;
+                document.getElementById('profil-pic-display').textContent = currentLogo;
+                updateLogoSelector();
+            }
+        }
+
+        function openLogoSelector() {
+            const selector = document.getElementById('logo-selector');
+            selector.style.display = selector.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function updateLogoSelector() {
+            document.querySelectorAll('.logo-option').forEach(opt => {
+                opt.classList.toggle('active', opt.dataset.logo === currentLogo);
+            });
+        }
+
+        function selectLogo(logo) {
+            if (!AVATARS.includes(logo)) return;
+            currentLogo = logo;
+            document.getElementById('profil-pic-display').textContent = logo;
+            updateLogoSelector();
+        }
+
+        async function updateProfil() {
+            const bio = document.getElementById('bio-input').value;
+            const { ok, data } = await api('/api/profil/update', { method: 'POST', body: { bio, logo: currentLogo } });
+            if (ok && data.success) {
+                document.getElementById('logo-selector').style.display = 'none';
+                const navAvatar = document.getElementById('nav-avatar');
+                if (navAvatar) navAvatar.textContent = data.logo;
+                flash('success-message');
+            } else {
+                flash('error-message', data.error || 'Erreur lors de la sauvegarde');
+            }
+        }
+
+        async function changePassword() {
+            const ancien = document.getElementById('pwd-ancien').value;
+            const nouveau = document.getElementById('pwd-nouveau').value;
+            const confirmation = document.getElementById('pwd-confirm').value;
+            if (nouveau !== confirmation) {
+                flash('pwd-error', 'La confirmation ne correspond pas au nouveau mot de passe');
+                return;
+            }
+            const { ok, data } = await api('/api/profil/password', { method: 'POST', body: { ancien, nouveau } });
+            if (ok && data.success) {
+                ['pwd-ancien', 'pwd-nouveau', 'pwd-confirm'].forEach(id => document.getElementById(id).value = '');
+                flash('pwd-success');
+            } else {
+                flash('pwd-error', data.error || 'Erreur');
+            }
+        }
+
+        function logout() {
+            if (confirm('Êtes-vous sûr de vouloir vous déconnecter ?')) {
+                window.location.href = '/logout';
+            }
+        }
+
+        async function deleteAccount() {
+            if (!confirm('⚠️ Êtes-vous sûr de vouloir supprimer votre compte ? Cette action est irréversible.')) return;
+            if (!confirm('🔴 CONFIRMATION FINALE : Votre compte et toutes vos données seront supprimées définitivement.')) return;
+            const { ok, data } = await api('/api/profil/delete', { method: 'POST' });
+            if (ok && data.success) {
+                alert('✓ Compte supprimé');
+                window.location.href = '/login';
+            } else {
+                flash('error-message', data.error || 'Erreur');
+            }
+        }
+
+        loadProfil();
+    </script>
+</body>
+</html>

@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XHQ Tournament - Plateforme E-sports</title>
+    {% include '_head.html' %}
+    <style>
+        .content {
+            flex: 1;
+            padding: 4rem 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+        }
+
+        .hero {
+            text-align: center;
+            margin-bottom: 5rem;
+            max-width: 800px;
+        }
+
+        .hero h2 {
+            color: #fff;
+            font-size: 3.5rem;
+            font-weight: 900;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(135deg, #667eea 0%, #00d9ff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero p {
+            color: #a0a0b0;
+            font-size: 1.3rem;
+            line-height: 1.7;
+            margin-bottom: 2rem;
+        }
+
+        .hero-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            padding: 1.2rem 3rem;
+            text-decoration: none;
+            border-radius: 25px;
+            font-weight: 800;
+            text-transform: uppercase;
+            display: inline-block;
+            transition: all 0.3s;
+        }
+
+        .hero-btn:hover {
+            transform: translateY(-4px);
+        }
+
+        .stack {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 2.5rem;
+            max-width: 1700px;
+            width: 100%;
+        }
+
+        @media (max-width: 1400px) {
+            .stack {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .stack {
+                grid-template-columns: 1fr;
+            }
+            .hero h2 {
+                font-size: 2.4rem;
+            }
+            .content {
+                padding: 2.5rem 1rem;
+            }
+        }
+
+        .stack-card {
+            background: linear-gradient(135deg, rgba(30, 30, 60, 0.7) 0%, rgba(50, 50, 80, 0.5) 100%);
+            padding: 3rem 2rem;
+            border-radius: 20px;
+            border: 2px solid;
+            backdrop-filter: blur(10px);
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .stack-card:hover {
+            transform: translateY(-15px);
+        }
+
+        .stack-card.blue { border-color: #667eea; }
+        .stack-card.yellow { border-color: #ffd700; }
+        .stack-card.pink { border-color: #ff69b4; }
+        .stack-card.red { border-color: #ff6b6b; }
+        .stack-card.green { border-color: #51cf66; }
+        .stack-card.purple { border-color: #9d5ef5; }
+        .stack-card.cyan { border-color: #00d9ff; }
+        .stack-card.orange { border-color: #ff922b; }
+
+        .stack-icon {
+            font-size: 3.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stack-title {
+            font-size: 1.4rem;
+            font-weight: 900;
+            margin-bottom: 1rem;
+        }
+
+        .stack-card.blue .stack-title { color: #667eea; }
+        .stack-card.yellow .stack-title { color: #ffd700; }
+        .stack-card.pink .stack-title { color: #ff69b4; }
+        .stack-card.red .stack-title { color: #ff6b6b; }
+        .stack-card.green .stack-title { color: #51cf66; }
+        .stack-card.purple .stack-title { color: #9d5ef5; }
+        .stack-card.cyan .stack-title { color: #00d9ff; }
+        .stack-card.orange .stack-title { color: #ff922b; }
+
+        .stack-desc {
+            color: #a0a0b0;
+            font-size: 1rem;
+            line-height: 1.7;
+        }
+    </style>
+</head>
+<body>
+    {% include '_nav.html' %}
+
+    <main class="content">
+        <div class="hero">
+            <h2>Bienvenue sur XHQ Tournament</h2>
+            <p>La plateforme de tournois e-sports la plus complète. Rejoignez des milliers de joueurs, participez à des compétitions épiques et remportez des récompenses exclusives.</p>
+            {% if current_user %}
+            <a href="/teams" class="hero-btn">Voir les teams</a>
+            {% else %}
+            <a href="/signup" class="hero-btn">Commencer maintenant</a>
+            {% endif %}
+        </div>
+
+        <div class="stack">
+            <div class="stack-card blue">
+                <div class="stack-icon">🏆</div>
+                <div class="stack-title">Technologie</div>
+                <div class="stack-desc">Les meilleures innovations gaming</div>
+            </div>
+
+            <div class="stack-card yellow">
+                <div class="stack-icon">🎮</div>
+                <div class="stack-title">Tableau de bord</div>
+                <div class="stack-desc">Suivez vos performances</div>
+            </div>
+
+            <div class="stack-card pink">
+                <div class="stack-icon">👍</div>
+                <div class="stack-title">Activation sponsor</div>
+                <div class="stack-desc">Connectez-vous avec les sponsors</div>
+            </div>
+
+            <div class="stack-card red">
+                <div class="stack-icon">⚡</div>
+                <div class="stack-title">Paiement</div>
+                <div class="stack-desc">Transactions sécurisées</div>
+            </div>
+
+            <div class="stack-card green">
+                <div class="stack-icon">📊</div>
+                <div class="stack-title">Métriques</div>
+                <div class="stack-desc">Analysez vos stats</div>
+            </div>
+
+            <div class="stack-card purple">
+                <div class="stack-icon">🎯</div>
+                <div class="stack-title">Matchmaking</div>
+                <div class="stack-desc">Trouvez vos adversaires</div>
+            </div>
+
+            <div class="stack-card cyan">
+                <div class="stack-icon">💬</div>
+                <div class="stack-title">Communauté</div>
+                <div class="stack-desc">Rejoignez la communauté</div>
+            </div>
+
+            <div class="stack-card orange">
+                <div class="stack-icon">🎁</div>
+                <div class="stack-title">Récompenses</div>
+                <div class="stack-desc">Gagnez des prix</div>
+            </div>
+        </div>
+    </main>
+
+    {% include '_footer.html' %}
+</body>
+</html>

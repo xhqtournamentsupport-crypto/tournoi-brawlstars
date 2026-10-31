@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact - XHQ Tournament</title>
+    {% include '_head.html' %}
+    <style>
+        .container {
+            max-width: 600px;
+            width: 100%;
+        }
+        .header {
+            background: linear-gradient(135deg, rgba(30, 30, 60, 0.8) 0%, rgba(50, 50, 80, 0.6) 100%);
+            padding: 3rem 2rem;
+            border-radius: 25px;
+            margin-bottom: 2rem;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.15);
+            border: 2px solid rgba(102, 126, 234, 0.3);
+            animation: slideDown 0.6s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                transform: translateY(-30px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .header h1 {
+            color: #fff;
+            font-size: 2.5rem;
+            font-weight: 900;
+            letter-spacing: -1px;
+            background: linear-gradient(135deg, #667eea 0%, #00d9ff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin: 0 0 0.5rem;
+        }
+
+        .header p {
+            color: #a0a0b0;
+            font-size: 1rem;
+            margin: 0;
+        }
+
+        .form-container {
+            background: linear-gradient(135deg, rgba(30, 30, 60, 0.8) 0%, rgba(50, 50, 80, 0.6) 100%);
+            padding: 3rem;
+            border-radius: 25px;
+            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.15);
+            border: 2px solid rgba(102, 126, 234, 0.3);
+            animation: fadeInUp 0.8s ease-out;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                transform: translateY(40px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .form-group {
+            margin-bottom: 2rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 1rem;
+            color: #00d9ff;
+            font-weight: 800;
+            font-size: 0.95rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+        }
+
+        input, textarea {
+            width: 100%;
+            padding: 1.3rem;
+            border: 2px solid rgba(102, 126, 234, 0.3);
+            border-radius: 15px;
+            font-size: 1rem;
+            font-family: inherit;
+            transition: all 0.3s;
+            background: rgba(102, 126, 234, 0.05);
+            color: #e0e0e0;
+        }
+
+        input::placeholder, textarea::placeholder {
+            color: #666;
+        }
+
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.1);
+            box-shadow: 0 0 30px rgba(102, 126, 234, 0.3);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 180px;
+        }
+
+        .hint {
+            color: #a0a0b0;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            margin: -1rem 0 2rem;
+        }
+
+        .btn {
+            width: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            padding: 1.3rem;
+            border: none;
+            border-radius: 15px;
+            font-size: 1rem;
+            font-weight: 800;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.5);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: wait;
+        }
+
+        .success-message {
+            background: rgba(81, 207, 102, 0.15);
+            border-left: 5px solid #51cf66;
+            padding: 1.5rem;
+            border-radius: 10px;
+            margin-bottom: 2rem;
+            color: #51cf66;
+            display: none;
+            font-weight: 600;
+            animation: slideDown 0.4s ease-out;
+        }
+
+        .success-message.show {
+            display: block;
+        }
+
+        .error-message {
+            background: rgba(255, 107, 107, 0.15);
+            border-left: 5px solid #ff6b6b;
+            padding: 1.5rem;
+            border-radius: 10px;
+            margin-bottom: 2rem;
+            color: #ff6b6b;
+            display: none;
+            font-weight: 600;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        .back-link {
+            text-align: center;
+            margin-top: 2rem;
+        }
+
+        .back-link a {
+            color: #00d9ff;
+            text-decoration: none;
+            font-weight: 700;
+            transition: all 0.3s ease;
+        }
+
+        .back-link a:hover {
+            color: #667eea;
+        }
+
+        @media (max-width: 600px) {
+            .form-container { padding: 2rem 1.5rem; }
+            .header h1 { font-size: 2rem; }
+        }
+    </style>
+</head>
+<body>
+    {% include '_nav.html' %}
+    <main class="xhq-main center">
+    <div class="container">
+        <div class="header">
+            <h1>Nous Contacter</h1>
+            <p>Une question ? Un problème ? Parlez-nous !</p>
+        </div>
+
+        <div class="form-container">
+            <div class="success-message" id="success-message">✓ Votre message a été envoyé avec succès !</div>
+            <div class="error-message" id="error-message"></div>
+
+            <div class="form-group">
+                <label for="name">Nom</label>
+                <input type="text" id="name" maxlength="100" placeholder="Votre nom" value="{{ current_user.username if current_user else '' }}" required>
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" maxlength="120" placeholder="votre@email.com" value="{{ current_user.email if current_user else '' }}" required>
+            </div>
+
+            <div class="form-group">
+                <label for="subject">Sujet</label>
+                <input type="text" id="subject" maxlength="150" placeholder="Sujet de votre message" value="{{ sujet }}" required>
+            </div>
+
+            {% if sujet == 'Mot de passe oublié' %}
+            <p class="hint">Indiquez l'email de votre compte ci-dessus : un administrateur vérifiera votre demande et vous recontactera pour réinitialiser votre mot de passe.</p>
+            {% endif %}
+
+            <div class="form-group">
+                <label for="message">Message</label>
+                <textarea id="message" maxlength="5000" placeholder="Écrivez votre message ici..." required></textarea>
+            </div>
+
+            <button class="btn" type="button" id="send-btn" onclick="sendMessage()">Envoyer le message</button>
+
+            <div class="back-link">
+                <a href="/">← Retour à l'accueil</a>
+            </div>
+        </div>
+    </div>
+    </main>
+    {% include '_footer.html' %}
+
+    <script>
+        async function sendMessage() {
+            const nom = document.getElementById('name').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const sujet = document.getElementById('subject').value.trim();
+            const message = document.getElementById('message').value.trim();
+
+            const successMsg = document.getElementById('success-message');
+            const errorMsg = document.getElementById('error-message');
+            const btn = document.getElementById('send-btn');
+
+            successMsg.classList.remove('show');
+            errorMsg.classList.remove('show');
+
+            if (!nom || !email || !sujet || !message) {
+                errorMsg.textContent = '❌ Tous les champs sont requis';
+                errorMsg.classList.add('show');
+                return;
+            }
+
+            if (!email.includes('@')) {
+                errorMsg.textContent = '❌ Email invalide';
+                errorMsg.classList.add('show');
+                return;
+            }
+
+            btn.disabled = true;
+            const { ok, data } = await api('/api/contact', { method: 'POST', body: { nom, email, sujet, message }, noRedirect: true });
+            btn.disabled = false;
+
+            if (!ok || !data.success) {
+                errorMsg.textContent = '❌ ' + (data.error || "Erreur lors de l'envoi");
+                errorMsg.classList.add('show');
+                return;
+            }
+
+            successMsg.classList.add('show');
+            document.getElementById('message').value = '';
+            setTimeout(() => successMsg.classList.remove('show'), 4000);
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && e.ctrlKey) {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>

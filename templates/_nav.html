@@ -1,0 +1,18 @@
+<nav class="xhq-nav">
+        <a href="/" class="xhq-logo">XHQ</a>
+        <div class="xhq-nav-right">
+            {% if current_user %}
+            <div class="xhq-nav-links">
+                <a href="/teams" class="xhq-nav-btn{% if request.path == '/teams' %} active{% endif %}">Teams</a>
+                <a href="/ligue" class="xhq-nav-btn{% if request.path == '/ligue' %} active{% endif %}">Ligue</a>
+                <a href="/shop" class="xhq-nav-btn{% if request.path == '/shop' %} active{% endif %}">Shop</a>
+            </div>
+            <a href="/profil" class="xhq-avatar" id="nav-avatar" title="{{ current_user.username }}">{{ current_user.logo }}</a>
+            {% else %}
+            <div class="xhq-nav-auth">
+                <a href="/login" class="xhq-nav-btn outline">Connexion</a>
+                <a href="/signup" class="xhq-nav-btn primary">S'inscrire</a>
+            </div>
+            {% endif %}
+        </div>
+    </nav>

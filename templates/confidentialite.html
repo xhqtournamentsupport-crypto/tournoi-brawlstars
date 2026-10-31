@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confidentialité - XHQ Tournament</title>
+    {% include '_head.html' %}
+    <style>
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .header {
+            background: linear-gradient(135deg, rgba(30, 30, 60, 0.8) 0%, rgba(50, 50, 80, 0.6) 100%);
+            padding: 3rem 2rem;
+            border-radius: 25px;
+            margin-bottom: 3rem;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.15);
+            border: 2px solid rgba(102, 126, 234, 0.3);
+            animation: slideDown 0.6s ease-out;
+        }
+        
+        @keyframes slideDown {
+            from { 
+                transform: translateY(-30px);
+                opacity: 0;
+            }
+            to { 
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        .header h1 {
+            color: #fff;
+            font-size: 2.5rem;
+            font-weight: 900;
+            letter-spacing: -1px;
+            background: linear-gradient(135deg, #667eea 0%, #00d9ff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin: 0 0 0.5rem;
+        }
+        
+        .header p {
+            color: #a0a0b0;
+            font-size: 1rem;
+            margin: 0;
+        }
+        
+        .content {
+            background: linear-gradient(135deg, rgba(30, 30, 60, 0.8) 0%, rgba(50, 50, 80, 0.6) 100%);
+            padding: 3rem;
+            border-radius: 25px;
+            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.15);
+            border: 2px solid rgba(102, 126, 234, 0.3);
+            animation: fadeInUp 0.8s ease-out;
+            line-height: 1.8;
+        }
+        
+        @keyframes fadeInUp {
+            from { 
+                transform: translateY(40px);
+                opacity: 0;
+            }
+            to { 
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        .content h2 {
+            color: #00d9ff;
+            font-size: 1.5rem;
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            font-weight: 800;
+        }
+        
+        .content h2:first-of-type {
+            margin-top: 0;
+        }
+        
+        .content p {
+            color: #c0c0c0;
+            margin: 0 0 1rem;
+        }
+        
+        .content ul {
+            margin: 0 0 1rem 1.5rem;
+            padding: 0;
+            color: #c0c0c0;
+        }
+        
+        .content li {
+            margin-bottom: 0.8rem;
+        }
+        
+        .content a {
+            color: #00d9ff;
+        }
+        
+        .back-btn {
+            margin-top: 2rem;
+            text-align: center;
+        }
+        
+        .back-btn a {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            padding: 1rem 2.5rem;
+            text-decoration: none;
+            border-radius: 12px;
+            font-weight: 700;
+            transition: all 0.3s ease;
+            display: inline-block;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .back-btn a:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+        
+        @media (max-width: 700px) {
+            .content { padding: 2rem 1.5rem; }
+            .header h1 { font-size: 2rem; }
+        }
+    </style>
+</head>
+<body>
+    {% include '_nav.html' %}
+    <main class="xhq-main">
+    <div class="container">
+        <div class="header">
+            <h1>Politique de Confidentialité</h1>
+            <p>XHQ Tournament - 2026</p>
+        </div>
+        
+        <div class="content">
+            <h2>1. Introduction</h2>
+            <p>XHQ Tournament respecte votre vie privée. Cette politique de confidentialité explique comment nous collectons, utilisons et protégeons vos données personnelles.</p>
+            
+            <h2>2. Données collectées</h2>
+            <p>Nous collectons les données suivantes :</p>
+            <ul>
+                <li>Informations de compte : nom d'utilisateur, email, mot de passe (chiffré)</li>
+                <li>Informations de profil : bio, avatar, team</li>
+                <li>Données de jeu : scores, statistiques, participation aux tournois</li>
+                <li>Données de paiement : historique des achats (aucune carte bancaire n'est stockée)</li>
+                <li>Données techniques : adresse IP, type d'appareil, navigateur</li>
+            </ul>
+            
+            <h2>3. Utilisation des données</h2>
+            <p>Vos données sont utilisées pour :</p>
+            <ul>
+                <li>Fournir et améliorer le service XHQ Tournament</li>
+                <li>Gérer votre compte et vos transactions</li>
+                <li>Vous envoyer des notifications importantes</li>
+                <li>Prévenir la fraude et l'utilisation abusive</li>
+                <li>Analyser l'utilisation de la plateforme</li>
+            </ul>
+            
+            <h2>4. Protection des données</h2>
+            <p>Nous utilisons le chiffrement SSL pour sécuriser vos données en transit. Vos mots de passe sont chiffrés en base de données. Nous limitons l'accès aux données personnelles à notre équipe autorisée.</p>
+            
+            <h2>5. Partage des données</h2>
+            <p>Nous ne vendons jamais vos données personnelles. Nous ne partageons vos données que :</p>
+            <ul>
+                <li>Avec votre consentement explicite</li>
+                <li>Avec nos partenaires de paiement (de manière sécurisée)</li>
+                <li>Si la loi nous y oblige</li>
+            </ul>
+            
+            <h2>6. Droits d'accès et de suppression</h2>
+            <p>Vous avez le droit de :</p>
+            <ul>
+                <li>Accéder à vos données personnelles</li>
+                <li>Corriger vos données</li>
+                <li>Demander la suppression de votre compte et de vos données</li>
+                <li>Vous opposer au traitement de vos données</li>
+            </ul>
+            
+            <h2>7. Cookies</h2>
+            <p>XHQ Tournament utilise des cookies pour mémoriser vos préférences et maintenir votre session connectée. Vous pouvez désactiver les cookies dans votre navigateur.</p>
+            
+            <h2>8. Rétention des données</h2>
+            <p>Vos données sont conservées tant que votre compte est actif. Après suppression de votre compte, vos données sont supprimées dans les 30 jours, sauf si la loi nous oblige à les conserver.</p>
+            
+            <h2>9. Enfants</h2>
+            <p>XHQ Tournament n'est pas destiné aux enfants de moins de 13 ans. Nous ne collectons pas intentionnellement de données d'enfants. Si nous découvrons que vous avez moins de 13 ans, nous supprimerons votre compte.</p>
+            
+            <h2>10. Modifications</h2>
+            <p>Nous pouvons modifier cette politique de confidentialité à tout moment. Les modifications importantes seront communiquées par email.</p>
+            
+            <h2>11. Contact</h2>
+            <p>Pour toute question concernant votre vie privée ou cette politique, veuillez nous contacter via le <a href="/contact">formulaire de contact</a>.</p>
+            
+            <div class="back-btn">
+                <a href="/">← Retour à l'accueil</a>
+            </div>
+        </div>
+    </div>
+    </main>
+    {% include '_footer.html' %}
+</body>
+</html>

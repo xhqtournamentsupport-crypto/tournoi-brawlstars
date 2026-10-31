@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teams - XHQ Tournament</title>
+    {% include '_head.html' %}
+    <style>
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header-nav {
+            background: linear-gradient(135deg, rgba(30, 30, 60, 0.95) 0%, rgba(50, 50, 80, 0.85) 100%);
+            padding: 2rem;
+            border-radius: 20px;
+            margin-bottom: 3rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.15);
+            border: 2px solid rgba(102, 126, 234, 0.3);
+            animation: slideDown 0.6s ease-out;
+            backdrop-filter: blur(10px);
+        }
+
+        @keyframes slideDown {
+            from {
+                transform: translateY(-30px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .header-nav h1 {
+            color: #fff;
+            font-size: 2.5rem;
+            font-weight: 900;
+            letter-spacing: -1px;
+            background: linear-gradient(135deg, #667eea 0%, #00d9ff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-nav a {
+            color: #00d9ff;
+            text-decoration: none;
+            font-weight: 700;
+            transition: all 0.3s ease;
+            font-size: 1rem;
+            position: relative;
+        }
+
+        .header-nav a::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: linear-gradient(135deg, #667eea 0%, #00d9ff 100%);
+            transition: width 0.3s ease;
+        }
+
+        .header-nav a:hover {
+            color: #667eea;
+        }
+
+        .header-nav a:hover::after {
+            width: 100%;
+        }
+
+        .section {
+            background: linear-gradient(135deg, rgba(30, 30, 60, 0.95) 0%, rgba(50, 50, 80, 0.85) 100%);
+            padding: 3rem;
+            border-radius: 20px;
+            margin-bottom: 3rem;
+            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.15);
+            border: 2px solid rgba(102, 126, 234, 0.3);
+            backdrop-filter: blur(10px);
+            animation: fadeInUp 0.8s ease-out;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                transform: translateY(40px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .section-title {
+            color: #fff;
+            font-size: 2rem;
+            font-weight: 900;
+            margin-bottom: 2rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 3px solid rgba(102, 126, 234, 0.3);
+            letter-spacing: -0.5px;
+        }
+
+        .my-team-section {
+            background: linear-gradient(135deg, rgba(81, 207, 102, 0.1) 0%, rgba(51, 207, 102, 0.05) 100%);
+            padding: 2.5rem;
+            border-radius: 15px;
+            border: 2px solid #51cf66;
+        }
+
+        .my-team-title {
+            color: #51cf66;
+            font-size: 1.3rem;
+            font-weight: 900;
+            margin-bottom: 1.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .team-card {
+            background: rgba(102, 126, 234, 0.08);
+            padding: 2rem;
+            border-radius: 15px;
+            border-left: 5px solid #667eea;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .team-card:hover {
+            background: rgba(102, 126, 234, 0.15);
+            transform: translateX(8px);
+        }
+
+        .team-card.my-team {
+            border-left-color: #51cf66;
+            background: rgba(81, 207, 102, 0.1);
+            margin-bottom: 0;
+        }
+
+        .team-card.my-team:hover {
+            background: rgba(81, 207, 102, 0.18);
+        }
+
+        .team-info {
+            min-width: 0;
+        }
+
+        .team-info h3 {
+            color: #fff;
+            font-size: 1.3rem;
+            margin-bottom: 0.5rem;
+            font-weight: 900;
+            overflow-wrap: anywhere;
+        }
+
+        .team-info p {
+            color: #a0a0b0;
+            font-size: 0.95rem;
+            margin-bottom: 0.5rem;
+            overflow-wrap: anywhere;
+        }
+
+        .team-creator {
+            color: #00d9ff;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .team-meta {
+            color: #a0a0b0;
+            font-size: 0.85rem;
+            margin-top: 0.4rem;
+        }
+
+        .team-members {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.6rem;
+            margin-top: 1rem;
+        }
+
+        .member-chip {
+            background: rgba(81, 207, 102, 0.12);
+            border: 1px solid rgba(81, 207, 102, 0.5);
+            color: #e0e0e0;
+            padding: 0.4rem 0.9rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 700;
+        }
+
+        .team-actions {
+            display: flex;
+            gap: 1rem;
+            flex-shrink: 0;
+        }
+
+        .btn {
+            padding: 0.9rem 1.8rem;
+            border: none;
+            border-radius: 10px;
+            font-weight: 800;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-size: 0.9rem;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.2);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ff6b6b 0%, #c92a2a 100%);
+            color: #fff;
+            box-shadow: 0 6px 20px rgba(255, 107, 107, 0.2);
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(255, 107, 107, 0.3);
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.8rem;
+            color: #00d9ff;
+            font-weight: 800;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        input, textarea {
+            width: 100%;
+            padding: 1.2rem;
+            border: 2px solid rgba(102, 126, 234, 0.3);
+            border-radius: 12px;
+            background: rgba(102, 126, 234, 0.05);
+            color: #e0e0e0;
+            font-size: 1rem;
+            font-family: inherit;
+            transition: all 0.3s ease;
+        }
+
+        input::placeholder, textarea::placeholder {
+            color: #666;
+        }
+
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.1);
+            box-shadow: 0 0 30px rgba(102, 126, 234, 0.3);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .create-team-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            padding: 1.2rem 2.5rem;
+            border: none;
+            border-radius: 12px;
+            font-weight: 800;
+            font-size: 1rem;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .create-team-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .create-team-btn:hover::before {
+            left: 100%;
+        }
+
+        .create-team-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 35px rgba(102, 126, 234, 0.5);
+        }
+
+        .search-box {
+            margin-bottom: 2rem;
+        }
+
+        .message {
+            padding: 1.2rem;
+            border-radius: 10px;
+            margin-bottom: 1.5rem;
+            display: none;
+            font-weight: 700;
+        }
+
+        .message.show {
+            display: block;
+        }
+
+        .message.success {
+            background: rgba(81, 207, 102, 0.15);
+            border-left: 5px solid #51cf66;
+            color: #51cf66;
+        }
+
+        .message.error {
+            background: rgba(255, 107, 107, 0.15);
+            border-left: 5px solid #ff6b6b;
+            color: #ff6b6b;
+        }
+
+        .no-teams {
+            text-align: center;
+            color: #a0a0b0;
+            padding: 2rem;
+            font-size: 1.1rem;
+        }
+
+        @media (max-width: 700px) {
+            .section { padding: 1.5rem; }
+            .my-team-section { padding: 1.5rem; }
+            .team-card { flex-direction: column; align-items: flex-start; padding: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+    {% include '_nav.html' %}
+    <main class="xhq-main">
+    <div class="container">
+        <div class="header-nav">
+            <h1>Teams</h1>
+            <a href="/">← Retour</a>
+        </div>
+
+        <div class="message" id="page-message"></div>
+
+        <div class="section" id="my-team-container" style="display: none;">
+            <div class="my-team-section">
+                <h2 class="my-team-title">✓ Ma Team</h2>
+                <div id="my-team-card"></div>
+            </div>
+        </div>
+
+        <div class="section" id="create-team-section" style="display: none;">
+            <h2 class="section-title">Créer une team</h2>
+
+            <div class="form-group">
+                <label for="team-name">Nom de la team</label>
+                <input type="text" id="team-name" maxlength="30" placeholder="Ex: Les Legends XHQ">
+            </div>
+
+            <div class="form-group">
+                <label for="team-bio">Bio (optionnel)</label>
+                <textarea id="team-bio" maxlength="300" placeholder="Décrivez votre team..."></textarea>
+            </div>
+
+            <button class="create-team-btn" type="button" onclick="createTeam()">Créer la team</button>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">Rejoindre une team</h2>
+
+            <div class="search-box">
+                <input type="text" class="search-input" id="search-team" placeholder="Rechercher une team...">
+            </div>
+
+            <div id="teams-list"></div>
+            <div id="no-teams" class="no-teams">Chargement…</div>
+        </div>
+    </div>
+    </main>
+    {% include '_footer.html' %}
+
+    <script>
+        let allTeams = [];
+        let userTeamId = null;
+        let membres = [];
+
+        function showMessage(text, type) {
+            const el = document.getElementById('page-message');
+            el.textContent = text;
+            el.className = 'message show ' + type;
+            clearTimeout(showMessage.timer);
+            showMessage.timer = setTimeout(() => el.classList.remove('show'), 4000);
+        }
+
+        async function loadTeams() {
+            const { ok, data } = await api('/api/teams');
+            if (!ok || !Array.isArray(data.teams)) {
+                document.getElementById('no-teams').textContent = data.error || 'Impossible de charger les teams';
+                return;
+            }
+            allTeams = data.teams;
+            userTeamId = data.user_team_id;
+            membres = data.membres || [];
+            document.getElementById('create-team-section').style.display = userTeamId ? 'none' : 'block';
+            renderMyTeam();
+            renderTeams();
+        }
+
+        function renderMyTeam() {
+            const container = document.getElementById('my-team-container');
+            const myTeam = allTeams.find(t => t.id === userTeamId);
+            if (!myTeam) {
+                container.style.display = 'none';
+                return;
+            }
+            container.style.display = 'block';
+            const ligue = myTeam.ligue_num ? `Ligue ${myTeam.ligue_num} · Poule ${escapeHtml(myTeam.poule || '-')} · ${Number(myTeam.points) || 0} pts` : '';
+            document.getElementById('my-team-card').innerHTML = `
+                <div class="team-card my-team">
+                    <div class="team-info">
+                        <h3>${escapeHtml(myTeam.nom)}</h3>
+                        <p>${escapeHtml(myTeam.bio || 'Pas de description')}</p>
+                        <div class="team-creator">Créée par : ${escapeHtml(myTeam.createur)}</div>
+                        <div class="team-meta">${ligue}</div>
+                        <div class="team-members">
+                            ${membres.map(m => `<span class="member-chip">${escapeHtml(m.logo)} ${escapeHtml(m.username)}</span>`).join('')}
+                        </div>
+                    </div>
+                    <div class="team-actions">
+                        ${myTeam.is_creator ? `<button class="btn btn-danger" type="button" onclick="deleteTeam(${myTeam.id})">Supprimer</button>` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Liste des autres teams, filtrée par la recherche
+        function renderTeams() {
+            const search = document.getElementById('search-team').value.trim().toLowerCase();
+            const container = document.getElementById('teams-list');
+            const noTeamsDiv = document.getElementById('no-teams');
+
+            const teams = allTeams
+                .filter(t => t.id !== userTeamId)
+                .filter(t => t.nom.toLowerCase().includes(search));
+
+            if (teams.length === 0) {
+                container.innerHTML = '';
+                noTeamsDiv.textContent = search ? 'Aucune team ne correspond à votre recherche' : 'Aucune team disponible';
+                noTeamsDiv.style.display = 'block';
+                return;
+            }
+
+            noTeamsDiv.style.display = 'none';
+            container.innerHTML = teams.map(team => `
+                <div class="team-card">
+                    <div class="team-info">
+                        <h3>${escapeHtml(team.nom)}</h3>
+                        <p>${escapeHtml(team.bio || 'Pas de description')}</p>
+                        <div class="team-creator">Créée par : ${escapeHtml(team.createur)}</div>
+                        <div class="team-meta">${Number(team.nb_membres) || 0} membre(s)${team.ligue_num ? ' · Ligue ' + team.ligue_num : ''}</div>
+                    </div>
+                    <div class="team-actions">
+                        ${userTeamId
+                            ? '<button class="btn btn-primary" type="button" disabled>Déjà dans une team</button>'
+                            : `<button class="btn btn-primary" type="button" onclick="joinTeam(${team.id})">Rejoindre</button>`}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function createTeam() {
+            const nom = document.getElementById('team-name').value.trim();
+            const bio = document.getElementById('team-bio').value.trim();
+            if (!nom) {
+                showMessage('Le nom de la team est obligatoire', 'error');
+                return;
+            }
+            const { ok, data } = await api('/api/teams', { method: 'POST', body: { nom, bio } });
+            if (ok && data.success) {
+                document.getElementById('team-name').value = '';
+                document.getElementById('team-bio').value = '';
+                showMessage('✓ Team créée avec succès ! Elle démarre en Ligue 10.', 'success');
+                loadTeams();
+            } else {
+                showMessage(data.error || 'Erreur lors de la création', 'error');
+            }
+        }
+
+        async function joinTeam(teamId) {
+            const { ok, data } = await api(`/api/teams/${teamId}/join`, { method: 'POST' });
+            if (ok && data.success) {
+                showMessage('✓ Vous avez rejoint la team !', 'success');
+            } else {
+                showMessage(data.error || 'Erreur', 'error');
+            }
+            loadTeams();
+        }
+
+        async function deleteTeam(teamId) {
+            if (!confirm('⚠️ Êtes-vous sûr de vouloir supprimer cette team ?')) return;
+            const { ok, data } = await api(`/api/teams/${teamId}/delete`, { method: 'POST' });
+            if (ok && data.success) {
+                showMessage('✓ Team supprimée', 'success');
+            } else {
+                showMessage(data.error || 'Erreur', 'error');
+            }
+            loadTeams();
+        }
+
+        document.getElementById('search-team').addEventListener('input', renderTeams);
+
+        loadTeams();
+    </script>
+</body>
+</html>
