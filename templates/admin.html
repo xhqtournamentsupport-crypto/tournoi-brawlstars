@@ -322,9 +322,48 @@
         .msg-body { color: #c0c0c0; white-space: pre-wrap; line-height: 1.6; margin-bottom: 1rem; overflow-wrap: anywhere; }
 
         .vide { color: #a0a0b0; text-align: center; padding: 2rem 1rem; }
+        
+        .saison-resume {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .saison-resume .stat { padding: 1.2rem; }
+        .saison-resume .stat-value { font-size: 1.8rem; }
+        
+        .mvt { font-weight: 900; white-space: nowrap; }
+        .mvt.monte { color: #51cf66; }
+        .mvt.descend { color: #ff6b6b; }
+        .mvt.champion { color: #ffd700; }
+        
+        .cloture {
+            margin-top: 2rem;
+            padding: 1.5rem;
+            border-radius: 15px;
+            border: 2px solid rgba(255, 107, 107, 0.5);
+            background: rgba(255, 107, 107, 0.06);
+        }
+        
+        .cloture p { color: #c0c0c0; line-height: 1.6; margin: 0 0 1rem; }
+        .cloture .ligne { display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; }
+        .cloture input { max-width: 260px; text-transform: uppercase; letter-spacing: 2px; font-weight: 800; }
+        
+        .palmares-ligne {
+            display: flex;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: 0.9rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        
+        .palmares-ligne:last-child { border-bottom: none; }
+        .palmares-ligne strong { color: #ffd700; }
 
         @media (max-width: 900px) {
             .stats { grid-template-columns: repeat(2, 1fr); }
+            .saison-resume { grid-template-columns: repeat(2, 1fr); }
             .match-form { grid-template-columns: 1fr; }
             .versus { grid-template-columns: 1fr 70px; }
             .versus .vs { display: none; }
@@ -351,13 +390,14 @@
         <div class="stats">
             <div class="stat"><div class="stat-label">Joueurs</div><div class="stat-value" id="st-joueurs">…</div></div>
             <div class="stat"><div class="stat-label">Teams</div><div class="stat-value" id="st-teams">…</div></div>
-            <div class="stat"><div class="stat-label">Matchs joués</div><div class="stat-value" id="st-matchs">…</div></div>
+            <div class="stat"><div class="stat-label" id="st-matchs-label">Matchs (saison)</div><div class="stat-value" id="st-matchs">…</div></div>
             <div class="stat" id="st-messages-card"><div class="stat-label">Messages à traiter</div><div class="stat-value" id="st-messages">…</div></div>
         </div>
 
         <div class="tabs" role="tablist">
             <button class="tab active" type="button" data-tab="matchs">Matchs</button>
             <button class="tab" type="button" data-tab="teams">Teams</button>
+            <button class="tab" type="button" data-tab="saison">Saison</button>
             <button class="tab" type="button" data-tab="joueurs">Joueurs</button>
             <button class="tab" type="button" data-tab="messages">Messages<span class="pastille" id="pastille" hidden></span></button>
         </div>
@@ -429,6 +469,37 @@
             </div>
         </div>
 
+        <!-- ============ SAISON ============ -->
+        <div class="panel" id="panel-saison">
+            <div class="section">
+                <h2 class="section-title" id="saison-titre">Fin de saison</h2>
+                <p class="hint">Aperçu de ce qui se passera si tu clôtures la saison maintenant. Rien n'est modifié tant que tu n'as pas confirmé. Une team doit avoir joué au moins 1 match pour monter ou être championne.</p>
+                <div class="saison-resume">
+                    <div class="stat"><div class="stat-label">Matchs joués</div><div class="stat-value" id="s-matchs">…</div></div>
+                    <div class="stat"><div class="stat-label">Teams classées</div><div class="stat-value" id="s-teams">…</div></div>
+                    <div class="stat"><div class="stat-label">Montées</div><div class="stat-value" id="s-montees" style="color:#51cf66">…</div></div>
+                    <div class="stat"><div class="stat-label">Descentes</div><div class="stat-value" id="s-descentes" style="color:#ff6b6b">…</div></div>
+                </div>
+                <div class="table-wrap"><table>
+                    <thead><tr><th>Team</th><th>Actuellement</th><th>Rang</th><th>Points</th><th>Mouvement</th></tr></thead>
+                    <tbody id="liste-mouvements"></tbody>
+                </table></div>
+                
+                <div class="cloture">
+                    <p>⚠️ <strong>Clôturer la saison</strong> : le classement est archivé, les teams montent et descendent, et <strong>tous les points repartent à 0</strong>. C'est irréversible.</p>
+                    <div class="ligne">
+                        <input type="text" id="s-confirmation" placeholder="Tape CLOTURER" autocomplete="off">
+                        <button class="btn danger" type="button" id="s-cloturer" onclick="cloturerSaison()" disabled>Clôturer la saison</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2 class="section-title">Palmarès</h2>
+                <div id="liste-palmares"></div>
+            </div>
+        </div>
+        
         <!-- ============ JOUEURS ============ -->
         <div class="panel" id="panel-joueurs">
             <div class="section">
@@ -496,6 +567,7 @@
             if (nom === 'joueurs') chargerJoueurs();
             if (nom === 'messages') chargerMessages();
             if (nom === 'teams') chargerTeams();
+            if (nom === 'saison') chargerSaison();
         }
         document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => ouvrirOnglet(t.dataset.tab)));
 
@@ -506,6 +578,7 @@
             document.getElementById('st-joueurs').textContent = data.joueurs;
             document.getElementById('st-teams').textContent = data.teams;
             document.getElementById('st-matchs').textContent = data.matchs;
+            document.getElementById('st-matchs-label').textContent = `Matchs (saison ${data.saison})`;
             document.getElementById('st-messages').textContent = data.messages_non_traites;
             document.getElementById('st-messages-card').classList.toggle('alerte', data.messages_non_traites > 0);
             const pastille = document.getElementById('pastille');
@@ -668,6 +741,71 @@
 
         document.getElementById('recherche-teams').addEventListener('input', afficherTeams);
 
+        // ---------- saison ----------
+        const MVT = {
+            champion: '<span class="mvt champion">★ Champion</span>',
+            monte: l => `<span class="mvt monte">↑ Monte en Ligue ${l}</span>`,
+            descend: l => `<span class="mvt descend">↓ Descend en Ligue ${l}</span>`
+        };
+        
+        async function chargerSaison() {
+            const { ok, data } = await api('/api/admin/saison');
+            if (!ok) return;
+            document.getElementById('saison-titre').textContent = `Fin de la saison ${data.saison}`;
+            document.getElementById('s-cloturer').textContent = `Clôturer la saison ${data.saison}`;
+            document.getElementById('s-matchs').textContent = data.matchs_joues;
+            document.getElementById('s-teams').textContent = data.teams;
+            document.getElementById('s-montees').textContent = data.nb_montees;
+            document.getElementById('s-descentes').textContent = data.nb_descentes;
+            
+            const tbody = document.getElementById('liste-mouvements');
+            tbody.innerHTML = data.mouvements.length ? data.mouvements.map(m => `
+                <tr>
+                    <td><strong>${escapeHtml(m.team_name)}</strong></td>
+                    <td><span class="tag">L${Number(m.ligue_num)} · Poule ${escapeHtml(m.poule)}</span></td>
+                    <td>#${Number(m.rang)}</td>
+                    <td class="score">${Number(m.points)} <span class="muted">(${Number(m.joues)} J)</span></td>
+                    <td>${m.mouvement === 'champion' ? MVT.champion : MVT[m.mouvement](Number(m.destination))}</td>
+                </tr>`).join('')
+                : '<tr><td colspan="5" class="vide">Aucun mouvement prévu pour le moment (aucune team n\'a encore joué)</td></tr>';
+            
+            const pal = document.getElementById('liste-palmares');
+            pal.innerHTML = data.historique.length ? data.historique.map(s => `
+                <div class="palmares-ligne">
+                    <span>Saison ${Number(s.numero)} · <span class="muted">clôturée le ${dateCourte(s.cloturee_at)}</span></span>
+                    <span>🏆 <strong>${s.champion ? escapeHtml(s.champion) : '—'}</strong></span>
+                </div>`).join('')
+                : '<p class="vide">Aucune saison terminée pour le moment</p>';
+            majBoutonCloture();
+        }
+        
+        function majBoutonCloture() {
+            const ok = document.getElementById('s-confirmation').value.trim().toUpperCase() === 'CLOTURER';
+            document.getElementById('s-cloturer').disabled = !ok;
+        }
+        
+        async function cloturerSaison() {
+            const confirmation = document.getElementById('s-confirmation').value.trim().toUpperCase();
+            if (!confirm('Dernière confirmation : clôturer la saison ? Les points de toutes les teams repartiront à 0.')) return;
+            const btn = document.getElementById('s-cloturer');
+            btn.disabled = true;
+            const { ok, data } = await api('/api/admin/saison/cloturer', { method: 'POST', body: { confirmation } });
+            document.getElementById('s-confirmation').value = '';
+            if (ok && data.success) {
+                showMessage(`✓ Saison ${data.saison_cloturee} clôturée : ${data.montees} montée(s), ${data.descentes} descente(s)` +
+                    (data.champion ? `, champion : ${data.champion}` : '') + `. Bienvenue en saison ${data.nouvelle_saison} !`, 'success');
+                chargerSaison();
+                chargerStats();
+                chargerTeams();
+                chargerMatchs();
+            } else {
+                showMessage(data.error || 'Erreur', 'error');
+                majBoutonCloture();
+            }
+        }
+        
+        document.getElementById('s-confirmation').addEventListener('input', majBoutonCloture);
+        
         // ---------- joueurs ----------
         let timerRecherche;
         async function chargerJoueurs() {

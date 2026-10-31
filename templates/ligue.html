@@ -397,6 +397,31 @@
             border: 1px solid #ffd700;
         }
 
+        .saison-bandeau {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin: -1rem 0 2rem;
+            color: #a0a0b0;
+            font-weight: 700;
+        }
+        
+        .saison-tag {
+            background: rgba(0, 217, 255, 0.12);
+            border: 1px solid rgba(0, 217, 255, 0.4);
+            color: #00d9ff;
+            padding: 0.4rem 1rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .palmares { font-size: 0.9rem; }
+        .palmares strong { color: #ffd700; }
+        
         .ligue-message {
             color: #a0a0b0;
             text-align: center;
@@ -513,6 +538,11 @@
         function renderLigue(data, matchs) {
             const unique = data.poules.length === 1;
             let html = `<h2 class="ligue-title">Ligue ${data.ligue_num}</h2>`;
+            const palmares = (data.palmares || []).filter(p => p.champion);
+            html += `<div class="saison-bandeau">
+                <span class="saison-tag">Saison ${Number(data.saison) || 1} en cours</span>
+                ${palmares.length ? `<span class="palmares">🏆 Derniers champions : ${palmares.map(p => `S${Number(p.numero)} <strong>${escapeHtml(p.champion)}</strong>`).join(' · ')}</span>` : ''}
+            </div>`;
             html += '<div class="poules-grid">';
             for (const poule of data.poules) {
                 html += '<div class="poule">';

@@ -49,6 +49,9 @@ POINTS_VICTOIRE = 3
 POINTS_DEFAITE = 0
 SCORE_MAX = 99
 
+# Fin de saison : nombre de matchs minimum pour monter (ou être champion)
+MATCHS_MIN_POUR_MONTER = 1
+
 
 # ---------------------------------------------------------------------------
 # Base de données
@@ -216,6 +219,28 @@ def init_db():
             saisi_par INTEGER,
             created_at TEXT
         );
+        CREATE TABLE IF NOT EXISTS saisons (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            numero INTEGER UNIQUE NOT NULL,
+            cloturee_at TEXT,
+            cloturee_par INTEGER
+        );
+        CREATE TABLE IF NOT EXISTS saison_classements (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            saison INTEGER NOT NULL,
+            team_id INTEGER,
+            team_nom TEXT,
+            ligue_num INTEGER,
+            poule TEXT,
+            rang INTEGER,
+            points INTEGER,
+            joues INTEGER,
+            victoires INTEGER,
+            defaites INTEGER,
+            diff INTEGER,
+            mouvement TEXT,
+            destination INTEGER
+        );
         CREATE TABLE IF NOT EXISTS contact_messages (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER,
@@ -235,6 +260,7 @@ def init_db():
     ajouter_colonne(c, 'shop_items', 'type', "TEXT DEFAULT ''")
     ajouter_colonne(c, 'users', 'is_admin', 'INTEGER DEFAULT 0')
     ajouter_colonne(c, 'contact_messages', 'traite', 'INTEGER DEFAULT 0')
+    ajouter_colonne(c, 'matchs', 'saison', 'INTEGER DEFAULT 1')
     c.execute("UPDATE users SET created_at = datetime('now') WHERE created_at IS NULL")
     c.execute("UPDATE teams SET created_at = datetime('now') WHERE created_at IS NULL")
     c.execute("UPDATE users SET profile_pic = ? WHERE profile_pic IS NULL OR profile_pic NOT IN (%s)"
@@ -644,8 +670,13 @@ def api_delete_team(team_id):
 # ---------------------------------------------------------------------------
 # API : ligue
 # ---------------------------------------------------------------------------
+def saison_actuelle(db):
+    return db.execute('SELECT COALESCE(MAX(numero), 0) + 1 FROM saisons').fetchone()[0]
+
+
 def classement_poule(db, ligue_num, poule):
     config = LIGUES[ligue_num]
+    saison = saison_actuelle(db)
     rows = db.execute("""
         SELECT t.id AS team_id, t.nom AS team_name, l.points, l.id AS ligue_id
         FROM ligue l JOIN teams t ON t.id = l.team_id
@@ -653,8 +684,8 @@ def classement_poule(db, ligue_num, poule):
 
     # Stats calculées à partir des matchs joués dans CETTE ligue / poule
     stats = {r['team_id']: {'joues': 0, 'victoires': 0, 'defaites': 0, 'diff': 0} for r in rows}
-    for m in db.execute('SELECT team1_id, team2_id, score1, score2 FROM matchs WHERE ligue_num = ? AND poule = ?',
-                        (ligue_num, poule)):
+    for m in db.execute('SELECT team1_id, team2_id, score1, score2 FROM matchs '
+                        'WHERE ligue_num = ? AND poule = ? AND saison = ?', (ligue_num, poule, saison)):
         for tid, pour, contre in ((m['team1_id'], m['score1'], m['score2']), (m['team2_id'], m['score2'], m['score1'])):
             if tid in stats:
                 s = stats[tid]
@@ -670,9 +701,10 @@ def classement_poule(db, ligue_num, poule):
     for i, r in enumerate(rows):
         rang = i + 1
         statut = ''
-        if config['champion'] and rang == 1:
+        a_joue = stats[r['team_id']]['joues'] >= MATCHS_MIN_POUR_MONTER
+        if config['champion'] and rang == 1 and a_joue:
             statut = 'champion'
-        elif rang in config['monte']:
+        elif rang in config['monte'] and a_joue:
             statut = 'monte'
         elif rang in config['descend']:
             statut = 'descend'
@@ -706,6 +738,8 @@ def api_ligue():
         'descend': config['descend'],
         'champion': config['champion'],
         'poules': poules,
+        'saison': saison_actuelle(db),
+        'palmares': palmares(db, 5),
     }), 200
 
 
@@ -776,7 +810,7 @@ def api_contact():
 REQ_MATCHS = """
     SELECT m.id, m.ligue_num, m.poule, m.team1_id, m.team2_id,
            COALESCE(t1.nom, m.team1_nom) AS team1_nom, COALESCE(t2.nom, m.team2_nom) AS team2_nom,
-           m.score1, m.score2, m.points1, m.points2, m.created_at
+           m.score1, m.score2, m.points1, m.points2, m.created_at, m.saison
     FROM matchs m
     LEFT JOIN teams t1 ON t1.id = m.team1_id
     LEFT JOIN teams t2 ON t2.id = m.team2_id"""
@@ -784,8 +818,8 @@ REQ_MATCHS = """
 
 def matchs_de_team(db, team_id, limite=10):
     resultats = []
-    for r in db.execute(REQ_MATCHS + ' WHERE m.team1_id = ? OR m.team2_id = ? ORDER BY m.id DESC LIMIT ?',
-                        (team_id, team_id, limite)):
+    for r in db.execute(REQ_MATCHS + ' WHERE (m.team1_id = ? OR m.team2_id = ?) AND m.saison = ? '
+                        'ORDER BY m.id DESC LIMIT ?', (team_id, team_id, saison_actuelle(db), limite)):
         m = dict(r)
         domicile = m['team1_id'] == team_id
         m['adversaire'] = m['team2_nom'] if domicile else m['team1_nom']
@@ -808,7 +842,8 @@ def api_matchs():
     ligue_num = request.args.get('ligue_num', type=int)
     poule = request.args.get('poule', '').upper()
     limite = max(1, min(request.args.get('limit', 20, type=int), 100))
-    conditions, params = [], []
+    saison = request.args.get('saison', type=int) or saison_actuelle(get_db())
+    conditions, params = ['m.saison = ?'], [saison]
     if ligue_num is not None:
         if ligue_num not in LIGUES:
             return jsonify({'success': False, 'error': 'Ligue invalide (1 à 10)'}), 400
@@ -851,7 +886,8 @@ def api_admin_stats():
     return jsonify({
         'joueurs': compter('SELECT COUNT(*) FROM users'),
         'teams': compter('SELECT COUNT(*) FROM teams'),
-        'matchs': compter('SELECT COUNT(*) FROM matchs'),
+        'matchs': db.execute('SELECT COUNT(*) FROM matchs WHERE saison = ?', (saison_actuelle(db),)).fetchone()[0],
+        'saison': saison_actuelle(db),
         'messages_non_traites': compter('SELECT COUNT(*) FROM contact_messages WHERE traite = 0 OR traite IS NULL'),
     }), 200
 
@@ -887,10 +923,10 @@ def api_admin_create_match():
     points1 = POINTS_VICTOIRE if score1 > score2 else POINTS_DEFAITE
     points2 = POINTS_VICTOIRE if score2 > score1 else POINTS_DEFAITE
     c.execute("""INSERT INTO matchs (ligue_num, poule, team1_id, team2_id, team1_nom, team2_nom,
-                                     score1, score2, points1, points2, saisi_par, created_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))""",
+                                     score1, score2, points1, points2, saisi_par, created_at, saison)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?)""",
               (ligue_num, poule, team1_id, team2_id, t1['nom'], t2['nom'],
-               score1, score2, points1, points2, session['user_id']))
+               score1, score2, points1, points2, session['user_id'], saison_actuelle(db)))
     match_id = c.lastrowid
     ajuster_points(c, team1_id, ligue_num, poule, points1)
     ajuster_points(c, team2_id, ligue_num, poule, points2)
@@ -908,6 +944,8 @@ def api_admin_delete_match(match_id):
     m = c.execute('SELECT * FROM matchs WHERE id = ?', (match_id,)).fetchone()
     if not m:
         return jsonify({'success': False, 'error': 'Match introuvable'}), 404
+    if m['saison'] != saison_actuelle(db):
+        return jsonify({'success': False, 'error': 'Ce match appartient à une saison terminée'}), 400
     ajuster_points(c, m['team1_id'], m['ligue_num'], m['poule'], -m['points1'])
     ajuster_points(c, m['team2_id'], m['ligue_num'], m['poule'], -m['points2'])
     c.execute('DELETE FROM matchs WHERE id = ?', (match_id,))
@@ -1047,6 +1085,104 @@ def api_admin_message_delete(message_id):
         return jsonify({'success': False, 'error': 'Message introuvable'}), 404
     db.commit()
     return jsonify({'success': True}), 200
+
+
+# ---------------------------------------------------------------------------
+# Fin de saison
+# ---------------------------------------------------------------------------
+def palmares(db, limite=20):
+    rows = db.execute("""
+        SELECT s.numero, s.cloturee_at, sc.team_nom AS champion
+        FROM saisons s
+        LEFT JOIN saison_classements sc ON sc.saison = s.numero AND sc.mouvement = 'champion'
+        ORDER BY s.numero DESC LIMIT ?""", (limite,)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def calculer_fin_saison(db):
+    """Classement final de chaque poule + destination de chaque team (sans rien modifier)."""
+    resultats = []
+    for ligue_num in LIGUES:
+        for poule in lettres_poules(ligue_num):
+            for place in classement_poule(db, ligue_num, poule):
+                if not place['team_id']:
+                    continue
+                destination, mouvement = ligue_num, place['statut'] or 'reste'
+                if mouvement == 'monte' and ligue_num > 1:
+                    destination = ligue_num - 1
+                elif mouvement == 'descend' and ligue_num < max(LIGUES):
+                    destination = ligue_num + 1
+                elif mouvement not in ('champion',):
+                    mouvement = 'reste'
+                resultats.append({**place, 'ligue_num': ligue_num, 'poule': poule,
+                                  'mouvement': mouvement, 'destination': destination})
+    return resultats
+
+
+@app.route('/api/admin/saison', methods=['GET'])
+@api_admin
+def api_admin_saison():
+    db = get_db()
+    saison = saison_actuelle(db)
+    classement = calculer_fin_saison(db)
+    mouvements = [m for m in classement if m['mouvement'] != 'reste']
+    mouvements.sort(key=lambda m: (m['ligue_num'], m['poule'], m['rang']))
+    matchs_joues = db.execute('SELECT COUNT(*) FROM matchs WHERE saison = ?', (saison,)).fetchone()[0]
+    return jsonify({
+        'saison': saison,
+        'matchs_joues': matchs_joues,
+        'teams': len(classement),
+        'mouvements': mouvements,
+        'nb_montees': sum(m['mouvement'] == 'monte' for m in mouvements),
+        'nb_descentes': sum(m['mouvement'] == 'descend' for m in mouvements),
+        'historique': palmares(db),
+    }), 200
+
+
+@app.route('/api/admin/saison/cloturer', methods=['POST'])
+@api_admin
+def api_admin_cloturer_saison():
+    if donnees_json().get('confirmation') != 'CLOTURER':
+        return jsonify({'success': False, 'error': 'Tapez CLOTURER pour confirmer'}), 400
+    db = get_db()
+    c = db.cursor()
+    saison = saison_actuelle(db)
+    if not c.execute('SELECT 1 FROM matchs WHERE saison = ?', (saison,)).fetchone():
+        return jsonify({'success': False, 'error': 'Aucun match joué cette saison : rien à clôturer'}), 400
+
+    classement = calculer_fin_saison(db)
+    try:
+        c.execute("INSERT INTO saisons (numero, cloturee_at, cloturee_par) VALUES (?, datetime('now'), ?)",
+                  (saison, session['user_id']))
+        for p in classement:
+            c.execute("""INSERT INTO saison_classements (saison, team_id, team_nom, ligue_num, poule, rang, points,
+                                                         joues, victoires, defaites, diff, mouvement, destination)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                      (saison, p['team_id'], p['team_name'], p['ligue_num'], p['poule'], p['rang'], p['points'],
+                       p['joues'], p['victoires'], p['defaites'], p['diff'], p['mouvement'], p['destination']))
+
+        # 1) on sort toutes les teams qui changent de ligue de leur poule
+        partants = [p for p in classement if p['destination'] != p['ligue_num']]
+        for p in partants:
+            c.execute('UPDATE ligue SET ligue_num = ?, poule = NULL WHERE team_id = ?', (p['destination'], p['team_id']))
+        # 2) on les place dans les places libérées de leur nouvelle ligue (les mieux classées d'abord)
+        for p in sorted(partants, key=lambda p: (p['destination'], p['rang'], p['poule'])):
+            c.execute('UPDATE ligue SET poule = ? WHERE team_id = ?', (choisir_poule(c, p['destination']), p['team_id']))
+        # 3) nouvelle saison : tout le monde repart à 0
+        c.execute('UPDATE ligue SET points = 0')
+        db.commit()
+    except sqlite3.IntegrityError:
+        db.rollback()
+        return jsonify({'success': False, 'error': 'Cette saison a déjà été clôturée'}), 400
+
+    return jsonify({
+        'success': True,
+        'saison_cloturee': saison,
+        'nouvelle_saison': saison + 1,
+        'montees': sum(p['mouvement'] == 'monte' for p in partants),
+        'descentes': sum(p['mouvement'] == 'descend' for p in partants),
+        'champion': next((p['team_name'] for p in classement if p['mouvement'] == 'champion'), None),
+    }), 200
 
 
 def promouvoir_admin(email):
