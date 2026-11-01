@@ -1,6 +1,6 @@
 {
   "app_url": "https://xhqtounament.pythonanywhere.com",
-  "contact_email": "",
-  "discord": "",
+  "contact_email": "xhqtournamentsupport@gmail.com",
+  "discord": "https://discord.gg/cwMZ7VQW74",
   "_aide": "app_url : adresse de l'appli complète (ex. https://xhq.pythonanywhere.com) ; si elle est remplie, ce site y redirige. contact_email / discord : affichés sur la page Rejoindre."
 }

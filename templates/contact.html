@@ -12,6 +12,12 @@
         .btn { width: 100%; padding: 0.95rem; font-size: 1.1rem; }
         .btn:disabled { cursor: wait; }
         .hint { margin: -0.4rem 0 1.3rem; }
+        .contact-direct { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; margin-bottom: 1.2rem; }
+        .contact-carte { display: block; padding: 1rem 1.1rem; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); color: var(--text); text-decoration: none; transition: border-color 0.15s; min-width: 0; }
+        .contact-carte:hover { border-color: var(--bleu); }
+        .contact-carte strong { display: block; font-weight: 600; margin-bottom: 0.15rem; }
+        .contact-carte span { color: var(--muted); font-size: 0.88rem; overflow-wrap: anywhere; }
+        @media (max-width: 560px) { .contact-direct { grid-template-columns: 1fr; } }
         .back-link { margin-top: 1.4rem; text-align: center; }
         .back-link a { color: var(--muted); text-decoration: none; font-size: 0.9rem; }
         .back-link a:hover { color: var(--text); }
@@ -25,6 +31,11 @@
             <span class="kicker">Support</span>
             <h1>Contact</h1>
             <p>Un souci avec ta team, un score à corriger, un mot de passe perdu : écris-nous.</p>
+        </div>
+
+        <div class="contact-direct">
+            {% if discord_url %}<a class="contact-carte" href="{{ discord_url }}" target="_blank" rel="noopener"><strong>Discord</strong><span>Le plus rapide : rejoins le serveur XHQ</span></a>{% endif %}
+            {% if contact_email %}<a class="contact-carte" href="mailto:{{ contact_email }}"><strong>Email</strong><span>{{ contact_email }}</span></a>{% endif %}
         </div>
 
         <div class="form-container">

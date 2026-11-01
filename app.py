@@ -64,6 +64,10 @@ JEUX_DEFAUT = [
 ]
 JEU_DEFAUT = 'brawlstars'
 
+# Contact affiché sur le site (page Contact, pied de page, accueil)
+CONTACT_EMAIL = 'xhqtournamentsupport@gmail.com'
+DISCORD_URL = 'https://discord.gg/cwMZ7VQW74'
+
 # Tout le monde démarre à 0 €
 SOLDE_DEPART = 0
 
@@ -504,7 +508,8 @@ def injecter_utilisateur():
         jeu = trouver_jeu(db)
     except Exception:
         pass
-    return {'current_user': current_user, 'jeux': jeux, 'jeu': jeu or (jeux[0] if jeux else None)}
+    return {'current_user': current_user, 'jeux': jeux, 'jeu': jeu or (jeux[0] if jeux else None),
+            'contact_email': CONTACT_EMAIL, 'discord_url': DISCORD_URL}
 
 
 def page_connectee(f):
