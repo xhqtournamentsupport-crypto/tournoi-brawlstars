@@ -107,6 +107,7 @@
                 <h1><span class="kicker">Organisation</span>Admin</h1>
                 <p>Connecté en tant que {{ current_user.username }}</p>
             </div>
+            <button class="btn secondaire" type="button" id="btn-publier" onclick="publier()">Publier sur le site public</button>
         </div>
 
         <div class="stats">
@@ -630,6 +631,20 @@
             }
         }
 
+        // ---------- site public ----------
+        async function publier() {
+            const btn = document.getElementById('btn-publier');
+            btn.disabled = true;
+            const { ok, data } = await api('/api/admin/exporter', { method: 'POST' });
+            btn.disabled = false;
+            if (ok && data.success) {
+                showMessage(`Données du site public mises à jour (${data.teams} teams, ${data.matchs} matchs). ` +
+                    'Pour les mettre en ligne : git add docs && git commit -m "Mise à jour" && git push', 'success');
+            } else {
+                showMessage(data.error || 'Erreur', 'error');
+            }
+        }
+        
         // ---------- démarrage ----------
         chargerStats();
         chargerTeams();

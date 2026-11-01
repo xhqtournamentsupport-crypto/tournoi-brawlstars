@@ -9,7 +9,17 @@ python app.py
 ```
 Puis ouvrir http://localhost:5000 — `tournois.db` est créé (ou mis à jour) automatiquement.
 
-## Mise en ligne
+## Site public (GitHub Pages)
+Le dossier `docs/` est un site statique (comme Revoo) : accueil, classements, teams, résultats, palmarès,
+règlement, inscription. Il lit `docs/data/ligue.json`.
+
+Mettre à jour le site public après avoir saisi des matchs dans l'admin :
+1. bouton **Publier sur le site public** dans `/admin` (ou `python app.py export`) ;
+2. `git add docs && git commit -m "Mise à jour" && git push`.
+
+Contact affiché sur la page Rejoindre : renseigner `docs/data/config.json` (`contact_email`, `discord`).
+
+## Mise en ligne de l'appli complète (facultatif)
 Voir [DEPLOIEMENT.md](DEPLOIEMENT.md) (PythonAnywhere, gratuit, environ 15 minutes).
 
 ## Sécurité

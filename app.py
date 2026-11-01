@@ -1514,6 +1514,73 @@ def api_admin_cloturer_saison():
     }), 200
 
 
+# ---------------------------------------------------------------------------
+# Site public (GitHub Pages) : export des données en JSON
+# ---------------------------------------------------------------------------
+SITE_PUBLIC_DIR = os.path.join(BASE_DIR, 'docs')
+
+
+def exporter_site_public():
+    """Écrit docs/data/ligue.json (classements, teams, résultats, palmarès) et recopie la feuille de style.
+    Aucune donnée personnelle : ni email, ni pseudo de joueur, seulement les noms de teams."""
+    import json
+    import shutil
+    from datetime import datetime, timezone
+    with app.app_context():
+        db = get_db()
+        saison = saison_actuelle(db)
+        ligues = []
+        for n, config in LIGUES.items():
+            poules = []
+            for l in lettres_poules(n):
+                places = []
+                for p in classement_poule(db, n, l):
+                    if p['team_id']:
+                        places.append({k: p[k] for k in ('rang', 'team_name', 'points', 'joues', 'victoires',
+                                                          'defaites', 'diff', 'statut')})
+                    else:
+                        places.append({'rang': p['rang'], 'team_name': None})
+                poules.append({'nom': l, 'teams': places})
+            ligues.append({'ligue_num': n, 'champion': config['champion'], 'poules': poules})
+        teams = [dict(r) for r in db.execute("""
+            SELECT t.nom, t.bio, l.ligue_num, l.poule, l.points,
+                   (SELECT COUNT(*) FROM team_members tm WHERE tm.team_id = t.id) AS nb_membres
+            FROM teams t JOIN ligue l ON l.team_id = t.id
+            ORDER BY l.ligue_num, l.points DESC, t.nom COLLATE NOCASE""")]
+        resultats = [{k: r[k] for k in ('ligue_num', 'poule', 'team1_nom', 'team2_nom', 'score1', 'score2', 'created_at')}
+                     for r in db.execute(REQ_MATCHS + ' WHERE m.saison = ? ORDER BY m.id DESC LIMIT 50', (saison,))]
+        donnees = {
+            'genere_le': datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
+            'saison': saison,
+            'chiffres': {
+                'teams': len(teams),
+                'joueurs': db.execute('SELECT COUNT(*) FROM team_members tm JOIN ligue l ON l.team_id = tm.team_id').fetchone()[0],
+                'matchs': db.execute('SELECT COUNT(*) FROM matchs WHERE saison = ?', (saison,)).fetchone()[0],
+            },
+            'regles': {'points_victoire': POINTS_VICTOIRE, 'max_membres': MAX_MEMBRES, 'penalite_max': PENALITE_MAX},
+            'ligues': ligues,
+            'teams': teams,
+            'resultats': resultats,
+            'palmares': [p for p in palmares(db) if p['champion']],
+        }
+    os.makedirs(os.path.join(SITE_PUBLIC_DIR, 'data'), exist_ok=True)
+    os.makedirs(os.path.join(SITE_PUBLIC_DIR, 'assets'), exist_ok=True)
+    chemin = os.path.join(SITE_PUBLIC_DIR, 'data', 'ligue.json')
+    with open(chemin, 'w', encoding='utf-8') as f:
+        json.dump(donnees, f, ensure_ascii=False, indent=1)
+    shutil.copyfile(os.path.join(BASE_DIR, 'static', 'style.css'), os.path.join(SITE_PUBLIC_DIR, 'assets', 'style.css'))
+    shutil.copyfile(os.path.join(BASE_DIR, 'static', 'favicon.svg'), os.path.join(SITE_PUBLIC_DIR, 'assets', 'favicon.svg'))
+    return chemin, donnees
+
+
+@app.route('/api/admin/exporter', methods=['POST'])
+@api_admin
+def api_admin_exporter():
+    chemin, donnees = exporter_site_public()
+    return jsonify({'success': True, 'fichier': os.path.relpath(chemin, BASE_DIR),
+                    'teams': donnees['chiffres']['teams'], 'matchs': donnees['chiffres']['matchs']}), 200
+
+
 def promouvoir_admin(email):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.execute('UPDATE users SET is_admin = 1 WHERE lower(email) = lower(?)', (email.strip(),))
@@ -1533,5 +1600,10 @@ if __name__ == '__main__':
         else:
             print(f"Erreur : aucun compte avec l'email {sys.argv[2]}. Inscris-toi d'abord sur le site.")
             sys.exit(1)
+    elif len(sys.argv) >= 2 and sys.argv[1] == 'export':
+        # python app.py export  -> met à jour les données du site public (dossier docs/)
+        chemin, donnees = exporter_site_public()
+        print(f"OK : {os.path.relpath(chemin, BASE_DIR)} mis à jour ({donnees['chiffres']['teams']} teams, "
+              f"{donnees['chiffres']['matchs']} matchs). Envoie-le en ligne avec : git add docs && git commit -m \"Mise à jour\" && git push")
     else:
         app.run(debug=True)

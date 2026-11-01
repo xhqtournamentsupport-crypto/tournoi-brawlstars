@@ -1,0 +1,1474 @@
+{
+ "genere_le": "2026-11-01T12:22:15Z",
+ "saison": 1,
+ "chiffres": {
+  "teams": 0,
+  "joueurs": 0,
+  "matchs": 0
+ },
+ "regles": {
+  "points_victoire": 3,
+  "max_membres": 5,
+  "penalite_max": 15
+ },
+ "ligues": [
+  {
+   "ligue_num": 1,
+   "champion": true,
+   "poules": [
+    {
+     "nom": "A",
+     "teams": [
+      {
+       "rang": 1,
+       "team_name": null
+      },
+      {
+       "rang": 2,
+       "team_name": null
+      },
+      {
+       "rang": 3,
+       "team_name": null
+      },
+      {
+       "rang": 4,
+       "team_name": null
+      },
+      {
+       "rang": 5,
+       "team_name": null
+      },
+      {
+       "rang": 6,
+       "team_name": null
+      },
+      {
+       "rang": 7,
+       "team_name": null
+      },
+      {
+       "rang": 8,
+       "team_name": null
+      },
+      {
+       "rang": 9,
+       "team_name": null
+      },
+      {
+       "rang": 10,
+       "team_name": null
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "ligue_num": 2,
+   "champion": false,
+   "poules": [
+    {
+     "nom": "A",
+     "teams": [
+      {
+       "rang": 1,
+       "team_name": null
+      },
+      {
+       "rang": 2,
+       "team_name": null
+      },
+      {
+       "rang": 3,
+       "team_name": null
+      },
+      {
+       "rang": 4,
+       "team_name": null
+      },
+      {
+       "rang": 5,
+       "team_name": null
+      },
+      {
+       "rang": 6,
+       "team_name": null
+      },
+      {
+       "rang": 7,
+       "team_name": null
+      },
+      {
+       "rang": 8,
+       "team_name": null
+      },
+      {
+       "rang": 9,
+       "team_name": null
+      },
+      {
+       "rang": 10,
+       "team_name": null
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "ligue_num": 3,
+   "champion": false,
+   "poules": [
+    {
+     "nom": "A",
+     "teams": [
+      {
+       "rang": 1,
+       "team_name": null
+      },
+      {
+       "rang": 2,
+       "team_name": null
+      },
+      {
+       "rang": 3,
+       "team_name": null
+      },
+      {
+       "rang": 4,
+       "team_name": null
+      },
+      {
+       "rang": 5,
+       "team_name": null
+      },
+      {
+       "rang": 6,
+       "team_name": null
+      },
+      {
+       "rang": 7,
+       "team_name": null
+      },
+      {
+       "rang": 8,
+       "team_name": null
+      },
+      {
+       "rang": 9,
+       "team_name": null
+      },
+      {
+       "rang": 10,
+       "team_name": null
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "ligue_num": 4,
+   "champion": false,
+   "poules": [
+    {
+     "nom": "A",
+     "teams": [
+      {
+       "rang": 1,
+       "team_name": null
+      },
+      {
+       "rang": 2,
+       "team_name": null
+      },
+      {
+       "rang": 3,
+       "team_name": null
+      },
+      {
+       "rang": 4,
+       "team_name": null
+      },
+      {
+       "rang": 5,
+       "team_name": null
+      },
+      {
+       "rang": 6,
+       "team_name": null
+      },
+      {
+       "rang": 7,
+       "team_name": null
+      },
+      {
+       "rang": 8,
+       "team_name": null
+      },
+      {
+       "rang": 9,
+       "team_name": null
+      },
+      {
+       "rang": 10,
+       "team_name": null
+      }
+     ]
+    },
+    {
+     "nom": "B",
+     "teams": [
+      {
+       "rang": 1,
+       "team_name": null
+      },
+      {
+       "rang": 2,
+       "team_name": null
+      },
+      {
+       "rang": 3,
+       "team_name": null
+      },
+      {
+       "rang": 4,
+       "team_name": null
+      },
+      {
+       "rang": 5,
+       "team_name": null
+      },
+      {
+       "rang": 6,
+       "team_name": null
+      },
+      {
+       "rang": 7,
+       "team_name": null
+      },
+      {
+       "rang": 8,
+       "team_name": null
+      },
+      {
+       "rang": 9,
+       "team_name": null
+      },
+      {
+       "rang": 10,
+       "team_name": null
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "ligue_num": 5,
+   "champion": false,
+   "poules": [
+    {
+     "nom": "A",
+     "teams": [
+      {
+       "rang": 1,
+       "team_name": null
+      },
+      {
+       "rang": 2,
+       "team_name": null
+      },
+      {
+       "rang": 3,
+       "team_name": null
+      },
+      {
+       "rang": 4,
+       "team_name": null
+      },
+      {
+       "rang": 5,
+       "team_name": null
+      },
+      {
+       "rang": 6,
+       "team_name": null
+      },
+      {
+       "rang": 7,
+       "team_name": null
+      },
+      {
+       "rang": 8,
+       "team_name": null
+      },
+      {
+       "rang": 9,
+       "team_name": null
+      },
+      {
+       "rang": 10,
+       "team_name": null
+      }
+     ]
+    },
+    {
+     "nom": "B",
+     "teams": [
+      {
+       "rang": 1,
+       "team_name": null
+      },
+      {
+       "rang": 2,
+       "team_name": null
+      },
+      {
+       "rang": 3,
+       "team_name": null
+      },
+      {
+       "rang": 4,
+       "team_name": null
+      },
+      {
+       "rang": 5,
+       "team_name": null
+      },
+      {
+       "rang": 6,
+       "team_name": null
+      },
+      {
+       "rang": 7,
+       "team_name": null
+      },
+      {
+       "rang": 8,
+       "team_name": null
+      },
+      {
+       "rang": 9,
+       "team_name": null
+      },
+      {
+       "rang": 10,
+       "team_name": null
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "ligue_num": 6,
+   "champion": false,
+   "poules": [
+    {
+     "nom": "A",
+     "teams": [
+      {
+       "rang": 1,
+       "team_name": null
+      },
+      {
+       "rang": 2,
+       "team_name": null
+      },
+      {
+       "rang": 3,
+       "team_name": null
+      },
+      {
+       "rang": 4,
+       "team_name": null
+      },
+      {
+       "rang": 5,
+       "team_name": null
+      },
+      {
+       "rang": 6,
+       "team_name": null
+      },
+      {
+       "rang": 7,
+       "team_name": null
+      },
+      {
+       "rang": 8,
+       "team_name": null
+      },
+      {
+       "rang": 9,
+       "team_name": null
+      },
+      {
+       "rang": 10,
+       "team_name": null
+      }
+     ]
+    },
+    {
+     "nom": "B",
+     "teams": [
+      {
+       "rang": 1,
+       "team_name": null
+      },
+      {
+       "rang": 2,
+       "team_name": null
+      },
+      {
+       "rang": 3,
+       "team_name": null
+      },
+      {
+       "rang": 4,
+       "team_name": null
+      },
+      {
+       "rang": 5,
+       "team_name": null
+      },
+      {
+       "rang": 6,
+       "team_name": null
+      },
+      {
+       "rang": 7,
+       "team_name": null
+      },
+      {
+       "rang": 8,
+       "team_name": null
+      },
+      {
+       "rang": 9,
+       "team_name": null
+      },
+      {
+       "rang": 10,
+       "team_name": null
+      }
+     ]
+    },
+    {
+     "nom": "C",
+     "teams": [
+      {
+       "rang": 1,
+       "team_name": null
+      },
+      {
+       "rang": 2,
+       "team_name": null
+      },
+      {
+       "rang": 3,
+       "team_name": null
+      },
+      {
+       "rang": 4,
+       "team_name": null
+      },
+      {
+       "rang": 5,
+       "team_name": null
+      },
+      {
+       "rang": 6,
+       "team_name": null
+      },
+      {
+       "rang": 7,
+       "team_name": null
+      },
+      {
+       "rang": 8,
+       "team_name": null
+      },
+      {
+       "rang": 9,
+       "team_name": null
+      },
+      {
+       "rang": 10,
+       "team_name": null
+      }
+     ]
+    },
+    {
+     "nom": "D",
+     "teams": [
+      {
+       "rang": 1,
+       "team_name": null
+      },
+      {
+       "rang": 2,
+       "team_name": null
+      },
+      {
+       "rang": 3,
+       "team_name": null
+      },
+      {
+       "rang": 4,
+       "team_name": null
+      },
+      {
+       "rang": 5,
+       "team_name": null
+      },
+      {
+       "rang": 6,
+       "team_name": null
+      },
+      {
+       "rang": 7,
+       "team_name": null
+      },
+      {
+       "rang": 8,
+       "team_name": null
+      },
+      {
+       "rang": 9,
+       "team_name": null
+      },
+      {
+       "rang": 10,
+       "team_name": null
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "ligue_num": 7,
+   "champion": false,
+   "poules": [
+    {
+     "nom": "A",
+     "teams": [
+      {
+       "rang": 1,
+       "team_name": null
+      },
+      {
+       "rang": 2,
+       "team_name": null
+      },
+      {
+       "rang": 3,
+       "team_name": null
+      },
+      {
+       "rang": 4,
+       "team_name": null
+      },
+      {
+       "rang": 5,
+       "team_name": null
+      },
+      {
+       "rang": 6,
+       "team_name": null
+      },
+      {
+       "rang": 7,
+       "team_name": null
+      },
+      {
+       "rang": 8,
+       "team_name": null
+      },
+      {
+       "rang": 9,
+       "team_name": null
+      },
+      {
+       "rang": 10,
+       "team_name": null
+      }
+     ]
+    },
+    {
+     "nom": "B",
+     "teams": [
+      {
+       "rang": 1,
+       "team_name": null
+      },
+      {
+       "rang": 2,
+       "team_name": null
+      },
+      {
+       "rang": 3,
+       "team_name": null
+      },
+      {
+       "rang": 4,
+       "team_name": null
+      },
+      {
+       "rang": 5,
+       "team_name": null
+      },
+      {
+       "rang": 6,
+       "team_name": null
+      },
+      {
+       "rang": 7,
+       "team_name": null
+      },
+      {
+       "rang": 8,
+       "team_name": null
+      },
+      {
+       "rang": 9,
+       "team_name": null
+      },
+      {
+       "rang": 10,
+       "team_name": null
+      }
+     ]
+    },
+    {
+     "nom": "C",
+     "teams": [
+      {
+       "rang": 1,
+       "team_name": null
+      },
+      {
+       "rang": 2,
+       "team_name": null
+      },
+      {
+       "rang": 3,
+       "team_name": null
+      },
+      {
+       "rang": 4,
+       "team_name": null
+      },
+      {
+       "rang": 5,
+       "team_name": null
+      },
+      {
+       "rang": 6,
+       "team_name": null
+      },
+      {
+       "rang": 7,
+       "team_name": null
+      },
+      {
+       "rang": 8,
+       "team_name": null
+      },
+      {
+       "rang": 9,
+       "team_name": null
+      },
+      {
+       "rang": 10,
+       "team_name": null
+      }
+     ]
+    },
+    {
+     "nom": "D",
+     "teams": [
+      {
+       "rang": 1,
+       "team_name": null
+      },
+      {
+       "rang": 2,
+       "team_name": null
+      },
+      {
+       "rang": 3,
+       "team_name": null
+      },
+      {
+       "rang": 4,
+       "team_name": null
+      },
+      {
+       "rang": 5,
+       "team_name": null
+      },
+      {
+       "rang": 6,
+       "team_name": null
+      },
+      {
+       "rang": 7,
+       "team_name": null
+      },
+      {
+       "rang": 8,
+       "team_name": null
+      },
+      {
+       "rang": 9,
+       "team_name": null
+      },
+      {
+       "rang": 10,
+       "team_name": null
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "ligue_num": 8,
+   "champion": false,
+   "poules": [
+    {
+     "nom": "A",
+     "teams": [
+      {
+       "rang": 1,
+       "team_name": null
+      },
+      {
+       "rang": 2,
+       "team_name": null
+      },
+      {
+       "rang": 3,
+       "team_name": null
+      },
+      {
+       "rang": 4,
+       "team_name": null
+      },
+      {
+       "rang": 5,
+       "team_name": null
+      },
+      {
+       "rang": 6,
+       "team_name": null
+      },
+      {
+       "rang": 7,
+       "team_name": null
+      },
+      {
+       "rang": 8,
+       "team_name": null
+      },
+      {
+       "rang": 9,
+       "team_name": null
+      },
+      {
+       "rang": 10,
+       "team_name": null
+      }
+     ]
+    },
+    {
+     "nom": "B",
+     "teams": [
+      {
+       "rang": 1,
+       "team_name": null
+      },
+      {
+       "rang": 2,
+       "team_name": null
+      },
+      {
+       "rang": 3,
+       "team_name": null
+      },
+      {
+       "rang": 4,
+       "team_name": null
+      },
+      {
+       "rang": 5,
+       "team_name": null
+      },
+      {
+       "rang": 6,
+       "team_name": null
+      },
+      {
+       "rang": 7,
+       "team_name": null
+      },
+      {
+       "rang": 8,
+       "team_name": null
+      },
+      {
+       "rang": 9,
+       "team_name": null
+      },
+      {
+       "rang": 10,
+       "team_name": null
+      }
+     ]
+    },
+    {
+     "nom": "C",
+     "teams": [
+      {
+       "rang": 1,
+       "team_name": null
+      },
+      {
+       "rang": 2,
+       "team_name": null
+      },
+      {
+       "rang": 3,
+       "team_name": null
+      },
+      {
+       "rang": 4,
+       "team_name": null
+      },
+      {
+       "rang": 5,
+       "team_name": null
+      },
+      {
+       "rang": 6,
+       "team_name": null
+      },
+      {
+       "rang": 7,
+       "team_name": null
+      },
+      {
+       "rang": 8,
+       "team_name": null
+      },
+      {
+       "rang": 9,
+       "team_name": null
+      },
+      {
+       "rang": 10,
+       "team_name": null
+      }
+     ]
+    },
+    {
+     "nom": "D",
+     "teams": [
+      {
+       "rang": 1,
+       "team_name": null
+      },
+      {
+       "rang": 2,
+       "team_name": null
+      },
+      {
+       "rang": 3,
+       "team_name": null
+      },
+      {
+       "rang": 4,
+       "team_name": null
+      },
+      {
+       "rang": 5,
+       "team_name": null
+      },
+      {
+       "rang": 6,
+       "team_name": null
+      },
+      {
+       "rang": 7,
+       "team_name": null
+      },
+      {
+       "rang": 8,
+       "team_name": null
+      },
+      {
+       "rang": 9,
+       "team_name": null
+      },
+      {
+       "rang": 10,
+       "team_name": null
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "ligue_num": 9,
+   "champion": false,
+   "poules": [
+    {
+     "nom": "A",
+     "teams": [
+      {
+       "rang": 1,
+       "team_name": null
+      },
+      {
+       "rang": 2,
+       "team_name": null
+      },
+      {
+       "rang": 3,
+       "team_name": null
+      },
+      {
+       "rang": 4,
+       "team_name": null
+      },
+      {
+       "rang": 5,
+       "team_name": null
+      },
+      {
+       "rang": 6,
+       "team_name": null
+      },
+      {
+       "rang": 7,
+       "team_name": null
+      },
+      {
+       "rang": 8,
+       "team_name": null
+      },
+      {
+       "rang": 9,
+       "team_name": null
+      },
+      {
+       "rang": 10,
+       "team_name": null
+      }
+     ]
+    },
+    {
+     "nom": "B",
+     "teams": [
+      {
+       "rang": 1,
+       "team_name": null
+      },
+      {
+       "rang": 2,
+       "team_name": null
+      },
+      {
+       "rang": 3,
+       "team_name": null
+      },
+      {
+       "rang": 4,
+       "team_name": null
+      },
+      {
+       "rang": 5,
+       "team_name": null
+      },
+      {
+       "rang": 6,
+       "team_name": null
+      },
+      {
+       "rang": 7,
+       "team_name": null
+      },
+      {
+       "rang": 8,
+       "team_name": null
+      },
+      {
+       "rang": 9,
+       "team_name": null
+      },
+      {
+       "rang": 10,
+       "team_name": null
+      }
+     ]
+    },
+    {
+     "nom": "C",
+     "teams": [
+      {
+       "rang": 1,
+       "team_name": null
+      },
+      {
+       "rang": 2,
+       "team_name": null
+      },
+      {
+       "rang": 3,
+       "team_name": null
+      },
+      {
+       "rang": 4,
+       "team_name": null
+      },
+      {
+       "rang": 5,
+       "team_name": null
+      },
+      {
+       "rang": 6,
+       "team_name": null
+      },
+      {
+       "rang": 7,
+       "team_name": null
+      },
+      {
+       "rang": 8,
+       "team_name": null
+      },
+      {
+       "rang": 9,
+       "team_name": null
+      },
+      {
+       "rang": 10,
+       "team_name": null
+      }
+     ]
+    },
+    {
+     "nom": "D",
+     "teams": [
+      {
+       "rang": 1,
+       "team_name": null
+      },
+      {
+       "rang": 2,
+       "team_name": null
+      },
+      {
+       "rang": 3,
+       "team_name": null
+      },
+      {
+       "rang": 4,
+       "team_name": null
+      },
+      {
+       "rang": 5,
+       "team_name": null
+      },
+      {
+       "rang": 6,
+       "team_name": null
+      },
+      {
+       "rang": 7,
+       "team_name": null
+      },
+      {
+       "rang": 8,
+       "team_name": null
+      },
+      {
+       "rang": 9,
+       "team_name": null
+      },
+      {
+       "rang": 10,
+       "team_name": null
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "ligue_num": 10,
+   "champion": false,
+   "poules": [
+    {
+     "nom": "A",
+     "teams": [
+      {
+       "rang": 1,
+       "team_name": null
+      },
+      {
+       "rang": 2,
+       "team_name": null
+      },
+      {
+       "rang": 3,
+       "team_name": null
+      },
+      {
+       "rang": 4,
+       "team_name": null
+      },
+      {
+       "rang": 5,
+       "team_name": null
+      },
+      {
+       "rang": 6,
+       "team_name": null
+      },
+      {
+       "rang": 7,
+       "team_name": null
+      },
+      {
+       "rang": 8,
+       "team_name": null
+      },
+      {
+       "rang": 9,
+       "team_name": null
+      },
+      {
+       "rang": 10,
+       "team_name": null
+      }
+     ]
+    },
+    {
+     "nom": "B",
+     "teams": [
+      {
+       "rang": 1,
+       "team_name": null
+      },
+      {
+       "rang": 2,
+       "team_name": null
+      },
+      {
+       "rang": 3,
+       "team_name": null
+      },
+      {
+       "rang": 4,
+       "team_name": null
+      },
+      {
+       "rang": 5,
+       "team_name": null
+      },
+      {
+       "rang": 6,
+       "team_name": null
+      },
+      {
+       "rang": 7,
+       "team_name": null
+      },
+      {
+       "rang": 8,
+       "team_name": null
+      },
+      {
+       "rang": 9,
+       "team_name": null
+      },
+      {
+       "rang": 10,
+       "team_name": null
+      }
+     ]
+    },
+    {
+     "nom": "C",
+     "teams": [
+      {
+       "rang": 1,
+       "team_name": null
+      },
+      {
+       "rang": 2,
+       "team_name": null
+      },
+      {
+       "rang": 3,
+       "team_name": null
+      },
+      {
+       "rang": 4,
+       "team_name": null
+      },
+      {
+       "rang": 5,
+       "team_name": null
+      },
+      {
+       "rang": 6,
+       "team_name": null
+      },
+      {
+       "rang": 7,
+       "team_name": null
+      },
+      {
+       "rang": 8,
+       "team_name": null
+      },
+      {
+       "rang": 9,
+       "team_name": null
+      },
+      {
+       "rang": 10,
+       "team_name": null
+      }
+     ]
+    },
+    {
+     "nom": "D",
+     "teams": [
+      {
+       "rang": 1,
+       "team_name": null
+      },
+      {
+       "rang": 2,
+       "team_name": null
+      },
+      {
+       "rang": 3,
+       "team_name": null
+      },
+      {
+       "rang": 4,
+       "team_name": null
+      },
+      {
+       "rang": 5,
+       "team_name": null
+      },
+      {
+       "rang": 6,
+       "team_name": null
+      },
+      {
+       "rang": 7,
+       "team_name": null
+      },
+      {
+       "rang": 8,
+       "team_name": null
+      },
+      {
+       "rang": 9,
+       "team_name": null
+      },
+      {
+       "rang": 10,
+       "team_name": null
+      }
+     ]
+    },
+    {
+     "nom": "E",
+     "teams": [
+      {
+       "rang": 1,
+       "team_name": null
+      },
+      {
+       "rang": 2,
+       "team_name": null
+      },
+      {
+       "rang": 3,
+       "team_name": null
+      },
+      {
+       "rang": 4,
+       "team_name": null
+      },
+      {
+       "rang": 5,
+       "team_name": null
+      },
+      {
+       "rang": 6,
+       "team_name": null
+      },
+      {
+       "rang": 7,
+       "team_name": null
+      },
+      {
+       "rang": 8,
+       "team_name": null
+      },
+      {
+       "rang": 9,
+       "team_name": null
+      },
+      {
+       "rang": 10,
+       "team_name": null
+      }
+     ]
+    },
+    {
+     "nom": "F",
+     "teams": [
+      {
+       "rang": 1,
+       "team_name": null
+      },
+      {
+       "rang": 2,
+       "team_name": null
+      },
+      {
+       "rang": 3,
+       "team_name": null
+      },
+      {
+       "rang": 4,
+       "team_name": null
+      },
+      {
+       "rang": 5,
+       "team_name": null
+      },
+      {
+       "rang": 6,
+       "team_name": null
+      },
+      {
+       "rang": 7,
+       "team_name": null
+      },
+      {
+       "rang": 8,
+       "team_name": null
+      },
+      {
+       "rang": 9,
+       "team_name": null
+      },
+      {
+       "rang": 10,
+       "team_name": null
+      }
+     ]
+    },
+    {
+     "nom": "G",
+     "teams": [
+      {
+       "rang": 1,
+       "team_name": null
+      },
+      {
+       "rang": 2,
+       "team_name": null
+      },
+      {
+       "rang": 3,
+       "team_name": null
+      },
+      {
+       "rang": 4,
+       "team_name": null
+      },
+      {
+       "rang": 5,
+       "team_name": null
+      },
+      {
+       "rang": 6,
+       "team_name": null
+      },
+      {
+       "rang": 7,
+       "team_name": null
+      },
+      {
+       "rang": 8,
+       "team_name": null
+      },
+      {
+       "rang": 9,
+       "team_name": null
+      },
+      {
+       "rang": 10,
+       "team_name": null
+      }
+     ]
+    },
+    {
+     "nom": "H",
+     "teams": [
+      {
+       "rang": 1,
+       "team_name": null
+      },
+      {
+       "rang": 2,
+       "team_name": null
+      },
+      {
+       "rang": 3,
+       "team_name": null
+      },
+      {
+       "rang": 4,
+       "team_name": null
+      },
+      {
+       "rang": 5,
+       "team_name": null
+      },
+      {
+       "rang": 6,
+       "team_name": null
+      },
+      {
+       "rang": 7,
+       "team_name": null
+      },
+      {
+       "rang": 8,
+       "team_name": null
+      },
+      {
+       "rang": 9,
+       "team_name": null
+      },
+      {
+       "rang": 10,
+       "team_name": null
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "teams": [],
+ "resultats": [],
+ "palmares": []
+}
