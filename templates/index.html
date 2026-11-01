@@ -24,8 +24,54 @@
                 var(--bg);
         }
         .bracket { position: absolute; top: 50%; width: min(21vw, 430px); height: auto; transform: translateY(-50%); pointer-events: none; }
-        .bracket path { fill: none; stroke: var(--bleu); stroke-width: 3; stroke-linejoin: miter; opacity: 0.85; }
-        .bracket .fin { stroke: var(--bleu-clair); stroke-width: 4; }
+        .bracket path { fill: none; stroke-width: 3; stroke-linejoin: miter; stroke-linecap: square; }
+        .bracket .trace { stroke: var(--bleu); opacity: 0.8; stroke-dasharray: 100; stroke-dashoffset: 100; animation: tracer 1.2s ease-out forwards; }
+        .bracket .trace.fin { stroke: var(--bleu-clair); stroke-width: 4; }
+        /* Signal lumineux qui remonte l'arbre jusqu'au centre, en boucle */
+        .bracket .flux { stroke: var(--accent); stroke-width: 3.5; stroke-dasharray: 16 300; stroke-dashoffset: 16; opacity: 0; filter: drop-shadow(0 0 6px var(--accent)); animation: flux 4s linear infinite; }
+        .bracket .n1 { animation-delay: 1.4s; }
+        .bracket .n2 { animation-delay: 2.2s; }
+        .bracket .n3 { animation-delay: 3s; }
+        .bracket .n4 { animation-delay: 3.8s; stroke-width: 5; }
+        @keyframes tracer { to { stroke-dashoffset: 0; } }
+        @keyframes flux {
+            0% { stroke-dashoffset: 16; opacity: 1; }
+            22% { stroke-dashoffset: -100; opacity: 1; }
+            23%, 100% { stroke-dashoffset: -100; opacity: 0; }
+        }
+
+        /* Halo qui respire, point « en direct » */
+        .arene::after { content: ''; position: absolute; left: 50%; top: 42%; width: 720px; height: 420px; transform: translate(-50%, -50%); background: radial-gradient(ellipse at center, var(--halo-1), transparent 65%); animation: respire 6s ease-in-out infinite; pointer-events: none; }
+        @keyframes respire { 0%, 100% { opacity: 0.35; transform: translate(-50%, -50%) scale(0.95); } 50% { opacity: 0.8; transform: translate(-50%, -50%) scale(1.08); } }
+        .live { display: inline-block; width: 8px; height: 8px; margin-right: 0.55rem; border-radius: 50%; background: var(--accent); vertical-align: 0.05em; animation: live 1.6s ease-out infinite; }
+        @keyframes live { 0% { box-shadow: 0 0 0 0 var(--accent); } 70%, 100% { box-shadow: 0 0 0 8px transparent; } }
+
+        /* Entrée du hero */
+        .arene-centre > * { animation: monte 0.7s cubic-bezier(.2, .7, .2, 1) both; }
+        .arene-centre > :nth-child(2) { animation-delay: 0.1s; }
+        .arene-centre > :nth-child(3) { animation-delay: 0.2s; }
+        .arene-centre > :nth-child(4) { animation-delay: 0.3s; }
+        .arene-centre > :nth-child(5) { animation-delay: 0.35s; }
+        .arene-centre > :nth-child(6) { animation-delay: 0.45s; }
+        .arene-centre > :nth-child(7) { animation-delay: 0.55s; }
+        @keyframes monte { from { opacity: 0; transform: translateY(16px); } }
+        .arene-titre img { animation: flotte 5s ease-in-out 1s infinite; }
+        @keyframes flotte { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+
+        /* Reflet qui balaie le bouton principal */
+        .arene-actions .hero-btn { position: relative; overflow: hidden; }
+        .arene-actions .hero-btn::after { content: ''; position: absolute; top: 0; left: -60%; width: 40%; height: 100%; background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.35), transparent); transform: skewX(-20deg); animation: reflet 3.5s ease-in-out 1.5s infinite; }
+        @keyframes reflet { 0% { left: -60%; } 35%, 100% { left: 130%; } }
+
+        .stack-card { transition: transform 0.2s, border-color 0.2s; }
+        .stack-card:hover { transform: translateY(-3px); }
+        .stack-card:hover .stack-num { -webkit-text-stroke-color: var(--c, var(--accent)); }
+
+        @media (prefers-reduced-motion: reduce) {
+            .bracket .trace { animation: none; stroke-dashoffset: 0; }
+            .bracket .flux, .arene::after, .live, .arene-actions .hero-btn::after { animation: none; display: none; }
+            .arene-centre > *, .arene-titre img { animation: none; }
+        }
         .bracket.gauche { left: 0; }
         .bracket.droite { right: 0; transform: translateY(-50%) scaleX(-1); }
 
@@ -119,10 +165,9 @@
             .stack, .jeux { grid-template-columns: 1fr; }
             .bloc-titre { flex-direction: column; gap: 0.3rem; }
         }
-        html[data-theme="neon"] .arene-pill { border-radius: 4px; border-color: var(--accent); color: var(--text); }
-        html[data-theme="neon"] .bracket path { filter: drop-shadow(0 0 6px rgba(139, 92, 246, 0.7)); }
-        html[data-theme="neon"] .bracket .fin { stroke: var(--accent); }
-        html[data-theme="neon"] .jeu, html[data-theme="neon"] .stack-card { clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 0 100%); }
+        html[data-theme="neon"] .arene-pill { border-color: var(--accent); color: var(--text); }
+        html[data-theme="neon"] .bracket .trace { filter: drop-shadow(0 0 5px rgba(139, 92, 246, 0.6)); }
+                html[data-theme="neon"] .jeu, html[data-theme="neon"] .stack-card { clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 0 100%); }
         html[data-theme="neon"] .jeu::before { background: linear-gradient(90deg, var(--bleu), var(--accent)); }
         html[data-theme="neon"] .bloc-titre h3::before { background: var(--accent); }
     </style>
@@ -134,23 +179,75 @@
     {% set places = cartes | sum(attribute='places') %}{% set teams = cartes | sum(attribute='teams') %}{% set matchs = cartes | sum(attribute='matchs') %}
     <section class="arene">
         <svg class="bracket gauche" viewBox="0 0 540 765" aria-hidden="true">
-            <path d="M0 10 H110 V95 H0 M0 200 H110 V285 H0 M0 480 H110 V565 H0 M0 670 H110 V755 H0"/>
-            <path d="M110 52 H220 V242 H110 M110 522 H220 V712 H110"/>
-            <path d="M220 147 H470 V360 M220 617 H470 V405"/>
-            <path class="fin" d="M470 382 H540"/>
+            <path class="trace" pathLength="100" d="M0 10 H110 V52.5"/>
+            <path class="trace" pathLength="100" d="M0 95 H110 V52.5"/>
+            <path class="trace" pathLength="100" d="M0 200 H110 V242.5"/>
+            <path class="trace" pathLength="100" d="M0 285 H110 V242.5"/>
+            <path class="trace" pathLength="100" d="M0 480 H110 V522.5"/>
+            <path class="trace" pathLength="100" d="M0 565 H110 V522.5"/>
+            <path class="trace" pathLength="100" d="M0 670 H110 V712.5"/>
+            <path class="trace" pathLength="100" d="M0 755 H110 V712.5"/>
+            <path class="trace" pathLength="100" d="M110 52.5 H220 V147.5"/>
+            <path class="trace" pathLength="100" d="M110 242.5 H220 V147.5"/>
+            <path class="trace" pathLength="100" d="M110 522.5 H220 V617.5"/>
+            <path class="trace" pathLength="100" d="M110 712.5 H220 V617.5"/>
+            <path class="trace" pathLength="100" d="M220 147.5 H470 V360"/>
+            <path class="trace" pathLength="100" d="M220 617.5 H470 V405"/>
+            <path class="trace fin" pathLength="100" d="M470 382 H540"/>
+            <path class="flux n1" pathLength="100" d="M0 10 H110 V52.5"/>
+            <path class="flux n1" pathLength="100" d="M0 95 H110 V52.5"/>
+            <path class="flux n1" pathLength="100" d="M0 200 H110 V242.5"/>
+            <path class="flux n1" pathLength="100" d="M0 285 H110 V242.5"/>
+            <path class="flux n1" pathLength="100" d="M0 480 H110 V522.5"/>
+            <path class="flux n1" pathLength="100" d="M0 565 H110 V522.5"/>
+            <path class="flux n1" pathLength="100" d="M0 670 H110 V712.5"/>
+            <path class="flux n1" pathLength="100" d="M0 755 H110 V712.5"/>
+            <path class="flux n2" pathLength="100" d="M110 52.5 H220 V147.5"/>
+            <path class="flux n2" pathLength="100" d="M110 242.5 H220 V147.5"/>
+            <path class="flux n2" pathLength="100" d="M110 522.5 H220 V617.5"/>
+            <path class="flux n2" pathLength="100" d="M110 712.5 H220 V617.5"/>
+            <path class="flux n3" pathLength="100" d="M220 147.5 H470 V360"/>
+            <path class="flux n3" pathLength="100" d="M220 617.5 H470 V405"/>
+            <path class="flux n4 fin" pathLength="100" d="M470 382 H540"/>
         </svg>
         <svg class="bracket droite" viewBox="0 0 540 765" aria-hidden="true">
-            <path d="M0 10 H110 V95 H0 M0 200 H110 V285 H0 M0 480 H110 V565 H0 M0 670 H110 V755 H0"/>
-            <path d="M110 52 H220 V242 H110 M110 522 H220 V712 H110"/>
-            <path d="M220 147 H470 V360 M220 617 H470 V405"/>
-            <path class="fin" d="M470 382 H540"/>
+            <path class="trace" pathLength="100" d="M0 10 H110 V52.5"/>
+            <path class="trace" pathLength="100" d="M0 95 H110 V52.5"/>
+            <path class="trace" pathLength="100" d="M0 200 H110 V242.5"/>
+            <path class="trace" pathLength="100" d="M0 285 H110 V242.5"/>
+            <path class="trace" pathLength="100" d="M0 480 H110 V522.5"/>
+            <path class="trace" pathLength="100" d="M0 565 H110 V522.5"/>
+            <path class="trace" pathLength="100" d="M0 670 H110 V712.5"/>
+            <path class="trace" pathLength="100" d="M0 755 H110 V712.5"/>
+            <path class="trace" pathLength="100" d="M110 52.5 H220 V147.5"/>
+            <path class="trace" pathLength="100" d="M110 242.5 H220 V147.5"/>
+            <path class="trace" pathLength="100" d="M110 522.5 H220 V617.5"/>
+            <path class="trace" pathLength="100" d="M110 712.5 H220 V617.5"/>
+            <path class="trace" pathLength="100" d="M220 147.5 H470 V360"/>
+            <path class="trace" pathLength="100" d="M220 617.5 H470 V405"/>
+            <path class="trace fin" pathLength="100" d="M470 382 H540"/>
+            <path class="flux n1" pathLength="100" d="M0 10 H110 V52.5"/>
+            <path class="flux n1" pathLength="100" d="M0 95 H110 V52.5"/>
+            <path class="flux n1" pathLength="100" d="M0 200 H110 V242.5"/>
+            <path class="flux n1" pathLength="100" d="M0 285 H110 V242.5"/>
+            <path class="flux n1" pathLength="100" d="M0 480 H110 V522.5"/>
+            <path class="flux n1" pathLength="100" d="M0 565 H110 V522.5"/>
+            <path class="flux n1" pathLength="100" d="M0 670 H110 V712.5"/>
+            <path class="flux n1" pathLength="100" d="M0 755 H110 V712.5"/>
+            <path class="flux n2" pathLength="100" d="M110 52.5 H220 V147.5"/>
+            <path class="flux n2" pathLength="100" d="M110 242.5 H220 V147.5"/>
+            <path class="flux n2" pathLength="100" d="M110 522.5 H220 V617.5"/>
+            <path class="flux n2" pathLength="100" d="M110 712.5 H220 V617.5"/>
+            <path class="flux n3" pathLength="100" d="M220 147.5 H470 V360"/>
+            <path class="flux n3" pathLength="100" d="M220 617.5 H470 V405"/>
+            <path class="flux n4 fin" pathLength="100" d="M470 382 H540"/>
         </svg>
 
         <div class="arene-centre">
-            <span class="arene-pill">{% if principal %}Saison {{ principal.saison }} en cours · {% endif %}<b>{{ nb_ligues }} divisions</b>, une seule couronne</span>
+            <span class="arene-pill"><span class="live"></span>{% if principal %}Saison {{ principal.saison }} en cours · {% endif %}<b>{{ nb_ligues }} divisions</b>, une seule couronne</span>
             <h1 class="arene-titre"><img src="{{ url_for('static', filename='logo-xhq-clair.png') }}" alt="XHQ"></h1>
             <p class="arene-sous">Ligues par saison, classements par jeu et palmarès pour les teams e-sport</p>
-            <div class="arene-chiffre">{{ places }}</div>
+            <div class="arene-chiffre" data-compte="{{ places }}">{{ places }}</div>
             <div class="arene-label">Places en ligue cette saison</div>
             <div class="arene-actions">
                 {% if current_user %}
@@ -175,7 +272,7 @@
         <div class="bloc-titre"><h3>Choisis ton jeu</h3><span>Un classement par jeu</span></div>
         <div class="jeux">
             {% for c in cartes %}
-            <a class="jeu" href="/ligue?jeu={{ c.code }}">
+            <a class="jeu reveal" href="/ligue?jeu={{ c.code }}">
                 <span class="jeu-tag">{{ c.format }} · Saison {{ c.saison }}</span>
                 <span class="jeu-nom">{{ c.nom }}</span>
                 <span class="jeu-meta">{{ c.teams }}/{{ c.places }} teams · {{ c.matchs }} match{{ 's' if c.matchs != 1 }}</span>
@@ -185,7 +282,7 @@
                 </span>
             </a>
             {% endfor %}
-            <div class="jeu bientot">
+            <div class="jeu bientot reveal" style="--d:0.1s">
                 <span class="jeu-tag">Bientôt</span>
                 <span class="jeu-nom">D'autres jeux</span>
                 <span class="jeu-meta">Même principe : des ligues, des saisons, un palmarès par jeu.</span>
@@ -194,17 +291,42 @@
 
         <div class="bloc-titre"><h3>Comment ça marche</h3><span>Les règles en 8 points</span></div>
         <div class="stack">
-            <div class="stack-card yellow"><div class="stack-num">01</div><div class="stack-title">{{ nb_ligues }} divisions</div><div class="stack-desc">De la Ligue {{ nb_ligues }} à la Ligue 1. Chaque nouvelle team commence tout en bas.</div></div>
-            <div class="stack-card blue"><div class="stack-num">02</div><div class="stack-title">Poules de {{ par_poule }}</div><div class="stack-desc">Une poule en Ligues 1 à 3, deux en Ligues 4 et 5. Tu affrontes les teams de ta poule.</div></div>
-            <div class="stack-card green"><div class="stack-num">03</div><div class="stack-title">Montées</div><div class="stack-desc">Le premier de chaque poule monte. Les places libres sont repêchées par la division du dessous.</div></div>
-            <div class="stack-card red"><div class="stack-num">04</div><div class="stack-title">Descentes</div><div class="stack-desc">Les dernières places redescendent. En Ligue 1, le dernier tombe direct.</div></div>
-            <div class="stack-card orange"><div class="stack-num">05</div><div class="stack-title">Absences</div><div class="stack-desc">Un match pas joué, c'est un point en moins. Aucun match sur la saison, et la team sort du classement.</div></div>
-            <div class="stack-card purple"><div class="stack-num">06</div><div class="stack-title">Teams de 5</div><div class="stack-desc">Trois titulaires, deux remplaçants, une team par jeu. Le capitaine gère l'effectif.</div></div>
-            <div class="stack-card cyan"><div class="stack-num">07</div><div class="stack-title">Résultats vérifiés</div><div class="stack-desc">Les scores sont saisis par l'organisation, pas par les joueurs.</div></div>
-            <div class="stack-card pink"><div class="stack-num">08</div><div class="stack-title">Objets exclusifs</div><div class="stack-desc">Badges et cadres gratuits, certains limités dans le temps. Aucun avantage en jeu.</div></div>
+            <div class="stack-card yellow reveal" style="--d:0.00s"><div class="stack-num">01</div><div class="stack-title">{{ nb_ligues }} divisions</div><div class="stack-desc">De la Ligue {{ nb_ligues }} à la Ligue 1. Chaque nouvelle team commence tout en bas.</div></div>
+            <div class="stack-card blue reveal" style="--d:0.08s"><div class="stack-num">02</div><div class="stack-title">Poules de {{ par_poule }}</div><div class="stack-desc">Une poule en Ligues 1 à 3, deux en Ligues 4 et 5. Tu affrontes les teams de ta poule.</div></div>
+            <div class="stack-card green reveal" style="--d:0.16s"><div class="stack-num">03</div><div class="stack-title">Montées</div><div class="stack-desc">Le premier de chaque poule monte. Les places libres sont repêchées par la division du dessous.</div></div>
+            <div class="stack-card red reveal" style="--d:0.24s"><div class="stack-num">04</div><div class="stack-title">Descentes</div><div class="stack-desc">Les dernières places redescendent. En Ligue 1, le dernier tombe direct.</div></div>
+            <div class="stack-card orange reveal" style="--d:0.00s"><div class="stack-num">05</div><div class="stack-title">Absences</div><div class="stack-desc">Un match pas joué, c'est un point en moins. Aucun match sur la saison, et la team sort du classement.</div></div>
+            <div class="stack-card purple reveal" style="--d:0.08s"><div class="stack-num">06</div><div class="stack-title">Teams de 5</div><div class="stack-desc">Trois titulaires, deux remplaçants, une team par jeu. Le capitaine gère l'effectif.</div></div>
+            <div class="stack-card cyan reveal" style="--d:0.16s"><div class="stack-num">07</div><div class="stack-title">Résultats vérifiés</div><div class="stack-desc">Les scores sont saisis par l'organisation, pas par les joueurs.</div></div>
+            <div class="stack-card pink reveal" style="--d:0.24s"><div class="stack-num">08</div><div class="stack-title">Objets exclusifs</div><div class="stack-desc">Badges et cadres gratuits, certains limités dans le temps. Aucun avantage en jeu.</div></div>
         </div>
     </main>
 
     {% include '_footer.html' %}
+    <script>
+        (function () {
+            var calme = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+            // Compteur qui défile jusqu'au chiffre
+            var el = document.querySelector('[data-compte]');
+            if (el && !calme) {
+                var cible = parseInt(el.dataset.compte, 10) || 0, t0 = null;
+                el.textContent = '0';
+                requestAnimationFrame(function pas(t) {
+                    if (!t0) t0 = t;
+                    var p = Math.min((t - t0) / 1400, 1);
+                    el.textContent = Math.round(cible * (1 - Math.pow(1 - p, 3)));
+                    if (p < 1) requestAnimationFrame(pas);
+                });
+            }
+            // Cartes qui apparaissent au défilement
+            if (!calme && 'IntersectionObserver' in window) {
+                document.documentElement.classList.add('anim-ok');
+                var obs = new IntersectionObserver(function (entrees) {
+                    entrees.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('vu'); obs.unobserve(e.target); } });
+                }, { threshold: 0.15 });
+                document.querySelectorAll('.reveal').forEach(function (n) { obs.observe(n); });
+            }
+        })();
+    </script>
 </body>
 </html>
