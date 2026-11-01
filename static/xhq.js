@@ -11,6 +11,10 @@ function escapeHtml(value) {
 // Si la session a expiré (401), redirige vers /login sauf si options.noRedirect est vrai.
 async function api(url, options = {}) {
     const { noRedirect, body, ...rest } = options;
+    // Le jeu choisi (Brawl Stars...) accompagne chaque appel, sauf s'il est déjà précisé
+    if (window.XHQ_JEU && url.startsWith('/api/') && !/[?&]jeu=/.test(url)) {
+        url += (url.includes('?') ? '&' : '?') + 'jeu=' + encodeURIComponent(window.XHQ_JEU);
+    }
     const opts = { headers: { 'Content-Type': 'application/json' }, ...rest };
     if (body !== undefined) opts.body = JSON.stringify(body);
 

@@ -514,3 +514,24 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
     .resultat .poule-tag, .resultat .meta { grid-column: 1 / -1; text-align: center; }
     .xhq-footer { padding: 1.2rem 1rem; }
 }
+
+/* ---------------------------------------------------------------------
+   Sélecteur de jeu
+   --------------------------------------------------------------------- */
+.jeux-switch { display: flex; gap: 0.5rem; flex-wrap: wrap; margin: -0.8rem 0 2rem; }
+.jeu-onglet {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.45rem;
+    padding: 0.45rem 1rem;
+    border: 1px solid var(--line-2);
+    border-radius: 999px;
+    color: var(--text-soft);
+    text-decoration: none;
+    font-weight: 500;
+}
+.jeu-onglet small { color: var(--muted); font-size: 0.78rem; }
+.jeu-onglet:hover { border-color: var(--bleu); color: var(--text); }
+.jeu-onglet.actif { background: var(--bleu); border-color: var(--bleu); color: #fff; }
+.jeu-onglet.actif small { color: rgba(255, 255, 255, 0.75); }
+.jeu-onglet.bientot { border-style: dashed; color: var(--dim); }

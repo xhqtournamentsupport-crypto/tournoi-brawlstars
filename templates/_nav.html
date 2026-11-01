@@ -4,7 +4,7 @@
             {% if current_user %}
             <div class="xhq-nav-links">
                 <a href="/teams" class="xhq-nav-btn{% if request.path == '/teams' %} active{% endif %}">Teams</a>
-                <a href="/ligue" class="xhq-nav-btn{% if request.path == '/ligue' %} active{% endif %}">Ligue</a>
+                <a href="/ligue" class="xhq-nav-btn{% if request.path == '/ligue' %} active{% endif %}">Classements</a>
                 <a href="/shop" class="xhq-nav-btn{% if request.path == '/shop' %} active{% endif %}">Shop</a>
                 {% if current_user.is_admin %}
                 <a href="/admin" class="xhq-nav-btn admin{% if request.path == '/admin' %} active{% endif %}">Admin</a>
@@ -12,6 +12,9 @@
             </div>
             <a href="/profil" class="xhq-avatar{% if current_user.cadre %} cadre-{{ current_user.cadre | replace('cadre_', '') }}{% endif %}" id="nav-avatar" title="{{ current_user.username }}">{{ current_user.logo }}</a>
             {% else %}
+            <div class="xhq-nav-links">
+                <a href="/ligue" class="xhq-nav-btn{% if request.path == '/ligue' %} active{% endif %}">Classements</a>
+            </div>
             <div class="xhq-nav-auth">
                 <a href="/login" class="xhq-nav-btn outline">Connexion</a>
                 <a href="/signup" class="xhq-nav-btn primary">S'inscrire</a>

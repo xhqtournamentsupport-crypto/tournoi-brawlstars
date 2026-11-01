@@ -22,6 +22,11 @@ async function charger() {
         ]);
         etat.donnees = d;
         etat.config = c || {};
+        // Quand l'appli complète (avec comptes) est en ligne, ce site renvoie vers elle
+        if (etat.config.app_url && /^https:\/\//.test(etat.config.app_url)) {
+            location.replace(etat.config.app_url);
+            return;
+        }
     } catch (e) {
         etat.donnees = null;
     }
@@ -38,14 +43,15 @@ const TROPHEE = `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M18 8h28v1
 
 function echelle() {
     const d = etat.donnees;
-    const ligues = d ? d.ligues : Array.from({ length: 10 }, (_, i) => ({ ligue_num: i + 1, poules: Array(i < 3 ? 1 : i < 5 ? 2 : i < 9 ? 4 : 8).fill({ teams: [] }) }));
+    const ligues = d ? d.ligues : Array.from({ length: 5 }, (_, i) => ({ ligue_num: i + 1, poules: Array(i < 3 ? 1 : 2).fill({ teams: [] }) }));
     return '<div class="echelle">' + ligues.map(l => {
-        const places = l.poules.length * 10;
+        const places = l.poules.length * parPoule();
         const prises = l.poules.reduce((n, p) => n + p.teams.filter(t => t.team_name).length, 0);
-        const largeur = 46 + (l.ligue_num - 1) * 6;
-        const classe = l.ligue_num === 1 ? 'sommet' : l.ligue_num === 10 ? 'depart' : '';
+        const largeur = 50 + (l.ligue_num - 1) * Math.round(50 / Math.max(1, ligues.length - 1));
+        const derniere = ligues.length;
+        const classe = l.ligue_num === 1 ? 'sommet' : l.ligue_num === derniere ? 'depart' : '';
         const info = l.ligue_num === 1 ? 'Le titre se joue ici'
-            : l.ligue_num === 10 ? 'Toutes les teams démarrent ici'
+            : l.ligue_num === derniere ? 'Toutes les teams démarrent ici'
             : `${l.poules.length} poule${l.poules.length > 1 ? 's' : ''}`;
         return `<a class="marche ${classe}" style="--largeur:${largeur}%" href="#/ligue" data-ligue="${l.ligue_num}">
             <span class="marche-num">Ligue ${l.ligue_num}</span>
@@ -55,78 +61,70 @@ function echelle() {
     }).join('') + '</div>';
 }
 
-// Arbre de tournoi (8 équipes) dessiné en SVG, utilisé en décor de chaque côté du bandeau
-function arbreSvg(cote) {
-    const ys = Array.from({ length: 8 }, (_, i) => 30 + i * 65);
-    let d = '';
-    const tour = (pts, x1, x2) => {
-        const suivants = [];
-        for (let i = 0; i < pts.length; i += 2) {
-            const [a, b] = [pts[i], pts[i + 1]];
-            d += `M${x1} ${a}H${x2}V${b}H${x1}`;
-            suivants.push((a + b) / 2);
-        }
-        return suivants;
-    };
-    let pts = tour(ys, 0, 110);
-    pts = tour(pts, 110, 220);
-    pts = tour(pts, 220, 330);
-    d += `M330 ${pts[0]}H372`;
-    return `<svg class="arbre ${cote}" viewBox="0 0 420 520" preserveAspectRatio="none" aria-hidden="true"><path d="${d}"/></svg>`;
-}
+function parPoule() { return (etat.donnees && etat.donnees.regles && etat.donnees.regles.teams_par_poule) || 8; }
+function nbLigues() { return etat.donnees ? etat.donnees.ligues.length : 5; }
 
 function pageAccueil() {
     const d = etat.donnees;
     const ch = d ? d.chiffres : { teams: 0, joueurs: 0, matchs: 0 };
     const saison = d ? Number(d.saison) : 1;
     const derniers = d ? d.resultats.slice(0, 4) : [];
-    const l10 = d ? d.ligues.find(l => l.ligue_num === 10) : null;
-    const prisesL10 = l10 ? l10.poules.reduce((n, p) => n + p.teams.filter(t => t.team_name).length, 0) : 0;
-    const libres = Math.max(0, 80 - prisesL10);
+    const places = d ? d.ligues.reduce((n, l) => n + l.poules.length, 0) * parPoule() : 56;
+    const n = nbLigues();
     return `
     <section class="hero">
-        ${arbreSvg('gauche')}${arbreSvg('droite')}
-        <div class="hero-contenu">
-            <span class="pastille">La ligue où les teams Brawl Stars <b>font leurs preuves</b></span>
-            <h1 class="hero-titre"><img class="hero-logo" src="assets/logo-xhq-clair.png" alt="XHQ League"></h1>
-            <p class="hero-sous-titre">Ligue 3v3 à dix divisions. Tu joues ta poule, tu montes, et chaque saison se termine par un champion.</p>
-            <div class="gros-chiffre">${libres}</div>
-            <div class="gros-chiffre-label">places libres en Ligue 10 · Saison ${String(saison).padStart(2, '0')}</div>
+        <div>
+            <span class="kicker">Ligues e-sport amateurs</span>
+            <h1>Choisis ton jeu.<br>Monte ta team.<br><em>Vise la Ligue 1.</em></h1>
+            <p>XHQ organise des ligues par saison pour les teams amateurs. Chaque jeu a ses propres divisions : tu commences en Ligue ${n}, tu joues ta poule, et les meilleurs montent.</p>
             <div class="hero-actions">
                 <a href="#/rejoindre" class="hero-btn">Inscrire ma team</a>
-                <a href="#/ligue" class="btn secondaire">Voir le classement</a>
+                <a href="#/ligue" class="btn secondaire">Voir les classements</a>
+            </div>
+        </div>
+        <div>
+            <div class="choix-titre"><h2>Choisis ton jeu</h2></div>
+            <div class="cartes-jeux">
+                <a class="carte-jeu" href="#/ligue">
+                    <span class="carte-icone">BR</span>
+                    <span>
+                        <span class="carte-nom">Brawl Stars</span>
+                        <span class="carte-meta">3v3 · Saison ${String(saison).padStart(2, '0')} · ${Number(ch.teams)}/${places} teams · ${Number(ch.matchs)} matchs</span>
+                        <span class="carte-jauge"><i style="width:${Math.round(100 * Number(ch.teams) / places)}%"></i></span>
+                    </span>
+                    <span class="carte-fleche">Classements →</span>
+                </a>
+                <div class="carte-jeu bientot">
+                    <span class="carte-icone">+</span>
+                    <span>
+                        <span class="carte-nom">D'autres jeux arrivent</span>
+                        <span class="carte-meta">Même principe : des ligues, des saisons, un palmarès par jeu.</span>
+                    </span>
+                </div>
             </div>
         </div>
     </section>
-
-    <div class="chiffres">
-        <div class="chiffre"><strong class="jaune">${String(saison).padStart(2, '0')}</strong><span>Saison en cours</span></div>
-        <div class="chiffre"><strong>${Number(ch.teams)}</strong><span>Teams classées</span></div>
-        <div class="chiffre"><strong>${Number(ch.joueurs)}</strong><span>Joueurs</span></div>
-        <div class="chiffre"><strong>${Number(ch.matchs)}</strong><span>Matchs joués</span></div>
-    </div>
 
     ${derniers.length ? `
     <div class="bloc-titre"><h2>Derniers résultats</h2><a href="#/resultats">Tous les résultats →</a></div>
     ${listeResultats(derniers)}` : ''}
 
-    <div class="bloc-titre"><h2>Road to Ligue 1</h2><a href="#/ligue">Le classement →</a></div>
+    <div class="bloc-titre"><h2>Les ${n} divisions</h2><a href="#/ligue">Le classement →</a></div>
     ${echelle()}
 
-    <div class="bloc-titre"><h2>Comment ça marche</h2><a href="#/reglement">Le règlement complet →</a></div>
+    <div class="bloc-titre"><h2>Le règlement en bref</h2><a href="#/reglement">Le règlement complet →</a></div>
     <div class="stack">
         ${[
-            ['#ffc83d', '10 divisions', 'De la Ligue 10 à la Ligue 1. Chaque nouvelle team commence tout en bas.'],
-            ['#8f9bff', 'Poules de 10', 'Une seule poule en haut, huit en Ligue 10. Tu affrontes les teams de ta poule.'],
+            ['#ffc83d', `${n} divisions`, `De la Ligue ${n} à la Ligue 1. Les nouvelles teams commencent tout en bas.`],
+            ['#4b5cff', `Poules de ${parPoule()}`, 'Une poule en Ligues 1 à 3, deux poules en Ligues 4 et 5.'],
             ['#2fd17c', 'Montées', 'Le premier de chaque poule monte. Les places libres sont repêchées par la division du dessous.'],
-            ['#ff5c63', 'Descentes', 'Les dernières places redescendent. En Ligue 1, le 10e tombe direct.'],
+            ['#ff5c63', 'Descentes', "Les dernières places redescendent d'une division."],
             ['#ffa53d', 'Absences', "Un match pas joué, c'est un point en moins. Aucun match sur la saison, et la team sort du classement."],
             ['#c3a6ff', 'Teams de 5', "Trois titulaires, deux remplaçants. Le capitaine gère l'effectif."],
-            ['#5fd3e6', 'Résultats vérifiés', "Les scores sont saisis par l'équipe d'organisation, pas par les joueurs."],
+            ['#5fd3e6', 'Résultats vérifiés', "Les scores sont saisis par l'organisation, pas par les joueurs."],
             ['#ff8ac2', 'Palmarès', 'Chaque champion de Ligue 1 reste inscrit au palmarès, saison après saison.']
-        ].map(([c, t, txt], i) => `
+        ].map(([c, t, txt]) => `
             <div class="stack-card" style="--c:${c}">
-                <div class="stack-num">${i + 1}</div>
                 <div class="stack-title">${t}</div>
                 <div class="stack-desc">${txt}</div>
             </div>`).join('')}
@@ -257,7 +255,7 @@ function pageRejoindre() {
     <div class="etapes">
         <div class="etape"><b>01</b><h3>Monte ta team</h3><p>De 3 à ${Number(r.max_membres)} joueurs : trois titulaires et jusqu'à deux remplaçants. Choisis un nom et un capitaine.</p></div>
         <div class="etape"><b>02</b><h3>Envoie ta demande</h3><p>Le nom de la team, le pseudo Brawl Stars du capitaine et ceux des joueurs.</p></div>
-        <div class="etape"><b>03</b><h3>Départ en Ligue 10</h3><p>Ta team apparaît au classement à la prochaine mise à jour. Ensuite, tout se joue sur le terrain.</p></div>
+        <div class="etape"><b>03</b><h3>Départ en Ligue ${nbLigues()}</h3><p>Ta team apparaît au classement à la prochaine mise à jour. Ensuite, tout se joue sur le terrain.</p></div>
     </div>
     ${blocContact()}`;
 }
@@ -273,21 +271,20 @@ function pageReglement() {
     return enTete('Règles', 'Règlement') + `
     <div class="texte">
         <h2>Les divisions</h2>
-        <p>Dix ligues. La Ligue 1, 2 et 3 ont une poule unique de 10 teams, les Ligues 4 et 5 deux poules, les Ligues 6 à 9 quatre poules et la Ligue 10 huit poules. Une team n'est jamais dans deux ligues à la fois. Toute nouvelle team démarre en Ligue 10.</p>
+        <p>${nbLigues()} ligues pour l'instant. Les Ligues 1, 2 et 3 ont une poule unique de ${parPoule()} teams, les Ligues 4 et 5 deux poules. Une team n'est jamais dans deux ligues à la fois. Toute nouvelle team démarre en Ligue ${nbLigues()}.</p>
         <h2>Les matchs</h2>
         <p>Les matchs se jouent en 3v3, entre teams de la même poule. Une victoire rapporte ${Number(r.points_victoire)} points, une défaite 0. Pas de match nul. Les résultats sont saisis par l'organisation.</p>
         <p>À égalité de points, on départage à la différence de manches, puis au nombre de victoires.</p>
         <h2>Fin de saison</h2>
         <ul>
-            <li>Ligue 1 : le 1er est champion, le 10e descend.</li>
-            <li>Ligue 2 : le 1er monte, le 10e descend. Ligue 3 : le 1er monte, les 9e et 10e descendent.</li>
-            <li>Ligue 4 : le 1er de chaque poule monte, le 10e descend. Ligue 5 : le 1er monte, les 9e et 10e descendent.</li>
-            <li>Ligues 6 à 8 : le 1er de chaque poule monte, le 10e descend. Ligue 9 : le 1er monte, les 9e et 10e descendent.</li>
-            <li>Ligue 10 : le 1er de chaque poule monte, pas de descente.</li>
+            <li>Ligue 1 : le 1er est champion, le ${parPoule()}e descend.</li>
+            <li>Ligue 2 : le 1er monte, le ${parPoule()}e descend. Ligue 3 : le 1er monte, les ${parPoule() - 1}e et ${parPoule()}e descendent.</li>
+            <li>Ligue 4 : le 1er de chaque poule monte, le ${parPoule()}e descend.</li>
+            <li>Ligue 5 : le 1er de chaque poule monte, pas de descente.</li>
             <li>Les places libres d'une ligue sont données aux meilleures teams de la ligue du dessous (repêchage, une ligue maximum par saison).</li>
         </ul>
         <h2>Absences et pénalités</h2>
-        <p>Chaque match non joué coûte 1 point en fin de saison. Si la team était déjà pénalisée la saison précédente, la pénalité est doublée, avec un maximum de ${Number(r.penalite_max)} points. Une team qui ne joue aucun match de la saison est retirée du classement ; elle peut se réinscrire en Ligue 10.</p>
+        <p>Chaque match non joué coûte 1 point en fin de saison. Si la team était déjà pénalisée la saison précédente, la pénalité est doublée, avec un maximum de ${Number(r.penalite_max)} points. Une team qui ne joue aucun match de la saison est retirée du classement ; elle peut se réinscrire en Ligue ${nbLigues()}.</p>
         <h2>Les teams</h2>
         <p>${Number(r.max_membres)} joueurs maximum par team. Un joueur ne peut être que dans une seule team.</p>
     </div>`;

@@ -3,70 +3,31 @@
 html, body { overflow-x: clip; }
 .xhq-main { max-width: 1240px; margin: 0 auto; }
 
-/* ----- Accueil : grand bandeau avec arbre de tournoi en décor ----- */
-.hero {
-    position: relative;
-    margin: -2.5rem calc(50% - 50vw) 0;
-    padding: 5rem 1.5rem 4.5rem;
-    text-align: center;
-    background:
-        radial-gradient(ellipse 60% 55% at 50% 45%, rgba(75, 92, 255, 0.22), transparent 70%),
-        linear-gradient(180deg, #0c1838 0%, var(--bg) 100%);
-    border-bottom: 1px solid var(--line);
-    overflow: hidden;
+/* ----- Accueil : titre à gauche, choix du jeu à droite ----- */
+.hero { display: grid; grid-template-columns: 1fr 1.05fr; gap: 3.5rem; align-items: start; padding: 1rem 0 0; }
+.hero h1 { font-size: clamp(2.4rem, 5.2vw, 3.7rem); font-weight: 600; line-height: 1.08; letter-spacing: -0.02em; }
+.hero h1 em { font-style: normal; color: var(--accent); }
+.hero p { max-width: 470px; margin: 1.3rem 0 2rem; color: var(--text-soft); font-size: 1.08rem; line-height: 1.65; }
+.hero-actions { display: flex; gap: 0.8rem; flex-wrap: wrap; }
+
+.choix-titre { margin-bottom: 0.9rem; }
+.choix-titre h2 { font-size: 1.05rem; font-weight: 500; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
+.cartes-jeux { display: grid; gap: 0.9rem; }
+.carte-jeu {
+    display: grid; grid-template-columns: 64px 1fr auto; gap: 1.1rem; align-items: center;
+    padding: 1.2rem 1.3rem; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    color: var(--text); text-decoration: none; transition: border-color 0.15s, background 0.15s;
 }
-
-.arbre {
-    position: absolute;
-    top: 50%;
-    width: min(30vw, 420px);
-    height: 520px;
-    transform: translateY(-50%);
-    color: var(--bleu);
-    opacity: 0.55;
-    pointer-events: none;
-}
-
-.arbre.gauche { left: 0; }
-.arbre.droite { right: 0; transform: translateY(-50%) scaleX(-1); }
-.arbre path { fill: none; stroke: currentColor; stroke-width: 2.5; }
-
-.hero-contenu { position: relative; max-width: 760px; margin: 0 auto; }
-
-.pastille {
-    display: inline-block;
-    padding: 0.4rem 1rem;
-    border: 1px solid var(--line-2);
-    border-radius: 999px;
-    background: rgba(17, 31, 71, 0.8);
-    color: var(--text-soft);
-    font-size: 0.95rem;
-}
-
-.pastille b { color: var(--accent); font-weight: 600; }
-
-.hero-titre { margin: 0; line-height: 0; }
-.hero-logo { display: block; width: min(440px, 80%); height: auto; margin: 1.8rem auto 1.2rem; }
-.hero-sous-titre { color: var(--text-soft); font-size: clamp(1.05rem, 2.2vw, 1.3rem); margin: 0 auto 2.4rem; max-width: 620px; }
-
-.gros-chiffre {
-    font-size: clamp(3.6rem, 10vw, 6.4rem);
-    font-weight: 700;
-    line-height: 1;
-    color: var(--accent);
-    font-variant-numeric: tabular-nums;
-    letter-spacing: -0.02em;
-}
-
-.gros-chiffre-label { margin-top: 0.4rem; color: var(--text); font-size: 0.95rem; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; }
-
-.hero-actions { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; margin-top: 2.4rem; }
-.hero-btn { padding: 0.9rem 2.2rem; font-size: 1.05rem; }
-
-.chiffres { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin: 2.4rem 0 0; }
-.chiffre { padding: 1.1rem 1.2rem; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
-.chiffre strong { display: block; font-size: 2rem; font-weight: 700; line-height: 1.1; }
-.chiffre span { color: var(--muted); font-size: 0.82rem; }
+.carte-jeu:hover { border-color: var(--bleu); background: var(--panel-2); }
+.carte-jeu > span { display: block; }
+.carte-icone { width: 64px; height: 64px; display: grid !important; place-items: center; border-radius: 16px; background: linear-gradient(145deg, #ffcf3f, #ff9f1c); color: var(--ink); font-size: 1.5rem; font-weight: 700; }
+.carte-nom { display: block; font-size: 1.3rem; font-weight: 600; }
+.carte-meta { display: block; color: var(--muted); font-size: 0.88rem; margin-top: 0.1rem; }
+.carte-jauge { display: block; height: 5px; margin-top: 0.6rem; border-radius: 3px; background: var(--line); overflow: hidden; }
+.carte-jauge i { display: block; height: 100%; background: var(--bleu); }
+.carte-fleche { color: var(--bleu-clair); font-size: 0.95rem; font-weight: 500; white-space: nowrap; }
+.carte-jeu.bientot { grid-template-columns: 64px 1fr; border-style: dashed; background: transparent; }
+.carte-jeu.bientot .carte-icone { background: var(--panel-2); color: var(--dim); }
 
 .bloc-titre { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; margin: 3.2rem 0 1.3rem; }
 .bloc-titre h2 { font-size: 1.7rem; font-weight: 600; }
@@ -102,13 +63,11 @@ html, body { overflow-x: clip; }
 .marche.sommet .marche-remplissage i { background: var(--accent); }
 .marche.depart { border-color: var(--line-2); }
 
-/* Règles en tuiles */
+/* Règles */
 .stack { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
-.stack-card { padding: 1.3rem 1.3rem 1.4rem; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); transition: border-color 0.15s; }
-.stack-card:hover { border-color: var(--line-2); }
-.stack-num { display: inline-grid; place-items: center; width: 2rem; height: 2rem; margin-bottom: 0.9rem; border-radius: 50%; background: var(--c, var(--bleu)); color: var(--ink); font-size: 0.85rem; font-weight: 700; }
-.stack-title { font-size: 1.15rem; font-weight: 600; margin-bottom: 0.35rem; }
-.stack-desc { color: var(--text-soft); font-size: 0.93rem; line-height: 1.55; }
+.stack-card { padding: 1.2rem 1.25rem; border-left: 3px solid var(--c, var(--bleu)); background: var(--bg-2); border-radius: 0 var(--radius) var(--radius) 0; }
+.stack-title { font-weight: 600; margin-bottom: 0.3rem; }
+.stack-desc { color: var(--text-soft); font-size: 0.92rem; line-height: 1.55; }
 
 /* ----- Teams ----- */
 .teams-liste { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr)); gap: 1.1rem; }
@@ -159,13 +118,13 @@ html, body { overflow-x: clip; }
 
 @media (max-width: 1100px) { .stack { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 900px) {
-    .arbre { opacity: 0.25; width: 34vw; }
+    .hero { grid-template-columns: 1fr; gap: 2.5rem; }
     .etapes { grid-template-columns: 1fr; }
-    .chiffres { grid-template-columns: repeat(2, 1fr); }
-}
+    }
 @media (max-width: 640px) {
-    .hero { margin-top: -1.6rem; padding: 3.2rem 1rem 3rem; }
-    .arbre { display: none; }
+    .carte-jeu { grid-template-columns: 52px 1fr; }
+    .carte-icone { width: 52px; height: 52px; font-size: 1.2rem; }
+    .carte-fleche { grid-column: 1 / -1; }
     .stack { grid-template-columns: 1fr; }
     .marche { width: 100% !important; grid-template-columns: auto 1fr; }
     .marche-remplissage { display: none; }

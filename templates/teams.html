@@ -123,9 +123,10 @@
     <main class="xhq-main">
     <div class="container">
         <div class="header-nav">
-            <h1><span class="kicker">Effectifs</span>Teams</h1>
+            <h1><span class="kicker">Effectifs · {{ jeu.nom if jeu else '' }}</span>Teams</h1>
             <a href="/">← Retour</a>
         </div>
+        {% include '_jeux.html' %}
 
         <div class="message" id="page-message"></div>
 
@@ -172,6 +173,7 @@
         let membres = [];
         let mesMatchs = [];
         let maxMembres = 5;
+        let ligueDepart = 5;
         let participation = null, dernierePenalite = null;
         let reglePenalite = { par_match: 1, recidive: 2, max: 15 };
 
@@ -194,6 +196,7 @@
             membres = data.membres || [];
             mesMatchs = data.matchs || [];
             maxMembres = data.max_membres || maxMembres;
+            ligueDepart = data.ligue_depart || ligueDepart;
             participation = data.participation;
             dernierePenalite = data.derniere_penalite;
             reglePenalite = data.regle_penalite || reglePenalite;
@@ -213,7 +216,7 @@
             const ligue = myTeam.ligue_num
                 ? `Ligue ${myTeam.ligue_num} · Poule ${escapeHtml(myTeam.poule || '-')} · ${Number(myTeam.points) || 0} pts`
                 : `<span class="hors-classement">Hors classement : votre team n'a joué aucun match la saison dernière.
-                   ${myTeam.is_creator ? `<button class="btn-mini" type="button" onclick="reintegrer(${myTeam.id})">Réintégrer la Ligue 10</button>` : 'Le capitaine peut la réinscrire en Ligue 10.'}</span>`;
+                   ${myTeam.is_creator ? `<button class="btn-mini" type="button" onclick="reintegrer(${myTeam.id})">Réintégrer la Ligue ${ligueDepart}</button>` : `Le capitaine peut la réinscrire en Ligue ${ligueDepart}.`}</span>`;
             document.getElementById('my-team-card').innerHTML = `
                 <div class="team-card my-team">
                     <div class="team-info">
@@ -339,7 +342,7 @@
             if (ok && data.success) {
                 document.getElementById('team-name').value = '';
                 document.getElementById('team-bio').value = '';
-                showMessage('Team créée. Elle démarre en Ligue 10.', 'success');
+                showMessage(`Team créée. Elle démarre en Ligue ${ligueDepart}.`, 'success');
                 loadTeams();
             } else {
                 showMessage(data.error || 'Erreur lors de la création', 'error');

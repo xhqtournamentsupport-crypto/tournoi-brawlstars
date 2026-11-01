@@ -15,9 +15,10 @@
     <main class="xhq-main">
     <div class="container">
         <div class="header-nav">
-            <h1><span class="kicker">Classement</span>Ligues</h1>
+            <h1><span class="kicker">Classements</span>{{ jeu.nom if jeu else 'Ligues' }}</h1>
             <a href="/">← Retour à l'accueil</a>
         </div>
+        {% include '_jeux.html' %}
 
         <div class="selector-wrapper">
             <button class="selector-btn" type="button" onclick="toggleDropdown()" aria-haspopup="true">
@@ -25,7 +26,7 @@
                 <span class="dropdown-arrow">▼</span>
             </button>
             <div class="dropdown-menu" id="dropdown-menu">
-                {% for n in range(1, 11) %}
+                {% for n in ligues %}
                 <button class="dropdown-item{% if n == 1 %} active{% endif %}" type="button" data-ligue="{{ n }}" onclick="selectLigue({{ n }})">Ligue {{ n }}</button>
                 {% endfor %}
             </div>

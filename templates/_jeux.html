@@ -1,0 +1,4 @@
+<div class="jeux-switch" aria-label="Choix du jeu">
+            {% for j in jeux %}<a class="jeu-onglet{% if jeu and j.code == jeu.code %} actif{% endif %}" href="?jeu={{ j.code }}">{{ j.nom }}<small>{{ j.format }}</small></a>{% endfor %}
+            <span class="jeu-onglet bientot">Autres jeux bientôt</span>
+        </div>

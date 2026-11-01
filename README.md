@@ -46,7 +46,7 @@ clôture en tapant `CLOTURER`. Le classement est archivé (palmarès), les teams
 les points et stats repartent à 0. Une team doit avoir joué au moins `MATCHS_MIN_POUR_MONTER`
 match(s) pour monter ou être championne.
 Une team **inactive** (aucun match de la saison, quelle que soit sa ligue) est **retirée du classement** ;
-son capitaine peut la réinscrire en Ligue 10 depuis la page Teams. Les places libres d'une ligue sont
+son capitaine peut la réinscrire en Ligue 5 depuis la page Teams. Les places libres d'une ligue sont
 données aux meilleures teams actives de la ligue juste en dessous (**repêchage**, une ligue max par saison).
 
 **Pénalités** (appliquées à la clôture, avant le classement final) : −1 pt par match non joué
@@ -76,6 +76,9 @@ Un badge et un cadre équipés à la fois, à choisir dans *Profil → Mon inven
 - `static/xhq.js` : `api()` (appels JSON sûrs, gère le 401) et `escapeHtml()`
 
 ## Ligues
+Plusieurs jeux (table `jeux`, Brawl Stars par défaut) : chaque jeu a ses ligues, ses saisons et
+son palmarès. Un joueur peut avoir **une team par jeu**. Le jeu se choisit avec `?jeu=code`.
+5 ligues de 8 teams par poule (1 poule en L1–L3, 2 poules en L4–L5), réglage `LIGUES` dans `app.py`.
 Une team est dans UNE ligue (`ligue.ligue_num`) et UNE poule (`ligue.poule`).
-Nouvelle team -> Ligue 10, première poule avec de la place.
-`GET /api/ligue?ligue_num=N[&poule=X]` renvoie uniquement les teams de cette ligue.
+Nouvelle team -> Ligue 5, première poule avec de la place.
+`GET /api/ligue?jeu=brawlstars&ligue_num=N[&poule=X]` (public, sans compte) renvoie les teams de cette ligue.

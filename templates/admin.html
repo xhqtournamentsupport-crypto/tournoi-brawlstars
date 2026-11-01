@@ -116,6 +116,7 @@
             <div class="stat"><div class="stat-label" id="st-matchs-label">Matchs (saison)</div><div class="stat-value" id="st-matchs">…</div></div>
             <div class="stat" id="st-messages-card"><div class="stat-label">Messages à traiter</div><div class="stat-value" id="st-messages">…</div></div>
         </div>
+        {% include '_jeux.html' %}
 
         <div class="tabs" role="tablist">
             <button class="tab active" type="button" data-tab="matchs">Matchs</button>
@@ -136,7 +137,7 @@
                     <div>
                         <label for="m-ligue">Ligue</label>
                         <select id="m-ligue">
-                            {% for n in range(1, 11) %}<option value="{{ n }}"{% if n == 10 %} selected{% endif %}>Ligue {{ n }}</option>{% endfor %}
+                            {% for n in ligues %}<option value="{{ n }}"{% if n == ligue_depart %} selected{% endif %}>Ligue {{ n }}</option>{% endfor %}
                         </select>
                     </div>
                     <div>
@@ -196,7 +197,7 @@
         <div class="panel" id="panel-saison">
             <div class="section">
                 <h2 class="section-title" id="saison-titre">Fin de saison</h2>
-                <p class="hint">Aperçu de ce qui se passera si tu clôtures la saison maintenant. Rien n'est modifié tant que tu n'as pas confirmé. Une team doit avoir joué au moins 1 match pour monter ou être championne. Une team <strong>inactive</strong> (aucun match de la saison, quelle que soit sa ligue) est <strong>retirée du classement</strong> ; son capitaine pourra la réinscrire en Ligue 10. Sa place est donnée à la meilleure team active de la ligue du dessous (<strong>repêchage</strong>, une seule ligue par saison). <strong>Pénalité</strong> : −1 pt par match non joué (matchs attendus = teams de la poule − 1), doublée en cas de récidive, plafond −15. Elle est appliquée avant le classement final.</p>
+                <p class="hint">Aperçu de ce qui se passera si tu clôtures la saison maintenant. Rien n'est modifié tant que tu n'as pas confirmé. Une team doit avoir joué au moins 1 match pour monter ou être championne. Une team <strong>inactive</strong> (aucun match de la saison, quelle que soit sa ligue) est <strong>retirée du classement</strong> ; son capitaine pourra la réinscrire en Ligue {{ ligue_depart }}. Sa place est donnée à la meilleure team active de la ligue du dessous (<strong>repêchage</strong>, une seule ligue par saison). <strong>Pénalité</strong> : −1 pt par match non joué (matchs attendus = teams de la poule − 1), doublée en cas de récidive, plafond −15. Elle est appliquée avant le classement final.</p>
                 <div class="saison-resume">
                     <div class="stat"><div class="stat-label">Matchs joués</div><div class="stat-value" id="s-matchs">…</div></div>
                     <div class="stat"><div class="stat-label">Teams classées</div><div class="stat-value" id="s-teams">…</div></div>
@@ -420,9 +421,10 @@
             // Garde la ligue déjà choisie dans un menu si la liste se réaffiche
             const choix = {};
             tbody.querySelectorAll('select[id^="move-"]').forEach(s => { choix[s.id] = Number(s.value); });
+            const NB_LIGUES = Object.keys(NB_POULES).length;
             const optionsLigue = t => {
                 const n = choix['move-' + t.id] || t.ligue_num;
-                return Array.from({ length: 10 }, (_, i) => i + 1)
+                return Array.from({ length: NB_LIGUES }, (_, i) => i + 1)
                     .map(l => `<option value="${l}"${l === n ? ' selected' : ''}>Ligue ${l}</option>`).join('');
             };
             tbody.innerHTML = liste.map(t => `

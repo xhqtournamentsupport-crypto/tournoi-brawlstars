@@ -1,5 +1,6 @@
 {
+  "app_url": "",
   "contact_email": "",
   "discord": "",
-  "_aide": "Renseigne contact_email et/ou discord (lien d'invitation) pour que les teams puissent s'inscrire. Laisse vide pour masquer."
+  "_aide": "app_url : adresse de l'appli complète (ex. https://xhq.pythonanywhere.com) ; si elle est remplie, ce site y redirige. contact_email / discord : affichés sur la page Rejoindre."
 }
