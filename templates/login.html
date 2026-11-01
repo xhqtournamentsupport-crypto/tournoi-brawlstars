@@ -9,16 +9,16 @@
         .container { max-width: 420px; width: 100%; }
         .card { padding: 2.4rem 2rem; }
         .logo { margin-bottom: 2rem; }
-        .logo h1 { display: inline-block; padding: 0.1rem 0.5rem; background: var(--ink); color: var(--accent); font-size: 1rem; letter-spacing: 0.25em; transform: rotate(-1.5deg); }
-        h2 { font-size: 2.6rem; font-weight: 800; text-transform: uppercase; line-height: 1; margin-bottom: 0.5rem; }
+        .logo img { height: 46px; width: auto; display: block; }
+        h2 { font-size: 2.2rem; font-weight: 700; line-height: 1.1; margin-bottom: 0.4rem; }
         .subtitle { color: var(--muted); margin-bottom: 2rem; }
         .btn { width: 100%; padding: 0.95rem; font-size: 1.1rem; margin-top: 0.3rem; }
         .btn:disabled { cursor: wait; }
         .forgot { text-align: right; margin: -0.6rem 0 1.4rem; font-size: 0.88rem; }
         .forgot a { color: var(--muted); text-decoration: none; }
         .forgot a:hover { color: var(--text); }
-        .footer-text { margin-top: 1.6rem; padding-top: 1.4rem; border-top: 2px solid var(--trait); color: var(--muted); font-size: 0.95rem; }
-        .footer-text a { color: var(--text); font-weight: 600; text-decoration: none; background: linear-gradient(transparent 60%, var(--accent) 60%); }
+        .footer-text { margin-top: 1.6rem; padding-top: 1.4rem; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.95rem; }
+        .footer-text a { color: var(--text); font-weight: 600; text-decoration: none; border-bottom: 1px solid var(--bleu-clair); }
     </style>
 </head>
 <body>
@@ -27,7 +27,7 @@
     <div class="container">
         <div class="card">
             <div class="logo">
-                <h1>XHQ LEAGUE</h1>
+                <img src="{{ url_for('static', filename='logo-xhq-clair.png') }}" alt="XHQ League">
             </div>
             
             <h2>Connexion</h2>

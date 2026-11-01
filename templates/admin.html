@@ -13,14 +13,14 @@
         .stat.alerte { border-color: rgba(233, 185, 58, 0.6); }
         .stat.alerte .stat-value { color: var(--gold); }
 
-        .tabs { display: flex; gap: 1.8rem; flex-wrap: wrap; margin-bottom: 1.6rem; border-bottom: 2px solid var(--trait); }
+        .tabs { display: flex; gap: 1.8rem; flex-wrap: wrap; margin-bottom: 1.6rem; border-bottom: 1px solid var(--line); }
         .tab {
             position: relative;
             padding: 0.6rem 0;
             border: 0;
             background: none;
             color: var(--muted);
-            font-family: var(--display);
+            
             font-size: 1.15rem;
             font-weight: 600;
             letter-spacing: 0.08em;
@@ -30,7 +30,7 @@
 
         .tab:hover { color: var(--text); }
         .tab.active { color: var(--text); }
-        .tab.active::after { content: ''; position: absolute; left: 0; right: 0; bottom: -2px; height: 6px; background: var(--accent); border: 2px solid var(--trait); }
+        .tab.active::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; border-radius: 2px; background: var(--bleu); }
 
         .tab .pastille {
             display: inline-block;
@@ -50,13 +50,13 @@
 
         .match-form { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
         .versus { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 90px auto 90px 1fr; gap: 1rem; align-items: end; }
-        .versus .vs { padding-bottom: 0.8rem; color: var(--dim); font-family: var(--display); font-weight: 700; letter-spacing: 0.1em; }
-        .versus input { text-align: center; font-family: var(--display); font-size: 1.4rem; font-weight: 700; }
+        .versus .vs { padding-bottom: 0.8rem; color: var(--dim); font-weight: 700; letter-spacing: 0.1em; }
+        .versus input { text-align: center; font-size: 1.4rem; font-weight: 700; }
         .form-actions { grid-column: 1 / -1; display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
 
         .mdp-box { display: none; margin-bottom: 1.4rem; padding: 1rem 1.2rem; border-left: 3px solid var(--gold); background: rgba(233, 185, 58, 0.07); line-height: 1.7; }
         .mdp-box.show { display: block; }
-        .mdp-box code { padding: 0.15rem 0.5rem; background: var(--accent); border: 2px solid var(--trait); color: var(--ink); font-size: 1.05rem; user-select: all; }
+        .mdp-box code { padding: 0.15rem 0.5rem; background: var(--accent); border-radius: 6px; color: var(--ink); font-size: 1.05rem; user-select: all; }
 
         .actions { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
         .actions select { width: auto; padding: 0.4rem 0.5rem; font-size: 0.9rem; }

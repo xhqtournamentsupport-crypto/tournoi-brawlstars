@@ -34,7 +34,7 @@ async function charger() {
 
 // ---------------------------------------------------------------- pages
 
-const TROPHEE = `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M18 8h28v14c0 9-6 16-14 16s-14-7-14-16z" fill="#ffcd1c" stroke="#141414" stroke-width="3" stroke-linejoin="round"/><path d="M18 13H9v5c0 6 4 10 10 10M46 13h9v5c0 6-4 10-10 10" fill="none" stroke="#141414" stroke-width="3" stroke-linecap="round"/><path d="M28 38h8v8h-8z" fill="#141414"/><path d="M20 46h24l3 10H17z" fill="#ffcd1c" stroke="#141414" stroke-width="3" stroke-linejoin="round"/><path d="M26 16l2 6" stroke="#fff" stroke-width="3" stroke-linecap="round"/></svg>`;
+const TROPHEE = `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M18 8h28v14c0 9-6 16-14 16s-14-7-14-16z" fill="#ffcd1c" stroke="#0a1430" stroke-width="3" stroke-linejoin="round"/><path d="M18 13H9v5c0 6 4 10 10 10M46 13h9v5c0 6-4 10-10 10" fill="none" stroke="#0a1430" stroke-width="3" stroke-linecap="round"/><path d="M28 38h8v8h-8z" fill="#141414"/><path d="M20 46h24l3 10H17z" fill="#ffcd1c" stroke="#0a1430" stroke-width="3" stroke-linejoin="round"/><path d="M26 16l2 6" stroke="#fff" stroke-width="3" stroke-linecap="round"/></svg>`;
 
 function echelle() {
     const d = etat.donnees;
@@ -55,40 +55,56 @@ function echelle() {
     }).join('') + '</div>';
 }
 
+// Arbre de tournoi (8 équipes) dessiné en SVG, utilisé en décor de chaque côté du bandeau
+function arbreSvg(cote) {
+    const ys = Array.from({ length: 8 }, (_, i) => 30 + i * 65);
+    let d = '';
+    const tour = (pts, x1, x2) => {
+        const suivants = [];
+        for (let i = 0; i < pts.length; i += 2) {
+            const [a, b] = [pts[i], pts[i + 1]];
+            d += `M${x1} ${a}H${x2}V${b}H${x1}`;
+            suivants.push((a + b) / 2);
+        }
+        return suivants;
+    };
+    let pts = tour(ys, 0, 110);
+    pts = tour(pts, 110, 220);
+    pts = tour(pts, 220, 330);
+    d += `M330 ${pts[0]}H372`;
+    return `<svg class="arbre ${cote}" viewBox="0 0 420 520" preserveAspectRatio="none" aria-hidden="true"><path d="${d}"/></svg>`;
+}
+
 function pageAccueil() {
     const d = etat.donnees;
     const ch = d ? d.chiffres : { teams: 0, joueurs: 0, matchs: 0 };
     const saison = d ? Number(d.saison) : 1;
     const derniers = d ? d.resultats.slice(0, 4) : [];
-    const mots = ['Saison ' + saison, '10 divisions', 'Brawl Stars 3v3', 'Montées & descentes', 'Inscription gratuite', 'Palmarès'];
+    const l10 = d ? d.ligues.find(l => l.ligue_num === 10) : null;
+    const prisesL10 = l10 ? l10.poules.reduce((n, p) => n + p.teams.filter(t => t.team_name).length, 0) : 0;
+    const libres = Math.max(0, 80 - prisesL10);
     return `
     <section class="hero">
-        <div>
-            <span class="kicker">Brawl Stars · 3v3 · Saison ${saison}</span>
-            <h1>Monte.<br>Reste.<br><span>Ou dégage.</span></h1>
-            <p>Une ligue à dix divisions pour les teams Brawl Stars. Tu joues tes matchs, tu grimpes au classement, et chaque fin de saison décide qui monte et qui redescend.</p>
+        ${arbreSvg('gauche')}${arbreSvg('droite')}
+        <div class="hero-contenu">
+            <span class="pastille">La ligue où les teams Brawl Stars <b>font leurs preuves</b></span>
+            <h1 class="hero-titre"><img class="hero-logo" src="assets/logo-xhq-clair.png" alt="XHQ League"></h1>
+            <p class="hero-sous-titre">Ligue 3v3 à dix divisions. Tu joues ta poule, tu montes, et chaque saison se termine par un champion.</p>
+            <div class="gros-chiffre">${libres}</div>
+            <div class="gros-chiffre-label">places libres en Ligue 10 · Saison ${String(saison).padStart(2, '0')}</div>
             <div class="hero-actions">
                 <a href="#/rejoindre" class="hero-btn">Inscrire ma team</a>
-                <a href="#/ligue" class="lien-discret">Voir le classement →</a>
-            </div>
-        </div>
-        <div class="affiche">
-            <div class="affiche-haut">
-                <div>
-                    <span class="kicker">En cours</span>
-                    <div class="affiche-saison">Saison<br><span>${String(saison).padStart(2, '0')}</span></div>
-                </div>
-                <div class="affiche-trophee">${TROPHEE}</div>
-            </div>
-            <div class="chiffres">
-                <div class="chiffre"><strong>${Number(ch.teams)}</strong><span>Teams</span></div>
-                <div class="chiffre"><strong>${Number(ch.joueurs)}</strong><span>Joueurs</span></div>
-                <div class="chiffre"><strong>${Number(ch.matchs)}</strong><span>Matchs</span></div>
+                <a href="#/ligue" class="btn secondaire">Voir le classement</a>
             </div>
         </div>
     </section>
 
-    <div class="bandeau"><div class="bandeau-piste">${[...mots, ...mots].map(m => `<span>${m}</span>`).join('')}</div></div>
+    <div class="chiffres">
+        <div class="chiffre"><strong class="jaune">${String(saison).padStart(2, '0')}</strong><span>Saison en cours</span></div>
+        <div class="chiffre"><strong>${Number(ch.teams)}</strong><span>Teams classées</span></div>
+        <div class="chiffre"><strong>${Number(ch.joueurs)}</strong><span>Joueurs</span></div>
+        <div class="chiffre"><strong>${Number(ch.matchs)}</strong><span>Matchs joués</span></div>
+    </div>
 
     ${derniers.length ? `
     <div class="bloc-titre"><h2>Derniers résultats</h2><a href="#/resultats">Tous les résultats →</a></div>
@@ -100,17 +116,17 @@ function pageAccueil() {
     <div class="bloc-titre"><h2>Comment ça marche</h2><a href="#/reglement">Le règlement complet →</a></div>
     <div class="stack">
         ${[
-            ['#ffcd1c', '10 divisions', 'De la Ligue 10 à la Ligue 1. Chaque nouvelle team commence tout en bas.'],
-            ['#2f5bff', 'Poules de 10', 'Une seule poule en haut, huit en Ligue 10. Tu affrontes les teams de ta poule.'],
-            ['#12924f', 'Montées', 'Le premier de chaque poule monte. Les places libres sont repêchées par la division du dessous.'],
-            ['#d8352a', 'Descentes', 'Les dernières places redescendent. En Ligue 1, le 10e tombe direct.'],
-            ['#ff5a1f', 'Absences', "Un match pas joué, c'est un point en moins. Aucun match sur la saison, et la team sort du classement."],
-            ['#7d4dd8', 'Teams de 5', "Trois titulaires, deux remplaçants. Le capitaine gère l'effectif."],
-            ['#0f9fb3', 'Résultats vérifiés', "Les scores sont saisis par l'équipe d'organisation, pas par les joueurs."],
-            ['#e0458f', 'Palmarès', 'Chaque champion de Ligue 1 reste inscrit au palmarès, saison après saison.']
+            ['#ffc83d', '10 divisions', 'De la Ligue 10 à la Ligue 1. Chaque nouvelle team commence tout en bas.'],
+            ['#8f9bff', 'Poules de 10', 'Une seule poule en haut, huit en Ligue 10. Tu affrontes les teams de ta poule.'],
+            ['#2fd17c', 'Montées', 'Le premier de chaque poule monte. Les places libres sont repêchées par la division du dessous.'],
+            ['#ff5c63', 'Descentes', 'Les dernières places redescendent. En Ligue 1, le 10e tombe direct.'],
+            ['#ffa53d', 'Absences', "Un match pas joué, c'est un point en moins. Aucun match sur la saison, et la team sort du classement."],
+            ['#c3a6ff', 'Teams de 5', "Trois titulaires, deux remplaçants. Le capitaine gère l'effectif."],
+            ['#5fd3e6', 'Résultats vérifiés', "Les scores sont saisis par l'équipe d'organisation, pas par les joueurs."],
+            ['#ff8ac2', 'Palmarès', 'Chaque champion de Ligue 1 reste inscrit au palmarès, saison après saison.']
         ].map(([c, t, txt], i) => `
             <div class="stack-card" style="--c:${c}">
-                <div class="stack-num">0${i + 1}</div>
+                <div class="stack-num">${i + 1}</div>
                 <div class="stack-title">${t}</div>
                 <div class="stack-desc">${txt}</div>
             </div>`).join('')}

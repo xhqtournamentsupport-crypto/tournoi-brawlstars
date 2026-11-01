@@ -1,76 +1,79 @@
 /* Styles propres au site public. La base (couleurs, boutons, classements, résultats) est dans style.css */
 
 html, body { overflow-x: clip; }
-
 .xhq-main { max-width: 1240px; margin: 0 auto; }
 
-/* ----- Accueil ----- */
+/* ----- Accueil : grand bandeau avec arbre de tournoi en décor ----- */
 .hero {
-    display: grid;
-    grid-template-columns: 1.25fr 1fr;
-    gap: 3rem;
-    align-items: center;
-    padding: 1.5rem 0 3rem;
-}
-
-.hero h1 {
-    font-size: clamp(3.2rem, 8.5vw, 6.6rem);
-    line-height: 0.88;
-    text-transform: uppercase;
-}
-
-.hero h1 span { background: linear-gradient(transparent 58%, var(--accent) 58%); padding: 0 0.08em; }
-.hero p { max-width: 470px; margin: 1.6rem 0 2rem; color: var(--text-soft); font-size: 1.12rem; line-height: 1.6; }
-.hero-actions { display: flex; gap: 1.2rem; flex-wrap: wrap; align-items: center; }
-.hero-btn { padding: 0.95rem 1.8rem; font-size: 1.2rem; }
-.lien-discret { color: var(--text); font-weight: 600; text-decoration: none; background: linear-gradient(transparent 62%, var(--accent) 62%); }
-
-/* Affiche de saison (à droite du titre) */
-.affiche {
     position: relative;
-    padding: 1.6rem;
-    background: var(--ink);
-    color: #fff;
-    border: 2px solid var(--trait);
-    border-radius: 14px;
-    box-shadow: 6px 6px 0 var(--accent), 6px 6px 0 2px var(--trait);
-    transform: rotate(1.5deg);
-}
-
-.affiche-haut { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 1.2rem; }
-.affiche-haut .kicker { background: var(--accent); color: var(--ink); transform: none; margin: 0; }
-.affiche-saison { font-family: var(--display); font-size: 4.2rem; font-weight: 800; line-height: 0.85; text-transform: uppercase; }
-.affiche-saison span { color: var(--accent); }
-.affiche-trophee { width: 92px; height: 92px; flex-shrink: 0; display: grid; place-items: center; padding: 14px; background: #fff; border: 2px solid var(--accent); border-radius: 50%; transform: rotate(8deg); }
-.affiche-trophee svg { width: 100%; }
-
-.chiffres { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; }
-.chiffre { padding: 0.8rem 0.9rem; border: 2px solid #3a3a3a; border-radius: 10px; }
-.chiffre strong { display: block; font-family: var(--display); font-size: 2.3rem; font-weight: 800; line-height: 1; color: var(--accent); }
-.chiffre span { color: #b9b4a8; font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; }
-
-/* Bandeau défilant */
-.bandeau {
-    margin: 0 calc(50% - 50vw) 3rem;
-    padding: 0.7rem 0;
-    background: var(--accent);
-    border-top: 2px solid var(--trait);
-    border-bottom: 2px solid var(--trait);
+    margin: -2.5rem calc(50% - 50vw) 0;
+    padding: 5rem 1.5rem 4.5rem;
+    text-align: center;
+    background:
+        radial-gradient(ellipse 60% 55% at 50% 45%, rgba(75, 92, 255, 0.22), transparent 70%),
+        linear-gradient(180deg, #0c1838 0%, var(--bg) 100%);
+    border-bottom: 1px solid var(--line);
     overflow: hidden;
-    white-space: nowrap;
 }
 
-.bandeau-piste { display: inline-block; animation: defile 38s linear infinite; }
-.bandeau span { margin: 0 1.4rem; font-family: var(--display); font-size: 1.35rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
-.bandeau span::after { content: '✦'; margin-left: 2.8rem; }
-@keyframes defile { to { transform: translateX(-50%); } }
-@media (prefers-reduced-motion: reduce) { .bandeau-piste { animation: none; } }
+.arbre {
+    position: absolute;
+    top: 50%;
+    width: min(30vw, 420px);
+    height: 520px;
+    transform: translateY(-50%);
+    color: var(--bleu);
+    opacity: 0.55;
+    pointer-events: none;
+}
 
-.bloc-titre { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; margin: 3.2rem 0 1.4rem; }
-.bloc-titre h2 { font-size: 2.1rem; text-transform: uppercase; }
-.bloc-titre a { color: var(--text); font-weight: 600; text-decoration: none; background: linear-gradient(transparent 62%, var(--accent) 62%); }
+.arbre.gauche { left: 0; }
+.arbre.droite { right: 0; transform: translateY(-50%) scaleX(-1); }
+.arbre path { fill: none; stroke: currentColor; stroke-width: 2.5; }
 
-/* Échelle des 10 ligues : du plus étroit (Ligue 1) au plus large (Ligue 10) */
+.hero-contenu { position: relative; max-width: 760px; margin: 0 auto; }
+
+.pastille {
+    display: inline-block;
+    padding: 0.4rem 1rem;
+    border: 1px solid var(--line-2);
+    border-radius: 999px;
+    background: rgba(17, 31, 71, 0.8);
+    color: var(--text-soft);
+    font-size: 0.95rem;
+}
+
+.pastille b { color: var(--accent); font-weight: 600; }
+
+.hero-titre { margin: 0; line-height: 0; }
+.hero-logo { display: block; width: min(440px, 80%); height: auto; margin: 1.8rem auto 1.2rem; }
+.hero-sous-titre { color: var(--text-soft); font-size: clamp(1.05rem, 2.2vw, 1.3rem); margin: 0 auto 2.4rem; max-width: 620px; }
+
+.gros-chiffre {
+    font-size: clamp(3.6rem, 10vw, 6.4rem);
+    font-weight: 700;
+    line-height: 1;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+}
+
+.gros-chiffre-label { margin-top: 0.4rem; color: var(--text); font-size: 0.95rem; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; }
+
+.hero-actions { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; margin-top: 2.4rem; }
+.hero-btn { padding: 0.9rem 2.2rem; font-size: 1.05rem; }
+
+.chiffres { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin: 2.4rem 0 0; }
+.chiffre { padding: 1.1rem 1.2rem; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
+.chiffre strong { display: block; font-size: 2rem; font-weight: 700; line-height: 1.1; }
+.chiffre span { color: var(--muted); font-size: 0.82rem; }
+
+.bloc-titre { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; margin: 3.2rem 0 1.3rem; }
+.bloc-titre h2 { font-size: 1.7rem; font-weight: 600; }
+.bloc-titre a { color: var(--bleu-clair); text-decoration: none; font-weight: 500; }
+.bloc-titre a:hover { color: var(--text); }
+
+/* Échelle des 10 ligues */
 .echelle { display: grid; gap: 0.45rem; justify-items: center; }
 
 .marche {
@@ -80,116 +83,89 @@ html, body { overflow-x: clip; }
     grid-template-columns: auto 1fr auto;
     align-items: center;
     gap: 1rem;
-    padding: 0.55rem 1rem;
+    padding: 0.6rem 1.1rem;
     background: var(--panel);
-    border: 2px solid var(--trait);
-    border-radius: 10px;
-    box-shadow: var(--ombre-petite);
+    border: 1px solid var(--line);
+    border-radius: 12px;
     color: var(--text);
     text-decoration: none;
-    transition: transform 0.1s, box-shadow 0.1s;
+    transition: border-color 0.15s, background 0.15s;
 }
 
-.marche:hover { transform: translate(-2px, -2px); box-shadow: var(--ombre); }
-.marche-num { font-family: var(--display); font-size: 1.35rem; font-weight: 800; text-transform: uppercase; white-space: nowrap; }
+.marche:hover { border-color: var(--bleu); background: var(--panel-2); }
+.marche-num { font-weight: 600; white-space: nowrap; }
 .marche-info { color: var(--muted); font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.marche-remplissage { width: 110px; height: 10px; border: 2px solid var(--trait); border-radius: 6px; overflow: hidden; background: var(--panel-2); }
-.marche-remplissage i { display: block; height: 100%; background: var(--win); }
-.marche.sommet { background: var(--accent); }
-.marche.sommet .marche-info { color: var(--ink); }
-.marche.depart { background: var(--ink); color: #fff; }
-.marche.depart .marche-info { color: #b9b4a8; }
-.marche.depart .marche-remplissage { border-color: #fff; background: #333; }
+.marche-remplissage { width: 120px; height: 6px; border-radius: 3px; overflow: hidden; background: var(--line); }
+.marche-remplissage i { display: block; height: 100%; background: var(--bleu); }
+.marche.sommet { border-color: rgba(255, 200, 61, 0.6); background: linear-gradient(90deg, var(--gold-fond), var(--panel)); }
+.marche.sommet .marche-num { color: var(--accent); }
+.marche.sommet .marche-remplissage i { background: var(--accent); }
+.marche.depart { border-color: var(--line-2); }
 
 /* Règles en tuiles */
 .stack { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
-.stack-card {
-    position: relative;
-    padding: 1.4rem 1.3rem 1.5rem;
-    background: var(--panel);
-    border: 2px solid var(--trait);
-    border-radius: var(--radius);
-    box-shadow: var(--ombre-petite);
-    transition: transform 0.1s, box-shadow 0.1s;
-}
-.stack-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 8px; background: var(--c, var(--accent)); border-bottom: 2px solid var(--trait); border-radius: 8px 8px 0 0; }
-.stack-card:hover { transform: translate(-2px, -2px); box-shadow: var(--ombre); }
-.stack-num { margin: 0.4rem 0 1.1rem; color: var(--muted); font-family: var(--display); font-size: 1rem; font-weight: 700; letter-spacing: 0.1em; }
-.stack-title { font-family: var(--display); font-size: 1.55rem; font-weight: 800; text-transform: uppercase; margin-bottom: 0.4rem; }
-.stack-desc { color: var(--text-soft); font-size: 0.95rem; line-height: 1.55; }
+.stack-card { padding: 1.3rem 1.3rem 1.4rem; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); transition: border-color 0.15s; }
+.stack-card:hover { border-color: var(--line-2); }
+.stack-num { display: inline-grid; place-items: center; width: 2rem; height: 2rem; margin-bottom: 0.9rem; border-radius: 50%; background: var(--c, var(--bleu)); color: var(--ink); font-size: 0.85rem; font-weight: 700; }
+.stack-title { font-size: 1.15rem; font-weight: 600; margin-bottom: 0.35rem; }
+.stack-desc { color: var(--text-soft); font-size: 0.93rem; line-height: 1.55; }
 
 /* ----- Teams ----- */
-.teams-liste { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr)); gap: 1.2rem; }
-.team-tuile { position: relative; padding: 1.2rem 1.3rem; background: var(--panel); border: 2px solid var(--trait); border-radius: var(--radius); box-shadow: var(--ombre-petite); }
+.teams-liste { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr)); gap: 1.1rem; }
+.team-tuile { position: relative; padding: 1.2rem 1.3rem; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
 .team-tuile::after {
     content: attr(data-ligue);
     position: absolute;
-    top: -12px;
-    right: 14px;
-    padding: 0.05rem 0.55rem;
-    background: var(--ink);
-    color: var(--accent);
-    border-radius: 6px;
-    font-family: var(--display);
-    font-weight: 800;
-    letter-spacing: 0.08em;
+    top: 1rem;
+    right: 1rem;
+    padding: 0.05rem 0.6rem;
+    border-radius: 999px;
+    background: var(--bleu);
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: 600;
 }
-.team-tuile h3 { font-size: 1.6rem; text-transform: uppercase; overflow-wrap: anywhere; }
+.team-tuile h3 { padding-right: 3.5rem; font-size: 1.3rem; font-weight: 600; overflow-wrap: anywhere; }
 .team-tuile p { color: var(--text-soft); font-size: 0.93rem; margin: 0.3rem 0 0.9rem; overflow-wrap: anywhere; }
 .team-tuile .meta { display: flex; gap: 0.5rem; flex-wrap: wrap; }
 
 /* ----- Palmarès ----- */
-.palmares-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr)); gap: 1.2rem; }
-.palmares-carte {
-    padding: 1.4rem 1.2rem 1.2rem;
-    text-align: center;
-    background: var(--panel);
-    border: 2px solid var(--trait);
-    border-radius: var(--radius);
-    box-shadow: var(--ombre);
-}
+.palmares-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr)); gap: 1.1rem; }
+.palmares-carte { padding: 1.5rem 1.2rem 1.3rem; text-align: center; background: linear-gradient(180deg, var(--gold-fond), var(--panel) 60%); border: 1px solid rgba(255, 200, 61, 0.35); border-radius: var(--radius); }
 .palmares-carte svg { width: 64px; margin-bottom: 0.6rem; }
-.palmares-carte span { display: block; color: var(--muted); font-family: var(--display); font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
-.palmares-carte strong { display: block; font-family: var(--display); font-size: 1.9rem; font-weight: 800; text-transform: uppercase; line-height: 1.1; overflow-wrap: anywhere; }
-.palmares-vide { max-width: 520px; margin: 0 auto; padding: 2rem 1.5rem; text-align: center; background: var(--panel); border: 2px dashed var(--line-2); border-radius: var(--radius); color: var(--muted); }
-.palmares-vide svg { width: 90px; margin-bottom: 0.8rem; opacity: 0.35; }
+.palmares-carte span { display: block; color: var(--muted); font-size: 0.85rem; letter-spacing: 0.08em; text-transform: uppercase; }
+.palmares-carte strong { display: block; font-size: 1.5rem; font-weight: 700; overflow-wrap: anywhere; }
+.palmares-vide { max-width: 520px; margin: 0 auto; padding: 2rem 1.5rem; text-align: center; background: var(--panel); border: 1px dashed var(--line-2); border-radius: var(--radius); color: var(--muted); }
+.palmares-vide svg { width: 84px; margin-bottom: 0.8rem; opacity: 0.6; }
 
 /* ----- Pages texte ----- */
-.texte { max-width: 820px; line-height: 1.75; padding: 1.8rem 2rem; background: var(--panel); border: 2px solid var(--trait); border-radius: var(--radius); box-shadow: var(--ombre); }
-.texte h2 { font-size: 1.45rem; text-transform: uppercase; margin: 2rem 0 0.5rem; }
+.texte { max-width: 820px; line-height: 1.75; padding: 1.8rem 2rem; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
+.texte h2 { font-size: 1.25rem; font-weight: 600; margin: 2rem 0 0.5rem; }
 .texte h2:first-child { margin-top: 0; }
 .texte p, .texte li { color: var(--text-soft); }
 .texte p:last-child { margin-bottom: 0; }
 .texte ul, .texte ol { margin: 0 0 1rem 1.2rem; padding: 0; }
 .texte li { margin-bottom: 0.4rem; }
+.texte a { color: var(--bleu-clair); }
 .texte.court { padding: 1.2rem 1.4rem; margin-bottom: 1.6rem; }
 
-/* Étapes d'inscription façon tickets */
-.etapes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.2rem; margin: 0 0 1.8rem; }
-.etape { position: relative; padding: 1.4rem 1.3rem; background: var(--panel); border: 2px solid var(--trait); border-radius: var(--radius); box-shadow: var(--ombre); }
-.etape b {
-    display: inline-grid;
-    place-items: center;
-    width: 2.6rem;
-    height: 2.6rem;
-    margin-bottom: 0.8rem;
-    background: var(--accent);
-    border: 2px solid var(--trait);
-    border-radius: 50%;
-    font-family: var(--display);
-    font-size: 1.2rem;
-}
-.etape h3 { font-size: 1.45rem; text-transform: uppercase; margin-bottom: 0.3rem; }
-.etape p { color: var(--text-soft); font-size: 0.95rem; margin: 0; }
-.contact-bloc { display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; padding: 1.2rem 1.4rem; background: var(--accent-dim); border: 2px solid var(--trait); border-radius: var(--radius); }
+/* Étapes d'inscription */
+.etapes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.1rem; margin: 0 0 1.8rem; }
+.etape { padding: 1.4rem 1.3rem; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
+.etape b { display: inline-grid; place-items: center; width: 2.3rem; height: 2.3rem; margin-bottom: 0.8rem; border-radius: 50%; background: var(--accent); color: var(--ink); font-weight: 700; }
+.etape h3 { font-size: 1.2rem; font-weight: 600; margin-bottom: 0.3rem; }
+.etape p { color: var(--text-soft); font-size: 0.94rem; margin: 0; }
+.contact-bloc { display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; padding: 1.2rem 1.4rem; background: var(--panel-2); border: 1px solid var(--line-2); border-radius: var(--radius); }
 
 @media (max-width: 1100px) { .stack { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 900px) {
-    .hero { grid-template-columns: 1fr; gap: 2.2rem; }
-    .affiche { transform: none; }
+    .arbre { opacity: 0.25; width: 34vw; }
     .etapes { grid-template-columns: 1fr; }
+    .chiffres { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 640px) {
+    .hero { margin-top: -1.6rem; padding: 3.2rem 1rem 3rem; }
+    .arbre { display: none; }
     .stack { grid-template-columns: 1fr; }
     .marche { width: 100% !important; grid-template-columns: auto 1fr; }
     .marche-remplissage { display: none; }
@@ -198,6 +174,6 @@ html, body { overflow-x: clip; }
     .xhq-nav-right { gap: 0; }
     .xhq-nav-links { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-bottom: 0.2rem; }
     .xhq-nav-links::-webkit-scrollbar { display: none; }
-    .xhq-nav-auth { position: absolute; top: 0.7rem; right: 1rem; }
-    .xhq-nav-auth .xhq-nav-btn { padding: 0.3rem 0.8rem; font-size: 0.95rem; }
+    .xhq-nav-auth { position: absolute; top: 0.75rem; right: 1rem; }
+    .xhq-nav-auth .xhq-nav-btn { padding: 0.35rem 0.9rem; font-size: 0.9rem; }
 }

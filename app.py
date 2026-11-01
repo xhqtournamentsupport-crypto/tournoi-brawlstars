@@ -1569,7 +1569,8 @@ def exporter_site_public():
     with open(chemin, 'w', encoding='utf-8') as f:
         json.dump(donnees, f, ensure_ascii=False, indent=1)
     shutil.copyfile(os.path.join(BASE_DIR, 'static', 'style.css'), os.path.join(SITE_PUBLIC_DIR, 'assets', 'style.css'))
-    shutil.copyfile(os.path.join(BASE_DIR, 'static', 'favicon.svg'), os.path.join(SITE_PUBLIC_DIR, 'assets', 'favicon.svg'))
+    for nom in ('favicon.png', 'logo-xhq.png', 'logo-xhq-clair.png'):
+        shutil.copyfile(os.path.join(BASE_DIR, 'static', nom), os.path.join(SITE_PUBLIC_DIR, 'assets', nom))
     return chemin, donnees
 
 

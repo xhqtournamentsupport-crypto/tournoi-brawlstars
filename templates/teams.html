@@ -22,8 +22,8 @@
         .team-card:last-child { border-bottom: 0; }
         .team-card.my-team { padding: 0; border: 0; }
         .team-info { min-width: 0; flex: 1; }
-        .team-info h3 { font-size: 1.5rem; text-transform: uppercase; overflow-wrap: anywhere; }
-        .my-team .team-info h3 { font-size: 2.2rem; font-weight: 800; }
+        .team-info h3 { font-size: 1.5rem; overflow-wrap: anywhere; }
+        .my-team .team-info h3 { font-size: 2.2rem; font-weight: 700; }
         .team-info > p { color: var(--muted); margin: 0.2rem 0 0.5rem; overflow-wrap: anywhere; }
         .team-creator { color: var(--text); font-size: 0.9rem; }
         .team-meta { color: var(--muted); font-size: 0.88rem; margin-top: 0.2rem; }
@@ -63,12 +63,12 @@
             place-items: center;
             font-size: 1.1rem;
             background: var(--panel-2);
-            border: 2px solid var(--trait);
+            border: 1px solid var(--line);
             border-radius: var(--radius);
         }
 
         .membre-nom { flex: 1; min-width: 120px; font-weight: 600; overflow-wrap: anywhere; }
-        .membre-role { color: var(--gold); font-family: var(--display); font-size: 0.85rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
+        .membre-role { color: var(--gold); font-size: 0.85rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
         .membre-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; }
 
         .match-res {
@@ -76,21 +76,21 @@
             height: 26px;
             display: grid;
             place-items: center;
-            font-family: var(--display);
+            
             font-weight: 700;
             border-radius: 3px;
         }
 
         .match-res.v { background: var(--win); color: #fff; }
         .match-res.d { background: var(--lose); color: #fff; }
-        .match-score { font-family: var(--display); font-size: 1.15rem; font-weight: 800; }
+        .match-score { font-size: 1.15rem; font-weight: 700; }
         .match-adv { flex: 1; overflow-wrap: anywhere; }
         .match-pts { color: var(--muted); font-size: 0.85rem; }
         .team-matchs > p { color: var(--muted); font-size: 0.92rem; }
 
-        .participation { padding: 1rem 1.1rem; background: var(--panel-2); border: 2px solid var(--trait); border-radius: var(--radius); }
+        .participation { padding: 1rem 1.1rem; background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius); }
         .participation-haut { display: flex; justify-content: space-between; gap: 1rem; font-weight: 600; }
-        .participation-haut strong { font-family: var(--display); font-size: 1.2rem; }
+        .participation-haut strong { font-size: 1.2rem; }
         .barre { height: 4px; margin-top: 0.6rem; background: var(--line); overflow: hidden; }
         .barre-remplie { height: 100%; background: var(--warn); }
         .barre-remplie.ok { background: var(--win); }
@@ -107,7 +107,7 @@
 
         .hors-classement { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; color: var(--warn); }
 
-        .team-edit { display: none; padding: 1.2rem; background: var(--panel-2); border: 2px solid var(--trait); border-radius: var(--radius); }
+        .team-edit { display: none; padding: 1.2rem; background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius); }
         .team-edit.open { display: block; }
 
         .search-box { margin-bottom: 0.6rem; }

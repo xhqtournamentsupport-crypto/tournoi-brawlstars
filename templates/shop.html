@@ -8,7 +8,7 @@
     <style>
         .header-right { display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; }
         .solde-display { color: var(--muted); font-size: 0.95rem; }
-        .solde-display strong { color: var(--text); font-family: var(--display); font-size: 1.2rem; }
+        .solde-display strong { color: var(--text); font-size: 1.2rem; }
 
         .intro { max-width: 640px; color: var(--muted); margin: -0.6rem 0 2rem; line-height: 1.6; }
 
@@ -22,9 +22,8 @@
             display: flex;
             flex-direction: column;
             background: var(--panel);
-            border: 2px solid var(--trait);
+            border: 1px solid var(--line);
             border-radius: var(--radius);
-            box-shadow: var(--ombre);
             overflow: hidden;
         }
 
@@ -35,21 +34,19 @@
             display: grid;
             place-items: center;
             background: var(--bg-2);
-            border-bottom: 2px solid var(--trait);
+            border-bottom: 1px solid var(--line);
         }
 
         /* Aperçus dessinés en CSS, pas d'images génériques */
         .apercu-badge {
             padding: 0.35rem 1rem;
-            border: 2px solid var(--trait);
+            border: 1px solid var(--line);
             border-radius: 8px;
             background: var(--accent);
             color: var(--ink);
-            box-shadow: var(--ombre-petite);
-            transform: rotate(-3deg);
-            font-family: var(--display);
+            
             font-size: 1.6rem;
-            font-weight: 800;
+            font-weight: 700;
             letter-spacing: 0.12em;
             text-transform: uppercase;
         }
@@ -70,11 +67,11 @@
 
         .item-content { flex: 1; display: flex; flex-direction: column; padding: 1.2rem 1.3rem 1.3rem; }
         .item-type { color: var(--dim); font-size: 0.75rem; letter-spacing: 0.14em; text-transform: uppercase; }
-        .item-name { margin: 0.2rem 0 0.4rem; font-family: var(--display); font-size: 1.5rem; font-weight: 700; text-transform: uppercase; }
+        .item-name { margin: 0.2rem 0 0.4rem; font-size: 1.5rem; font-weight: 700; }
         .item-description { flex: 1; color: var(--muted); font-size: 0.92rem; line-height: 1.55; margin-bottom: 1.1rem; }
 
         .item-footer { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
-        .item-price { font-family: var(--display); font-size: 1.1rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--win); }
+        .item-price { font-size: 1.1rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--win); }
         .item-limite { color: var(--warn); font-size: 0.82rem; }
         .item-btn { padding: 0.6rem 1.1rem; font-size: 0.95rem; }
         

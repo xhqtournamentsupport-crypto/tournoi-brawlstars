@@ -28,9 +28,8 @@
             place-items: center;
             font-size: 4.2rem;
             background: var(--panel-2);
-            border: 2px solid var(--trait);
+            border: 1px solid var(--line);
             border-radius: var(--radius);
-            box-shadow: var(--ombre);
             cursor: pointer;
             transition: border-color 0.15s;
         }
@@ -45,7 +44,7 @@
             padding: 0.2rem 0;
             background: var(--ink);
             color: var(--accent);
-            font-family: var(--display);
+            
             font-size: 0.75rem;
             letter-spacing: 0.15em;
             text-transform: uppercase;
@@ -56,7 +55,7 @@
 
         .profil-pic:hover::after { opacity: 1; }
 
-        .username { font-family: var(--display); font-size: 2.2rem; font-weight: 800; text-transform: uppercase; line-height: 1; overflow-wrap: anywhere; }
+        .username { font-size: 2.2rem; font-weight: 700; line-height: 1; overflow-wrap: anywhere; }
         .email { color: var(--muted); font-size: 0.92rem; margin: 0.4rem 0 1.6rem; overflow-wrap: anywhere; }
 
         .stats-grid { display: grid; gap: 0; border-top: 1px solid var(--line); }
@@ -84,7 +83,7 @@
         }
 
         .logo-option:hover { border-color: var(--text); }
-        .logo-option.active { border-color: var(--trait); background: var(--accent); }
+        .logo-option.active { border-color: var(--bleu); background: rgba(75, 92, 255, 0.18); }
         .logo-option.verrou { opacity: 0.3; filter: grayscale(1); }
         .logo-premium-titre { margin-top: 0.4rem; }
 
@@ -98,13 +97,13 @@
             gap: 0.4rem;
             padding: 1.1rem 1.2rem;
             background: var(--bg-2);
-            border: 2px solid var(--trait);
+            border: 1px solid var(--line);
             border-radius: var(--radius);
         }
 
-        .inv-item.equipe { background: var(--accent-dim); box-shadow: var(--ombre-petite); }
+        .inv-item.equipe { border-color: var(--bleu); background: rgba(75, 92, 255, 0.1); }
         .inv-type { color: var(--dim); font-size: 0.75rem; letter-spacing: 0.14em; text-transform: uppercase; }
-        .inv-nom { font-family: var(--display); font-size: 1.3rem; font-weight: 700; text-transform: uppercase; }
+        .inv-nom { font-size: 1.3rem; font-weight: 700; }
         .inv-etat { color: var(--muted); font-size: 0.88rem; flex: 1; }
         .inv-item .btn { margin-top: 0.4rem; align-self: flex-start; }
         .inventaire-vide { color: var(--muted); }
