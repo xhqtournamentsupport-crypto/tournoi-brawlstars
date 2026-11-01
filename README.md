@@ -9,6 +9,9 @@ python app.py
 ```
 Puis ouvrir http://localhost:5000 — `tournois.db` est créé (ou mis à jour) automatiquement.
 
+## Mise en ligne
+Voir [DEPLOIEMENT.md](DEPLOIEMENT.md) (PythonAnywhere, gratuit, environ 15 minutes).
+
 ## Sécurité
 La clé qui signe les sessions n'est pas dans le code : elle est générée au premier lancement dans
 `secret_key.txt` (ignoré par Git, ne jamais le partager). En ligne, définir plutôt la variable
