@@ -1,5 +1,5 @@
 <nav class="xhq-nav">
-        <a href="/" class="xhq-logo">XHQ</a>
+        <a href="/" class="xhq-logo">XHQ <small>League</small></a>
         <div class="xhq-nav-right">
             {% if current_user %}
             <div class="xhq-nav-links">
@@ -10,7 +10,7 @@
                 <a href="/admin" class="xhq-nav-btn admin{% if request.path == '/admin' %} active{% endif %}">Admin</a>
                 {% endif %}
             </div>
-            <a href="/profil" class="xhq-avatar{% if current_user.premium %} premium{% endif %}" id="nav-avatar" title="{{ current_user.username }}">{{ current_user.logo }}</a>
+            <a href="/profil" class="xhq-avatar{% if current_user.cadre %} cadre-{{ current_user.cadre | replace('cadre_', '') }}{% endif %}" id="nav-avatar" title="{{ current_user.username }}">{{ current_user.logo }}</a>
             {% else %}
             <div class="xhq-nav-auth">
                 <a href="/login" class="xhq-nav-btn outline">Connexion</a>

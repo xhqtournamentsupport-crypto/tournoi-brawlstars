@@ -3,297 +3,76 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Shop - XHQ Tournament</title>
+    <title>Shop - XHQ League</title>
     {% include '_head.html' %}
     <style>
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-        .header-nav {
-            background: linear-gradient(135deg, rgba(30, 30, 60, 0.95) 0%, rgba(50, 50, 80, 0.85) 100%);
-            padding: 2rem;
-            border-radius: 20px;
-            margin-bottom: 3rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 1rem;
-            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.15);
-            border: 2px solid rgba(102, 126, 234, 0.3);
-            animation: slideDown 0.6s ease-out;
-            backdrop-filter: blur(10px);
-        }
+        .header-right { display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; }
+        .solde-display { color: var(--muted); font-size: 0.95rem; }
+        .solde-display strong { color: var(--text); font-family: var(--display); font-size: 1.2rem; }
 
-        @keyframes slideDown {
-            from {
-                transform: translateY(-30px);
-                opacity: 0;
-            }
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
-        }
-
-        .header-nav h1 {
-            color: #fff;
-            font-size: 2.5rem;
-            font-weight: 900;
-            letter-spacing: -1px;
-            background: linear-gradient(135deg, #667eea 0%, #00d9ff 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .solde-display {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: #fff;
-            padding: 1.2rem 2rem;
-            border-radius: 12px;
-            font-weight: 800;
-            font-size: 1.1rem;
-            text-transform: uppercase;
-            letter-spacing: 1.2px;
-            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
-        }
-
-        .header-right {
-            display: flex;
-            gap: 1.5rem;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-
-        .header-nav a {
-            color: #00d9ff;
-            text-decoration: none;
-            font-weight: 700;
-            transition: all 0.3s ease;
-            font-size: 1rem;
-            position: relative;
-        }
-
-        .header-nav a::after {
-            content: '';
-            position: absolute;
-            bottom: -5px;
-            left: 0;
-            width: 0;
-            height: 2px;
-            background: linear-gradient(135deg, #667eea 0%, #00d9ff 100%);
-            transition: width 0.3s ease;
-        }
-
-        .header-nav a:hover {
-            color: #667eea;
-        }
-
-        .header-nav a:hover::after {
-            width: 100%;
-        }
-
-        .section {
-            background: linear-gradient(135deg, rgba(30, 30, 60, 0.95) 0%, rgba(50, 50, 80, 0.85) 100%);
-            padding: 3rem;
-            border-radius: 20px;
-            margin-bottom: 3rem;
-            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.15);
-            border: 2px solid rgba(102, 126, 234, 0.3);
-            backdrop-filter: blur(10px);
-            animation: fadeInUp 0.8s ease-out;
-        }
-
-        @keyframes fadeInUp {
-            from {
-                transform: translateY(40px);
-                opacity: 0;
-            }
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
-        }
-
-        .section h2 {
-            color: #fff;
-            margin-bottom: 2rem;
-            font-size: 1.8rem;
-            font-weight: 900;
-            letter-spacing: -0.5px;
-        }
+        .intro { max-width: 640px; color: var(--muted); margin: -0.6rem 0 2rem; line-height: 1.6; }
 
         .shop-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
-            gap: 2.5rem;
-        }
-
-        .item-card {
-            background: rgba(102, 126, 234, 0.08);
-            border-radius: 15px;
-            border: 2px solid rgba(102, 126, 234, 0.3);
-            transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
-            display: flex;
-            flex-direction: column;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .item-card::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            right: -50%;
-            width: 150px;
-            height: 150px;
-            background: radial-gradient(circle, rgba(102, 126, 234, 0.15) 0%, transparent 70%);
-            border-radius: 50%;
-            transition: all 0.3s ease;
-            pointer-events: none;
-            z-index: 1;
-        }
-
-        .item-card:hover::before {
-            top: -30%;
-            right: -30%;
-        }
-
-        .item-card:hover {
-            border-color: #667eea;
-            background: rgba(102, 126, 234, 0.15);
-            transform: translateY(-12px);
-            box-shadow: 0 15px 40px rgba(102, 126, 234, 0.2);
-        }
-
-        .item-image {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            height: 200px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 4rem;
-            position: relative;
-            z-index: 2;
-        }
-
-        .item-content {
-            padding: 2rem;
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            position: relative;
-            z-index: 2;
-        }
-
-        .item-name {
-            color: #00d9ff;
-            font-weight: 900;
-            font-size: 1.3rem;
-            margin-bottom: 0.8rem;
-        }
-
-        .item-description {
-            color: #a0a0b0;
-            font-size: 0.95rem;
-            margin-bottom: 1.2rem;
-            flex: 1;
-            line-height: 1.6;
-        }
-
-        .item-type {
-            color: #667eea;
-            font-size: 0.85rem;
-            margin-bottom: 1.2rem;
-            text-transform: uppercase;
-            font-weight: 800;
-            letter-spacing: 1.2px;
-        }
-
-        .item-footer {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
             gap: 1rem;
         }
 
-        .item-price {
-            color: #00d9ff;
-            font-weight: 900;
-            font-size: 1.5rem;
-        }
-
-        .item-btn {
-            flex: 1;
-            padding: 1.1rem;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: #fff;
-            border: none;
-            border-radius: 10px;
-            cursor: pointer;
-            font-weight: 800;
-            font-family: inherit;
-            transition: all 0.3s ease;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            font-size: 0.9rem;
-            position: relative;
+        .item-card {
+            display: flex;
+            flex-direction: column;
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 6px;
             overflow: hidden;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
         }
 
-        .item-btn::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-            transition: left 0.5s ease;
+        .item-card.possede { border-color: rgba(61, 220, 132, 0.45); }
+
+        .item-image {
+            height: 150px;
+            display: grid;
+            place-items: center;
+            background: var(--bg-2);
+            border-bottom: 1px solid var(--line);
         }
 
-        .item-btn:hover::before {
-            left: 100%;
+        /* Aperçus dessinés en CSS, pas d'images génériques */
+        .apercu-badge {
+            padding: 0.35rem 1rem;
+            border: 2px solid var(--accent);
+            color: var(--accent);
+            font-family: var(--display);
+            font-size: 1.6rem;
+            font-weight: 800;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
         }
 
-        .item-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        .apercu-badge.saison { border-color: #6f8cff; color: #6f8cff; }
+
+        .apercu-cadre {
+            width: 84px;
+            height: 84px;
+            display: grid;
+            place-items: center;
+            font-size: 2.6rem;
+            background: var(--panel-2);
+            border-radius: 6px;
         }
 
-        .item-btn:disabled {
-            background: rgba(81, 207, 102, 0.2);
-            color: #51cf66;
-            cursor: default;
-            box-shadow: none;
-            transform: none;
-        }
+        .apercu-avatars { display: flex; gap: 0.5rem; font-size: 2.2rem; }
 
-        .message {
-            padding: 1.2rem;
-            border-radius: 10px;
-            margin-bottom: 2rem;
-            display: none;
-            font-weight: 700;
-        }
+        .item-content { flex: 1; display: flex; flex-direction: column; padding: 1.2rem 1.3rem 1.3rem; }
+        .item-type { color: var(--dim); font-size: 0.75rem; letter-spacing: 0.14em; text-transform: uppercase; }
+        .item-name { margin: 0.2rem 0 0.4rem; font-family: var(--display); font-size: 1.5rem; font-weight: 700; text-transform: uppercase; }
+        .item-description { flex: 1; color: var(--muted); font-size: 0.92rem; line-height: 1.55; margin-bottom: 1.1rem; }
 
-        .message.show { display: block; }
-        .message.success { background: rgba(81, 207, 102, 0.15); border-left: 5px solid #51cf66; color: #51cf66; }
-        .message.error { background: rgba(255, 107, 107, 0.15); border-left: 5px solid #ff6b6b; color: #ff6b6b; }
-
-        .empty {
-            text-align: center;
-            color: #a0a0b0;
-            padding: 3rem 2rem;
-            font-size: 1.1rem;
-        }
-
-        @media (max-width: 700px) {
-            .section { padding: 1.5rem; }
-        }
+        .item-footer { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+        .item-price { font-family: var(--display); font-size: 1.1rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--win); }
+        .item-limite { color: var(--warn); font-size: 0.82rem; }
+        .item-btn { padding: 0.6rem 1.1rem; font-size: 0.95rem; }
+        .item-btn:disabled { background: transparent; color: var(--muted); border-color: var(--line-2); opacity: 1; clip-path: none; }
     </style>
 </head>
 <body>
@@ -301,26 +80,36 @@
     <main class="xhq-main">
     <div class="container">
         <div class="header-nav">
-            <h1>Shop</h1>
+            <h1><span class="kicker">Objets</span>Shop</h1>
             <div class="header-right">
                 <div class="solde-display" id="solde-display">Solde : …</div>
-                <a href="/">← Retour à l'accueil</a>
             </div>
         </div>
 
-        <div class="section">
-            <h2>Items disponibles</h2>
-            <div class="message" id="shop-message"></div>
-            <div id="shop-list" class="shop-grid">
-                <div class="empty">Chargement...</div>
-            </div>
+        <p class="intro">Tout est gratuit et purement visuel : rien ici ne change un résultat ou un classement. Certains objets ne sont disponibles qu'un temps, après ils disparaissent.</p>
+
+        <div class="message" id="shop-message"></div>
+        <div id="shop-list" class="shop-grid">
+            <div class="empty">Chargement…</div>
         </div>
     </div>
     </main>
     {% include '_footer.html' %}
 
     <script>
-        const ICONES = { badge: '🏅', cosmetic: '🎨', boost: '⚡' };
+        const TYPES = { badge: 'Badge', cadre: "Cadre d'avatar", avatars: 'Avatars' };
+        const monAvatar = {{ current_user.logo | tojson }};
+
+        function apercu(item) {
+            switch (item.code) {
+                case 'fondateur': return '<span class="apercu-badge">Fondateur</span>';
+                case 'saison1': return '<span class="apercu-badge saison">Saison 1</span>';
+                case 'cadre_or': return `<span class="apercu-cadre cadre-or">${escapeHtml(monAvatar)}</span>`;
+                case 'cadre_carbone': return `<span class="apercu-cadre cadre-carbone">${escapeHtml(monAvatar)}</span>`;
+                case 'pack_rare': return '<span class="apercu-avatars">🐉 🦄 🤖 👽</span>';
+                default: return '';
+            }
+        }
 
         function showMessage(text, type) {
             const el = document.getElementById('shop-message');
@@ -330,13 +119,9 @@
             showMessage.timer = setTimeout(() => el.classList.remove('show'), 4000);
         }
 
-        function afficherSolde(solde) {
-            document.getElementById('solde-display').textContent = 'Solde : ' + (Number(solde) || 0) + '€';
-        }
-
         async function loadSolde() {
             const { ok, data } = await api('/api/profil');
-            if (ok) afficherSolde(data.solde);
+            if (ok) document.getElementById('solde-display').innerHTML = `Solde : <strong>${Number(data.solde) || 0} €</strong>`;
         }
 
         async function loadShop() {
@@ -346,35 +131,35 @@
                 container.innerHTML = `<div class="empty">${escapeHtml(data.error || 'Impossible de charger le shop')}</div>`;
                 return;
             }
-            if (data.length === 0) {
-                container.innerHTML = '<div class="empty">Aucun item disponible</div>';
+            if (!data.length) {
+                container.innerHTML = '<div class="empty">Rien pour le moment.</div>';
                 return;
             }
-            container.innerHTML = data.map((item, i) => {
-                const possede = item.unique && item.possede > 0;
+            container.innerHTML = data.map(item => {
+                let bouton;
+                if (item.possede) bouton = '<button class="item-btn" type="button" disabled>Récupéré</button>';
+                else if (!item.disponible) bouton = `<button class="item-btn" type="button" disabled>${escapeHtml(item.raison || 'Indisponible')}</button>`;
+                else bouton = `<button class="item-btn" type="button" onclick="recuperer(${Number(item.id)})">Récupérer</button>`;
+                const limite = item.code === 'fondateur' && !item.possede && item.disponible
+                    ? `<span class="item-limite">${Number(item.places_restantes)} place(s) restante(s)</span>`
+                    : (item.code === 'saison1' && item.disponible && !item.possede ? '<span class="item-limite">Saison 1 seulement</span>' : '<span class="item-price">Gratuit</span>');
                 return `
-                <div class="item-card" style="animation: fadeInUp 0.8s ease-out ${i * 0.1}s both;">
-                    <div class="item-image">${ICONES[item.type] || '🎁'}</div>
+                <div class="item-card ${item.possede ? 'possede' : ''}">
+                    <div class="item-image">${apercu(item)}</div>
                     <div class="item-content">
+                        <div class="item-type">${TYPES[item.type] || escapeHtml(item.type)}</div>
                         <div class="item-name">${escapeHtml(item.nom)}</div>
                         <div class="item-description">${escapeHtml(item.description)}</div>
-                        <div class="item-type">${escapeHtml(item.type)}${item.possede > 0 && !item.unique ? ' · possédé x' + Number(item.possede) : ''}</div>
-                        <div class="item-footer">
-                            <div class="item-price">${Number(item.prix) || 0}€</div>
-                            ${possede
-                                ? '<button class="item-btn" type="button" disabled>✓ Possédé</button>'
-                                : `<button class="item-btn" type="button" onclick="buyItem(${Number(item.id)})">Acheter</button>`}
-                        </div>
+                        <div class="item-footer">${limite}${bouton}</div>
                     </div>
                 </div>`;
             }).join('');
         }
 
-        async function buyItem(itemId) {
-            const { ok, data } = await api(`/api/shop/buy/${itemId}`, { method: 'POST' });
+        async function recuperer(itemId) {
+            const { ok, data } = await api(`/api/shop/recuperer/${itemId}`, { method: 'POST' });
             if (ok && data.success) {
-                showMessage(`✓ ${data.item} acheté !` + (/Boost/.test(data.item) ? ' Active-le depuis ton profil (section Mon inventaire).' : ''), 'success');
-                afficherSolde(data.solde);
+                showMessage(`${data.item} ajouté à ton inventaire. Tu peux l'équiper depuis ton profil.`, 'success');
                 loadShop();
             } else {
                 showMessage(data.error || 'Erreur', 'error');

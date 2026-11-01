@@ -6,381 +6,95 @@
     <title>Admin - XHQ Tournament</title>
     {% include '_head.html' %}
     <style>
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
+        .header-nav p { margin: 0.5rem 0 0; color: var(--muted); }
+        .header-nav h1 { color: var(--text); }
 
-        .header-nav {
-            background: linear-gradient(135deg, rgba(30, 30, 60, 0.95) 0%, rgba(50, 50, 80, 0.85) 100%);
-            padding: 2rem;
-            border-radius: 20px;
-            margin-bottom: 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 1rem;
-            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.15);
-            border: 2px solid rgba(255, 215, 0, 0.35);
-            backdrop-filter: blur(10px);
-        }
+        .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2rem; }
+        .stat.alerte { border-color: rgba(233, 185, 58, 0.6); }
+        .stat.alerte .stat-value { color: var(--gold); }
 
-        .header-nav h1 {
-            margin: 0;
-            font-size: 2.5rem;
-            font-weight: 900;
-            letter-spacing: -1px;
-            background: linear-gradient(135deg, #ffd700 0%, #00d9ff 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .header-nav p {
-            margin: 0.3rem 0 0;
-            color: #a0a0b0;
-        }
-
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-        }
-
-        .stat {
-            background: rgba(102, 126, 234, 0.1);
-            border: 2px solid rgba(102, 126, 234, 0.3);
-            border-radius: 20px;
-            padding: 1.5rem;
-            backdrop-filter: blur(10px);
-        }
-
-        .stat-label {
-            color: #00d9ff;
-            font-size: 0.8rem;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 1.5px;
-        }
-
-        .stat-value {
-            color: #fff;
-            font-size: 2.2rem;
-            font-weight: 900;
-            margin-top: 0.3rem;
-        }
-
-        .stat.alerte { border-color: rgba(255, 215, 0, 0.6); }
-        .stat.alerte .stat-value { color: #ffd700; }
-
-        .tabs {
-            display: flex;
-            gap: 0.8rem;
-            flex-wrap: wrap;
-            margin-bottom: 2rem;
-        }
-
+        .tabs { display: flex; gap: 1.8rem; flex-wrap: wrap; margin-bottom: 1.6rem; border-bottom: 1px solid var(--line); }
         .tab {
-            color: #e0e0e0;
-            background: rgba(102, 126, 234, 0.08);
-            border: 2px solid rgba(102, 126, 234, 0.4);
-            border-radius: 25px;
-            padding: 0.8rem 1.6rem;
-            font-family: inherit;
-            font-weight: 800;
-            font-size: 0.9rem;
+            position: relative;
+            padding: 0.6rem 0;
+            border: 0;
+            background: none;
+            color: var(--muted);
+            font-family: var(--display);
+            font-size: 1.15rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
             cursor: pointer;
-            transition: all 0.3s;
         }
 
-        .tab:hover { color: #00d9ff; border-color: #667eea; }
-
-        .tab.active {
-            color: #fff;
-            border-color: transparent;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        }
+        .tab:hover { color: var(--text); }
+        .tab.active { color: var(--text); }
+        .tab.active::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--accent); }
 
         .tab .pastille {
             display: inline-block;
-            min-width: 1.4rem;
-            padding: 0 0.4rem;
-            margin-left: 0.4rem;
-            border-radius: 10px;
-            background: #ffd700;
-            color: #1a1a2e;
-            font-size: 0.75rem;
-        }
-        
-        .tab .pastille[hidden] { display: none; }
-
-        .panel { display: none; }
-        .panel.active { display: block; }
-
-        .section {
-            background: linear-gradient(135deg, rgba(30, 30, 60, 0.95) 0%, rgba(50, 50, 80, 0.85) 100%);
-            padding: 2.5rem;
-            border-radius: 20px;
-            margin-bottom: 2rem;
-            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.15);
-            border: 2px solid rgba(102, 126, 234, 0.3);
-            backdrop-filter: blur(10px);
-        }
-
-        .section-title {
-            color: #fff;
-            font-size: 1.6rem;
-            font-weight: 900;
-            margin: 0 0 1.5rem;
-            padding-bottom: 1rem;
-            border-bottom: 3px solid rgba(102, 126, 234, 0.3);
-        }
-
-        .hint {
-            color: #a0a0b0;
-            font-size: 0.9rem;
-            margin: -0.5rem 0 1.5rem;
-            line-height: 1.6;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 0.6rem;
-            color: #00d9ff;
-            font-weight: 800;
+            min-width: 1.3rem;
+            margin-left: 0.35rem;
+            padding: 0 0.35rem;
+            border-radius: 2px;
+            background: var(--gold);
+            color: var(--ink);
             font-size: 0.8rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        input, select {
-            width: 100%;
-            padding: 0.9rem 1rem;
-            border: 2px solid rgba(102, 126, 234, 0.3);
-            border-radius: 12px;
-            background: rgba(20, 20, 40, 0.8);
-            color: #e0e0e0;
-            font-size: 1rem;
-            font-family: inherit;
-        }
-
-        input:focus, select:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 20px rgba(102, 126, 234, 0.3);
-        }
-
-        .match-form {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1.2rem;
-        }
-
-        .versus {
-            display: grid;
-            grid-template-columns: 1fr 90px auto 90px 1fr;
-            align-items: end;
-            gap: 1rem;
-            grid-column: 1 / -1;
-        }
-
-        .versus .vs {
-            color: #ffd700;
-            font-weight: 900;
-            padding-bottom: 0.9rem;
             text-align: center;
         }
 
-        .versus input { text-align: center; font-weight: 900; font-size: 1.2rem; }
+        .tab .pastille[hidden] { display: none; }
+        .panel { display: none; background: none; border: 0; padding: 0; }
+        .panel.active { display: block; }
 
-        .form-actions {
-            grid-column: 1 / -1;
-            display: flex;
-            gap: 1rem;
-            align-items: center;
-            flex-wrap: wrap;
-        }
+        .match-form { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .versus { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 90px auto 90px 1fr; gap: 1rem; align-items: end; }
+        .versus .vs { padding-bottom: 0.8rem; color: var(--dim); font-family: var(--display); font-weight: 700; letter-spacing: 0.1em; }
+        .versus input { text-align: center; font-family: var(--display); font-size: 1.4rem; font-weight: 700; }
+        .form-actions { grid-column: 1 / -1; display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
 
-        .btn {
-            padding: 0.9rem 1.8rem;
-            border: none;
-            border-radius: 12px;
-            font-weight: 800;
-            font-family: inherit;
-            font-size: 0.9rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            cursor: pointer;
-            transition: all 0.3s;
-            color: #fff;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            white-space: nowrap;
-        }
-
-        .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(102, 126, 234, 0.35); }
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
-        .btn.petit { padding: 0.55rem 1rem; font-size: 0.75rem; border-radius: 10px; }
-        .btn.danger { background: linear-gradient(135deg, #ff6b6b 0%, #c92a2a 100%); }
-        .btn.secondaire { background: rgba(102, 126, 234, 0.15); border: 2px solid rgba(102, 126, 234, 0.4); }
-        .btn.or { background: linear-gradient(135deg, #ffd700 0%, #ff922b 100%); color: #1a1a2e; }
-
-        .message {
-            padding: 1rem 1.2rem;
-            border-radius: 10px;
-            margin-bottom: 1.5rem;
-            display: none;
-            font-weight: 700;
-        }
-
-        .message.show { display: block; }
-        .message.success { background: rgba(81, 207, 102, 0.15); border-left: 5px solid #51cf66; color: #51cf66; }
-        .message.error { background: rgba(255, 107, 107, 0.15); border-left: 5px solid #ff6b6b; color: #ff6b6b; }
-
-        .mdp-box {
-            display: none;
-            background: rgba(255, 215, 0, 0.1);
-            border: 2px solid rgba(255, 215, 0, 0.5);
-            border-radius: 12px;
-            padding: 1.2rem 1.5rem;
-            margin-bottom: 1.5rem;
-            line-height: 1.7;
-        }
-
+        .mdp-box { display: none; margin-bottom: 1.4rem; padding: 1rem 1.2rem; border-left: 3px solid var(--gold); background: rgba(233, 185, 58, 0.07); line-height: 1.7; }
         .mdp-box.show { display: block; }
-        .mdp-box code {
-            background: rgba(0, 0, 0, 0.35);
-            color: #ffd700;
-            padding: 0.2rem 0.6rem;
-            border-radius: 6px;
-            font-size: 1.1rem;
-            font-weight: 800;
-            user-select: all;
-        }
-
-        .table-wrap { overflow-x: auto; }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            min-width: 640px;
-        }
-
-        th {
-            text-align: left;
-            color: #00d9ff;
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            padding: 0.8rem;
-            border-bottom: 2px solid rgba(102, 126, 234, 0.3);
-        }
-
-        td {
-            padding: 0.8rem;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-            vertical-align: middle;
-            overflow-wrap: anywhere;
-        }
-
-        tr:hover td { background: rgba(102, 126, 234, 0.06); }
+        .mdp-box code { padding: 0.15rem 0.5rem; background: var(--ink); border: 1px solid var(--line-2); color: var(--gold); font-size: 1.05rem; user-select: all; }
 
         .actions { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
-        .actions select { width: auto; padding: 0.5rem; font-size: 0.85rem; }
+        .actions select { width: auto; padding: 0.4rem 0.5rem; font-size: 0.9rem; }
+        .recherche { margin-bottom: 1rem; }
 
-        .tag {
-            display: inline-block;
-            padding: 0.2rem 0.6rem;
-            border-radius: 10px;
-            font-size: 0.75rem;
-            font-weight: 800;
-            background: rgba(102, 126, 234, 0.2);
-            color: #b8c4ff;
-            white-space: nowrap;
-        }
+        .saison-resume { display: grid; grid-template-columns: repeat(6, 1fr); gap: 0.8rem; margin-bottom: 1.4rem; }
+        .saison-resume .stat-value { font-size: 1.7rem; }
+        .mvt { font-weight: 600; white-space: nowrap; }
+        .mvt.monte { color: var(--win); }
+        .mvt.descend { color: var(--lose); }
+        .mvt.champion { color: var(--gold); }
+        .mvt.repechage { color: #36d6e7; }
+        .mvt.inactive { color: var(--muted); }
 
-        .tag.or { background: rgba(255, 215, 0, 0.2); color: #ffd700; }
-        .gagnant { color: #51cf66; font-weight: 800; }
-        .score { color: #00d9ff; font-weight: 900; white-space: nowrap; }
-        .muted { color: #8888a8; }
-
-        .recherche { margin-bottom: 1.5rem; }
-
-        .msg-card {
-            background: rgba(102, 126, 234, 0.08);
-            border-left: 5px solid #ffd700;
-            border-radius: 12px;
-            padding: 1.3rem 1.5rem;
-            margin-bottom: 1rem;
-        }
-
-        .msg-card.traite { border-left-color: rgba(102, 126, 234, 0.4); opacity: 0.65; }
-        .msg-head { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.6rem; }
-        .msg-sujet { color: #fff; font-weight: 900; font-size: 1.05rem; }
-        .msg-meta { color: #a0a0b0; font-size: 0.85rem; }
-        .msg-body { color: #c0c0c0; white-space: pre-wrap; line-height: 1.6; margin-bottom: 1rem; overflow-wrap: anywhere; }
-
-        .vide { color: #a0a0b0; text-align: center; padding: 2rem 1rem; }
-        
-        .saison-resume {
-            display: grid;
-            grid-template-columns: repeat(6, 1fr);
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-        }
-        
-        .saison-resume .stat { padding: 1.2rem; }
-        .saison-resume .stat-value { font-size: 1.8rem; }
-        
-        .mvt { font-weight: 900; white-space: nowrap; }
-        .mvt.monte { color: #51cf66; }
-        .mvt.descend { color: #ff6b6b; }
-        .mvt.champion { color: #ffd700; }
-        .mvt.repechage { color: #00d9ff; }
-        .mvt.inactive { color: #a0a0b0; }
-        
-        .cloture {
-            margin-top: 2rem;
-            padding: 1.5rem;
-            border-radius: 15px;
-            border: 2px solid rgba(255, 107, 107, 0.5);
-            background: rgba(255, 107, 107, 0.06);
-        }
-        
-        .cloture p { color: #c0c0c0; line-height: 1.6; margin: 0 0 1rem; }
+        .cloture { margin-top: 1.6rem; padding: 1.2rem; border: 1px solid rgba(255, 81, 70, 0.4); border-radius: 6px; }
+        .cloture p { color: var(--muted); }
+        .cloture p strong { color: var(--text); }
         .cloture .ligne { display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; }
-        .cloture input { max-width: 260px; text-transform: uppercase; letter-spacing: 2px; font-weight: 800; }
-        
-        .palmares-ligne {
-            display: flex;
-            justify-content: space-between;
-            gap: 1rem;
-            padding: 0.9rem 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-        }
-        
-        .palmares-ligne:last-child { border-bottom: none; }
-        .palmares-ligne strong { color: #ffd700; }
+        .cloture input { max-width: 240px; letter-spacing: 0.2em; text-transform: uppercase; font-weight: 700; }
 
+        .palmares-ligne { display: flex; justify-content: space-between; gap: 1rem; padding: 0.8rem 0; border-bottom: 1px solid var(--line); }
+        .palmares-ligne strong { color: var(--gold); }
+
+        .msg-card { padding: 1.1rem 1.2rem; margin-bottom: 0.8rem; background: var(--bg-2); border: 1px solid var(--line); border-left: 3px solid var(--gold); border-radius: 4px; }
+        .msg-card.traite { border-left-color: var(--line-2); opacity: 0.6; }
+        .msg-head { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.4rem; }
+        .msg-sujet { font-weight: 700; }
+        .msg-meta { color: var(--muted); font-size: 0.85rem; }
+        .msg-meta a { color: var(--text); }
+        .msg-body { margin: 0.6rem 0 1rem; color: #c4c8cf; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+        @media (max-width: 1150px) { .saison-resume { grid-template-columns: repeat(3, 1fr); } }
         @media (max-width: 900px) {
             .stats { grid-template-columns: repeat(2, 1fr); }
             .saison-resume { grid-template-columns: repeat(2, 1fr); }
-        }
-        
-        @media (min-width: 901px) and (max-width: 1150px) {
-            .saison-resume { grid-template-columns: repeat(3, 1fr); }
             .match-form { grid-template-columns: 1fr; }
             .versus { grid-template-columns: 1fr 70px; }
             .versus .vs { display: none; }
-        }
-
-        @media (max-width: 600px) {
-            .section { padding: 1.5rem 1rem; }
-            .header-nav h1 { font-size: 2rem; }
-            .stat-value { font-size: 1.7rem; }
         }
     </style>
 </head>
@@ -390,7 +104,7 @@
     <div class="container">
         <div class="header-nav">
             <div>
-                <h1>Panneau Admin</h1>
+                <h1><span class="kicker">Organisation</span>Admin</h1>
                 <p>Connecté en tant que {{ current_user.username }}</p>
             </div>
         </div>
@@ -496,7 +210,7 @@
                 </table></div>
                 
                 <div class="cloture">
-                    <p>⚠️ <strong>Clôturer la saison</strong> : le classement est archivé, les teams montent et descendent, et <strong>tous les points repartent à 0</strong>. C'est irréversible.</p>
+                    <p><strong>Clôturer la saison</strong> : le classement est archivé, les teams montent et descendent, et <strong>tous les points repartent à 0</strong>. C'est irréversible.</p>
                     <div class="ligne">
                         <input type="text" id="s-confirmation" placeholder="Tape CLOTURER" autocomplete="off">
                         <button class="btn danger" type="button" id="s-cloturer" onclick="cloturerSaison()" disabled>Clôturer la saison</button>
@@ -557,7 +271,7 @@
 
         function afficherMdp(boxId, r) {
             const box = document.getElementById(boxId);
-            box.innerHTML = `🔑 Nouveau mot de passe temporaire pour <strong>${escapeHtml(r.username)}</strong> (${escapeHtml(r.email)}) :
+            box.innerHTML = `Nouveau mot de passe temporaire pour <strong>${escapeHtml(r.username)}</strong> (${escapeHtml(r.email)}) :
                 <code>${escapeHtml(r.mot_de_passe)}</code><br>
                 <span class="muted">Envoie-le au joueur par email, puis demande-lui de le changer dans son profil. Il ne sera plus affiché ensuite.</span>`;
             box.classList.add('show');
@@ -614,7 +328,7 @@
             const ligue = Number(document.getElementById('m-ligue').value);
             const poule = document.getElementById('m-poule').value;
             const dispo = teams.filter(t => t.ligue_num === ligue && t.poule === poule);
-            const options = dispo.map(t => `<option value="${t.id}">${escapeHtml(t.nom)} (${Number(t.points) || 0} pts)${t.boost ? ' ⚡ boost ×2' : ''}</option>`).join('');
+            const options = dispo.map(t => `<option value="${t.id}">${escapeHtml(t.nom)} (${Number(t.points) || 0} pts)</option>`).join('');
             const s1 = document.getElementById('m-team1'), s2 = document.getElementById('m-team2');
             const v1 = s1.value, v2 = s2.value;
             s1.innerHTML = '<option value="">— Choisir —</option>' + options;
@@ -639,7 +353,7 @@
             }
             const { ok, data } = await api('/api/admin/matchs', { method: 'POST', body });
             if (ok && data.success) {
-                showMessage(`✓ Résultat enregistré : victoire de ${data.gagnant}` + (data.boost ? ' (⚡ boost ×2 utilisé : points doublés)' : ''), 'success');
+                showMessage(`Résultat enregistré : victoire de ${data.gagnant}.`, 'success');
                 document.getElementById('m-score1').value = 0;
                 document.getElementById('m-score2').value = 0;
                 await chargerTeams();
@@ -662,9 +376,9 @@
                 <tr>
                     <td class="muted">${dateCourte(m.created_at)}</td>
                     <td><span class="tag">L${Number(m.ligue_num)} · ${escapeHtml(m.poule)}</span></td>
-                    <td class="${m.score1 > m.score2 ? 'gagnant' : ''}">${escapeHtml(m.team1_nom)} <span class="muted">+${Number(m.points1)}</span>${m.boost1 ? ' <span class="tag-boost">⚡×2</span>' : ''}</td>
+                    <td class="${m.score1 > m.score2 ? 'gagnant' : ''}">${escapeHtml(m.team1_nom)} <span class="muted">+${Number(m.points1)}</span></td>
                     <td class="score">${Number(m.score1)} - ${Number(m.score2)}</td>
-                    <td class="${m.score2 > m.score1 ? 'gagnant' : ''}">${escapeHtml(m.team2_nom)} <span class="muted">+${Number(m.points2)}</span>${m.boost2 ? ' <span class="tag-boost">⚡×2</span>' : ''}</td>
+                    <td class="${m.score2 > m.score1 ? 'gagnant' : ''}">${escapeHtml(m.team2_nom)} <span class="muted">+${Number(m.points2)}</span></td>
                     <td><button class="btn petit danger" type="button" onclick="supprimerMatch(${Number(m.id)})">Supprimer</button></td>
                 </tr>`).join('');
         }
@@ -673,7 +387,7 @@
             if (!confirm('Supprimer ce match ? Les points seront retirés aux deux teams.')) return;
             const { ok, data } = await api(`/api/admin/matchs/${id}/delete`, { method: 'POST' });
             if (ok && data.success) {
-                showMessage('✓ Match supprimé, points retirés', 'success');
+                showMessage('Match supprimé, points retirés.', 'success');
                 await chargerTeams();
                 chargerMatchs();
                 chargerStats();
@@ -714,7 +428,7 @@
                 <tr>
                     <td><strong>${escapeHtml(t.nom)}</strong></td>
                     <td>${t.ligue_num ? `<span class="tag">L${Number(t.ligue_num)} · Poule ${escapeHtml(t.poule)}</span>` : '<span class="tag" style="color:#ff8787">Hors classement</span>'}</td>
-                    <td class="score">${Number(t.points) || 0}${t.boost ? ' <span class="tag-boost">⚡×2</span>' : ''}</td>
+                    <td class="score">${Number(t.points) || 0}</td>
                     <td>${Number(t.nb_membres) || 0}</td>
                     <td class="muted">${escapeHtml(t.createur || '—')}</td>
                     <td><div class="actions">
@@ -729,7 +443,7 @@
             const ligue_num = Number(document.getElementById('move-' + id).value);
             const { ok, data } = await api(`/api/admin/teams/${id}/move`, { method: 'POST', body: { ligue_num } });
             if (ok && data.success) {
-                showMessage(`✓ Team déplacée en Ligue ${data.ligue_num}, poule ${data.poule}`, 'success');
+                showMessage(`Team déplacée en Ligue ${data.ligue_num}, poule ${data.poule}`, 'success');
                 chargerTeams();
             } else {
                 showMessage(data.error || 'Erreur', 'error');
@@ -741,7 +455,7 @@
             if (!confirm(`Supprimer définitivement la team « ${team ? team.nom : id} » ? Ses membres se retrouveront sans team.`)) return;
             const { ok, data } = await api(`/api/admin/teams/${id}/delete`, { method: 'POST' });
             if (ok && data.success) {
-                showMessage('✓ Team supprimée', 'success');
+                showMessage('Team supprimée.', 'success');
                 chargerTeams();
                 chargerStats();
             } else {
@@ -753,11 +467,11 @@
 
         // ---------- saison ----------
         const MVT = {
-            champion: '<span class="mvt champion">★ Champion</span>',
-            monte: l => `<span class="mvt monte">↑ Monte en Ligue ${l}</span>`,
-            descend: l => `<span class="mvt descend">↓ Descend en Ligue ${l}</span>`,
-            repechage: l => `<span class="mvt repechage">⤴ Repêchée en Ligue ${l}</span>`,
-            retiree: () => '<span class="mvt inactive">✖ Retirée du classement (0 match)</span>'
+            champion: '<span class="mvt champion">Champion</span>',
+            monte: l => `<span class="mvt monte">Monte en Ligue ${l}</span>`,
+            descend: l => `<span class="mvt descend">Descend en Ligue ${l}</span>`,
+            repechage: l => `<span class="mvt repechage">Repêchée en Ligue ${l}</span>`,
+            retiree: () => '<span class="mvt inactive">Retirée du classement (0 match)</span>'
         };
         
         async function chargerSaison() {
@@ -791,7 +505,7 @@
             pal.innerHTML = data.historique.length ? data.historique.map(s => `
                 <div class="palmares-ligne">
                     <span>Saison ${Number(s.numero)} · <span class="muted">clôturée le ${dateCourte(s.cloturee_at)}</span></span>
-                    <span>🏆 <strong>${s.champion ? escapeHtml(s.champion) : '—'}</strong></span>
+                    <span>Champion : <strong>${s.champion ? escapeHtml(s.champion) : '—'}</strong></span>
                 </div>`).join('')
                 : '<p class="vide">Aucune saison terminée pour le moment</p>';
             majBoutonCloture();
@@ -810,7 +524,7 @@
             const { ok, data } = await api('/api/admin/saison/cloturer', { method: 'POST', body: { confirmation } });
             document.getElementById('s-confirmation').value = '';
             if (ok && data.success) {
-                showMessage(`✓ Saison ${data.saison_cloturee} clôturée : ${data.montees} montée(s) dont ${data.repechages} repêchage(s), ${data.descentes} descente(s), ${data.retirees} team(s) retirée(s), ${data.penalisees} pénalisée(s)` +
+                showMessage(`Saison ${data.saison_cloturee} clôturée : ${data.montees} montée(s) dont ${data.repechages} repêchage(s), ${data.descentes} descente(s), ${data.retirees} team(s) retirée(s), ${data.penalisees} pénalisée(s)` +
                     (data.champion ? `, champion : ${data.champion}` : '') + `. Bienvenue en saison ${data.nouvelle_saison} !`, 'success');
                 chargerSaison();
                 chargerStats();
@@ -855,7 +569,7 @@
             if (!confirm(texte)) return;
             const { ok, data } = await api(`/api/admin/users/${id}/admin`, { method: 'POST', body: { is_admin: valeur } });
             if (ok && data.success) {
-                showMessage(valeur ? '✓ Droits admin donnés' : '✓ Droits admin retirés', 'success');
+                showMessage(valeur ? 'Droits admin donnés.' : 'Droits admin retirés.', 'success');
                 chargerJoueurs();
             } else {
                 showMessage(data.error || 'Erreur', 'error');
@@ -888,7 +602,7 @@
                     </div>
                     <div class="msg-body">${escapeHtml(m.message)}</div>
                     <div class="actions">
-                        <button class="btn petit ${m.traite ? 'secondaire' : ''}" type="button" onclick="marquerTraite(${Number(m.id)}, ${!m.traite})">${m.traite ? 'Marquer non traité' : '✓ Marquer traité'}</button>
+                        <button class="btn petit ${m.traite ? 'secondaire' : ''}" type="button" onclick="marquerTraite(${Number(m.id)}, ${!m.traite})">${m.traite ? 'Marquer non traité' : 'Marquer traité'}</button>
                         ${m.compte_id ? `<button class="btn petit or" type="button" onclick="resetMdp(${Number(m.compte_id)}, 'mdp-box-msg')">Nouveau mot de passe pour ce compte</button>` : ''}
                         <button class="btn petit danger" type="button" onclick="supprimerMessage(${Number(m.id)})">Supprimer</button>
                     </div>

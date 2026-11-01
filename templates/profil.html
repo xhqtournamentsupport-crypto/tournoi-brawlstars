@@ -6,510 +6,117 @@
     <title>Profil - XHQ Tournament</title>
     {% include '_head.html' %}
     <style>
-        .container {
-            max-width: 1300px;
-            margin: 0 auto;
-        }
-        .header-nav {
-            background: linear-gradient(135deg, rgba(30, 30, 60, 0.95) 0%, rgba(50, 50, 80, 0.85) 100%);
-            padding: 2rem;
-            border-radius: 20px;
-            margin-bottom: 3rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 1rem;
-            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.15);
-            border: 2px solid rgba(102, 126, 234, 0.3);
-            animation: slideDown 0.6s ease-out;
-            backdrop-filter: blur(10px);
-        }
-
-        @keyframes slideDown {
-            from {
-                transform: translateY(-30px);
-                opacity: 0;
-            }
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
-        }
-
-        .header-nav h1 {
-            color: #fff;
-            font-size: 2.5rem;
-            font-weight: 900;
-            letter-spacing: -1px;
-            background: linear-gradient(135deg, #667eea 0%, #00d9ff 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .header-nav a {
-            color: #00d9ff;
-            text-decoration: none;
-            font-weight: 700;
-            transition: all 0.3s ease;
-            font-size: 1rem;
-            position: relative;
-        }
-
-        .header-nav a::after {
-            content: '';
-            position: absolute;
-            bottom: -5px;
-            left: 0;
-            width: 0;
-            height: 2px;
-            background: linear-gradient(135deg, #667eea 0%, #00d9ff 100%);
-            transition: width 0.3s ease;
-        }
-
-        .header-nav a:hover {
-            color: #667eea;
-        }
-
-        .header-nav a:hover::after {
-            width: 100%;
-        }
+        .header-nav { align-items: flex-end; }
 
         .profil-main {
             display: grid;
-            grid-template-columns: 1fr 2fr;
-            gap: 3rem;
-            margin-bottom: 3rem;
+            grid-template-columns: 340px 1fr;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
         }
 
-        @media (max-width: 1000px) {
-            .profil-main {
-                grid-template-columns: 1fr;
-            }
-        }
+        .profil-main > div { margin-bottom: 0; }
 
-        .profil-card {
-            background: linear-gradient(135deg, rgba(30, 30, 60, 0.95) 0%, rgba(50, 50, 80, 0.85) 100%);
-            padding: 3.5rem 3rem;
-            border-radius: 25px;
-            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.15);
-            border: 2px solid rgba(102, 126, 234, 0.3);
-            backdrop-filter: blur(10px);
-            animation: fadeInUp 0.8s ease-out;
-            text-align: center;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .profil-card::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            right: -50%;
-            width: 250px;
-            height: 250px;
-            background: radial-gradient(circle, rgba(102, 126, 234, 0.1) 0%, transparent 70%);
-            border-radius: 50%;
-            pointer-events: none;
-        }
-
-        @keyframes fadeInUp {
-            from {
-                transform: translateY(40px);
-                opacity: 0;
-            }
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
-        }
-
-        .profil-pic-wrapper {
-            position: relative;
-            margin-bottom: 2.5rem;
-            z-index: 1;
-        }
+        .profil-card { text-align: left; }
+        .profil-pic-wrapper { margin-bottom: 1.4rem; }
 
         .profil-pic {
-            width: 200px;
-            height: 200px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #00d9ff 100%);
-            border-radius: 25px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 5.5rem;
-            cursor: pointer;
-            border: 6px solid #00d9ff;
-            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-            box-shadow: 0 0 60px rgba(102, 126, 234, 0.4), inset 0 0 30px rgba(255, 255, 255, 0.1);
-            margin: 0 auto;
             position: relative;
-        }
-
-        .profil-pic:hover {
-            transform: scale(1.12) rotateY(8deg);
-            box-shadow: 0 0 100px rgba(0, 217, 255, 0.7), inset 0 0 30px rgba(255, 255, 255, 0.2);
-        }
-
-        .profil-pic::after {
-            content: '✏️';
-            position: absolute;
-            bottom: 15px;
-            right: 15px;
-            font-size: 1.8rem;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            width: 55px;
-            height: 55px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border: 3px solid #00d9ff;
-            opacity: 0;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-        }
-
-        .profil-pic:hover::after {
-            opacity: 1;
-            transform: scale(1.1);
-        }
-
-        .username {
-            color: #fff;
-            font-size: 2.3rem;
-            margin-bottom: 0.5rem;
-            font-weight: 900;
-            letter-spacing: -0.5px;
-            z-index: 1;
-            position: relative;
-            overflow-wrap: anywhere;
-        }
-
-        .email {
-            color: #a0a0b0;
-            font-size: 0.95rem;
-            margin-bottom: 2.5rem;
-            z-index: 1;
-            position: relative;
-            overflow-wrap: anywhere;
-        }
-
-        .stats-grid {
+            width: 128px;
+            height: 128px;
             display: grid;
-            grid-template-columns: 1fr;
-            gap: 1.5rem;
-            z-index: 1;
-            position: relative;
+            place-items: center;
+            font-size: 4.2rem;
+            background: var(--panel-2);
+            border: 1px solid var(--line-2);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: border-color 0.15s;
         }
 
-        .stat-item {
-            background: rgba(102, 126, 234, 0.1);
-            padding: 1.8rem;
-            border-radius: 15px;
-            border-left: 5px solid #667eea;
-            transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
-        }
-
-        .stat-item:hover {
-            background: rgba(102, 126, 234, 0.18);
-            transform: translateX(8px);
-            border-left-color: #00d9ff;
-        }
-
-        .stat-label {
-            color: #00d9ff;
-            font-weight: 800;
-            font-size: 0.85rem;
+        .profil-pic:hover { border-color: var(--text); }
+        .profil-pic::after {
+            content: 'Changer';
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: -1px;
+            padding: 0.2rem 0;
+            background: var(--ink);
+            color: var(--muted);
+            font-family: var(--display);
+            font-size: 0.75rem;
+            letter-spacing: 0.15em;
             text-transform: uppercase;
-            letter-spacing: 1.5px;
-            margin-bottom: 0.6rem;
+            text-align: center;
+            opacity: 0;
+            transition: opacity 0.15s;
         }
 
-        .stat-value {
-            color: #fff;
-            font-size: 1.7rem;
-            font-weight: 900;
-            overflow-wrap: anywhere;
-        }
+        .profil-pic:hover::after { opacity: 1; }
 
-        .info-section {
-            background: linear-gradient(135deg, rgba(30, 30, 60, 0.95) 0%, rgba(50, 50, 80, 0.85) 100%);
-            padding: 3.5rem;
-            border-radius: 25px;
-            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.15);
-            border: 2px solid rgba(102, 126, 234, 0.3);
-            backdrop-filter: blur(10px);
-            animation: fadeInUp 0.8s ease-out 0.1s both;
-        }
+        .username { font-family: var(--display); font-size: 2.2rem; font-weight: 800; text-transform: uppercase; line-height: 1; overflow-wrap: anywhere; }
+        .email { color: var(--muted); font-size: 0.92rem; margin: 0.4rem 0 1.6rem; overflow-wrap: anywhere; }
 
-        .section-title {
-            color: #fff;
-            font-size: 1.8rem;
-            font-weight: 900;
-            margin-bottom: 2rem;
-            padding-bottom: 1.5rem;
-            border-bottom: 3px solid rgba(102, 126, 234, 0.3);
-            letter-spacing: -0.5px;
-        }
-
-        .form-group {
-            margin-bottom: 2rem;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 1rem;
-            color: #00d9ff;
-            font-weight: 800;
-            font-size: 0.95rem;
-            text-transform: uppercase;
-            letter-spacing: 1.5px;
-        }
-
-        textarea, input {
-            width: 100%;
-            padding: 1.5rem;
-            border: 2px solid rgba(102, 126, 234, 0.3);
-            border-radius: 15px;
-            font-size: 1rem;
-            font-family: inherit;
-            transition: all 0.3s;
-            background: rgba(102, 126, 234, 0.05);
-            color: #e0e0e0;
-        }
-
-        input {
-            padding: 1.2rem 1.5rem;
-        }
-
-        textarea {
-            resize: vertical;
-            min-height: 150px;
-        }
-
-        textarea::placeholder, input::placeholder {
-            color: #666;
-        }
-
-        textarea:focus, input:focus {
-            outline: none;
-            border-color: #667eea;
-            background: rgba(102, 126, 234, 0.1);
-            box-shadow: 0 0 30px rgba(102, 126, 234, 0.3);
-        }
+        .stats-grid { display: grid; gap: 0; border-top: 1px solid var(--line); }
+        .stat-item { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; padding: 0.8rem 0; background: none; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; }
+        .stat-item .stat-value { font-size: 1.35rem; margin: 0; text-align: right; }
 
         .logo-selector {
             display: grid;
-            grid-template-columns: repeat(6, 1fr);
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-        }
-
-        @media (max-width: 600px) {
-            .logo-selector {
-                grid-template-columns: repeat(4, 1fr);
-                gap: 0.8rem;
-            }
+            grid-template-columns: repeat(8, 1fr);
+            gap: 0.5rem;
+            margin-bottom: 1.4rem;
         }
 
         .logo-option {
-            width: 100%;
-            aspect-ratio: 1;
-            border-radius: 18px;
-            border: 3px solid rgba(102, 126, 234, 0.4);
-            background: rgba(102, 126, 234, 0.08);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 2.8rem;
-            cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-        }
-
-        .logo-option:hover {
-            border-color: #667eea;
-            background: rgba(102, 126, 234, 0.15);
-            transform: scale(1.12);
-        }
-
-        .profil-pic.premium {
-            border-color: #ffd700;
-            background: linear-gradient(135deg, #ffd700 0%, #ff922b 50%, #764ba2 100%);
-            box-shadow: 0 0 70px rgba(255, 215, 0, 0.55), inset 0 0 30px rgba(255, 255, 255, 0.15);
-        }
-        
-        .logo-premium-titre {
-            margin: 0.5rem 0 1rem;
-            color: #ffd700 !important;
-        }
-        
-        .logo-option.verrou {
-            opacity: 0.35;
-            filter: grayscale(1);
             position: relative;
-        }
-        
-        .logo-option.verrou::after {
-            content: '🔒';
-            position: absolute;
-            font-size: 1.2rem;
-            bottom: 4px;
-            right: 6px;
-        }
-        
-        .logo-option.premium-opt { border-color: rgba(255, 215, 0, 0.6); }
-        
-        .inventaire {
+            aspect-ratio: 1;
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 1.5rem;
+            place-items: center;
+            font-size: 1.8rem;
+            background: var(--bg-2);
+            border: 1px solid var(--line-2);
+            border-radius: var(--radius);
+            cursor: pointer;
+            transition: border-color 0.15s;
         }
-        
-        @media (max-width: 900px) {
-            .inventaire { grid-template-columns: 1fr; }
-        }
-        
+
+        .logo-option:hover { border-color: var(--text); }
+        .logo-option.active { border: 2px solid var(--accent); background: var(--accent-dim); }
+        .logo-option.verrou { opacity: 0.3; filter: grayscale(1); }
+        .logo-premium-titre { margin-top: 0.4rem; }
+
+        .password-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+        .buttons { display: flex; gap: 1rem; flex-wrap: wrap; }
+
+        .inventaire { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1rem; }
         .inv-item {
-            background: rgba(102, 126, 234, 0.08);
-            border: 2px solid rgba(102, 126, 234, 0.3);
-            border-radius: 18px;
-            padding: 1.5rem;
             display: flex;
             flex-direction: column;
-            gap: 0.6rem;
-        }
-        
-        .inv-item.possede { border-color: rgba(81, 207, 102, 0.6); }
-        .inv-icone { font-size: 2.4rem; }
-        .inv-nom { color: #fff; font-weight: 900; font-size: 1.1rem; }
-        .inv-etat { color: #a0a0b0; font-size: 0.9rem; line-height: 1.5; flex: 1; }
-        .inv-etat strong { color: #51cf66; }
-        .inv-item .btn { padding: 1rem 1.2rem; font-size: 0.85rem; }
-        .inv-item a.btn { text-decoration: none; text-align: center; }
-        
-        .logo-option.active {
-            border-color: #00d9ff;
-            background: linear-gradient(135deg, rgba(102, 126, 234, 0.4) 0%, rgba(0, 217, 255, 0.3) 100%);
-            box-shadow: 0 0 40px rgba(0, 217, 255, 0.7), inset 0 0 20px rgba(255, 255, 255, 0.1);
-            animation: pulse 0.6s ease-out;
+            gap: 0.4rem;
+            padding: 1.1rem 1.2rem;
+            background: var(--bg-2);
+            border: 1px solid var(--line);
+            border-radius: 6px;
         }
 
-        @keyframes pulse {
-            0% { transform: scale(0.95); }
-            50% { transform: scale(1.08); }
-            100% { transform: scale(1); }
-        }
+        .inv-item.equipe { border-color: var(--accent); }
+        .inv-type { color: var(--dim); font-size: 0.75rem; letter-spacing: 0.14em; text-transform: uppercase; }
+        .inv-nom { font-family: var(--display); font-size: 1.3rem; font-weight: 700; text-transform: uppercase; }
+        .inv-etat { color: var(--muted); font-size: 0.88rem; flex: 1; }
+        .inv-item .btn { margin-top: 0.4rem; align-self: flex-start; }
+        .inventaire-vide { color: var(--muted); }
+        .inventaire-vide a { color: var(--text); }
 
-        .btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: #fff;
-            padding: 1.4rem 3rem;
-            border: none;
-            border-radius: 15px;
-            font-size: 1rem;
-            font-weight: 800;
-            font-family: inherit;
-            cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-            text-transform: uppercase;
-            letter-spacing: 1.2px;
-            position: relative;
-            overflow: hidden;
-            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
-        }
-
-        .btn::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-            transition: left 0.5s ease;
-        }
-
-        .btn:hover::before {
-            left: 100%;
-        }
-
-        .btn:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 12px 35px rgba(102, 126, 234, 0.5);
-        }
-
-        .btn:active {
-            transform: translateY(-2px);
-        }
-
-        .btn-danger {
-            background: linear-gradient(135deg, #ff6b6b 0%, #c92a2a 100%);
-            box-shadow: 0 8px 25px rgba(255, 107, 107, 0.3);
-        }
-
-        .btn-danger:hover {
-            box-shadow: 0 12px 35px rgba(255, 107, 107, 0.5);
-        }
-
-        .buttons {
-            display: flex;
-            gap: 1.5rem;
-            flex-wrap: wrap;
-            margin-top: 2rem;
-        }
-
-        .section {
-            background: linear-gradient(135deg, rgba(30, 30, 60, 0.95) 0%, rgba(50, 50, 80, 0.85) 100%);
-            padding: 3.5rem;
-            border-radius: 25px;
-            margin-bottom: 3rem;
-            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.15);
-            border: 2px solid rgba(102, 126, 234, 0.3);
-            backdrop-filter: blur(10px);
-            animation: fadeInUp 0.8s ease-out 0.2s both;
-        }
-
-        .password-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 1.5rem;
-        }
-
-        @media (max-width: 900px) {
+        @media (max-width: 960px) {
+            .profil-main { grid-template-columns: 1fr; }
             .password-grid { grid-template-columns: 1fr; gap: 0; }
+            .logo-selector { grid-template-columns: repeat(6, 1fr); }
         }
 
-        .success-message, .error-message {
-            padding: 1.5rem;
-            border-radius: 12px;
-            margin-bottom: 2rem;
-            display: none;
-            font-weight: 700;
-            animation: slideDown 0.4s ease-out;
-        }
-
-        .success-message {
-            background: rgba(81, 207, 102, 0.15);
-            border-left: 5px solid #51cf66;
-            color: #51cf66;
-        }
-
-        .error-message {
-            background: rgba(255, 107, 107, 0.15);
-            border-left: 5px solid #ff6b6b;
-            color: #ff6b6b;
-        }
-
-        .success-message.show, .error-message.show {
-            display: block;
-        }
-
-        @media (max-width: 700px) {
-            .profil-card, .info-section, .section { padding: 2rem 1.5rem; }
-            .profil-pic { width: 160px; height: 160px; font-size: 4.5rem; }
+        @media (max-width: 480px) {
+            .logo-selector { grid-template-columns: repeat(4, 1fr); }
         }
     </style>
 </head>
@@ -518,16 +125,16 @@
     <main class="xhq-main">
     <div class="container">
         <div class="header-nav">
-            <h1>Profil</h1>
+            <h1><span class="kicker">Compte</span>Profil</h1>
             <a href="/">← Retour</a>
         </div>
 
         <div class="profil-main">
             <div class="profil-card">
                 <div class="profil-pic-wrapper">
-                    <div class="profil-pic{% if current_user.premium %} premium{% endif %}" id="profil-pic-display" onclick="openLogoSelector()" title="Changer d'avatar">{{ current_user.logo }}</div>
+                    <div class="profil-pic{% if current_user.cadre %} cadre-{{ current_user.cadre | replace('cadre_', '') }}{% endif %}" id="profil-pic-display" onclick="openLogoSelector()" title="Changer d'avatar">{{ current_user.logo }}</div>
                 </div>
-                <div class="username"><span id="username-display">{{ current_user.username }}</span>{% if current_user.badge %} <span class="badge-officiel">✔ Officiel</span>{% endif %}</div>
+                <div class="username"><span id="username-display">{{ current_user.username }}</span> <span class="badge-joueur" id="badge-display"{% if not current_user.badge %} hidden{% endif %}>{{ current_user.badge or '' }}</span></div>
                 <div class="email" id="email-display">{{ current_user.email }}</div>
 
                 <div class="stats-grid">
@@ -536,7 +143,7 @@
                         <div class="stat-value" id="team-display">…</div>
                     </div>
                     <div class="stat-item">
-                        <div class="stat-label">Points Ligue</div>
+                        <div class="stat-label">Points ligue</div>
                         <div class="stat-value" id="points-display">…</div>
                     </div>
                     <div class="stat-item">
@@ -547,7 +154,7 @@
             </div>
 
             <div class="info-section">
-                <h2 class="section-title">Modifier ma bio</h2>
+                <h2 class="section-title">Avatar et bio</h2>
                 <div id="logo-selector" style="display: none;">
                     <label>Choisir un logo</label>
                     <div class="logo-selector">
@@ -555,20 +162,20 @@
                         <div class="logo-option{% if avatar == current_user.logo %} active{% endif %}" data-logo="{{ avatar }}" onclick="selectLogo(this.dataset.logo)">{{ avatar }}</div>
                         {% endfor %}
                     </div>
-                    <label class="logo-premium-titre">✨ Avatars Skin Premium{% if not current_user.premium %} (à débloquer dans le shop){% endif %}</label>
+                    <label class="logo-premium-titre">Avatars rares{% if not avatars_rares %} · à récupérer gratuitement dans le shop{% endif %}</label>
                     <div class="logo-selector">
                         {% for avatar in avatars_premium %}
-                        <div class="logo-option premium-opt{% if not current_user.premium %} verrou{% endif %}{% if avatar == current_user.logo %} active{% endif %}" data-logo="{{ avatar }}" onclick="selectLogo(this.dataset.logo)">{{ avatar }}</div>
+                        <div class="logo-option premium-opt{% if not avatars_rares %} verrou{% endif %}{% if avatar == current_user.logo %} active{% endif %}" data-logo="{{ avatar }}" onclick="selectLogo(this.dataset.logo)">{{ avatar }}</div>
                         {% endfor %}
                     </div>
                 </div>
 
                 <div class="form-group">
                     <label for="bio-input">Bio</label>
-                    <textarea id="bio-input" maxlength="500" placeholder="Décrivez-vous, vos passions, votre niveau de jeu..."></textarea>
+                    <textarea id="bio-input" maxlength="500" placeholder="Ton main, ton rang, tes dispos pour jouer…"></textarea>
                 </div>
 
-                <div class="success-message" id="success-message">✓ Profil mis à jour avec succès !</div>
+                <div class="success-message" id="success-message">Profil enregistré.</div>
                 <div class="error-message" id="error-message"></div>
 
                 <button class="btn" type="button" onclick="updateProfil()">Sauvegarder les modifications</button>
@@ -579,28 +186,13 @@
             <h2 class="section-title">Mon inventaire</h2>
             <div class="success-message" id="inv-success"></div>
             <div class="error-message" id="inv-error"></div>
-            <div class="inventaire">
-                <div class="inv-item" id="inv-badge">
-                    <div class="inv-icone">🏅</div>
-                    <div class="inv-nom">Badge Officiel</div>
-                    <div class="inv-etat">…</div>
-                </div>
-                <div class="inv-item" id="inv-skin">
-                    <div class="inv-icone">🎨</div>
-                    <div class="inv-nom">Skin Premium</div>
-                    <div class="inv-etat">…</div>
-                </div>
-                <div class="inv-item" id="inv-boost">
-                    <div class="inv-icone">⚡</div>
-                    <div class="inv-nom">Boost 2x Points</div>
-                    <div class="inv-etat">…</div>
-                </div>
-            </div>
+            <p class="hint">Tes objets récupérés dans le shop. Un seul badge et un seul cadre affichés à la fois.</p>
+            <div class="inventaire" id="inventaire"></div>
         </div>
         
         <div class="section">
             <h2 class="section-title">Changer mon mot de passe</h2>
-            <div class="success-message" id="pwd-success">✓ Mot de passe modifié !</div>
+            <div class="success-message" id="pwd-success">Mot de passe modifié.</div>
             <div class="error-message" id="pwd-error"></div>
             <div class="password-grid">
                 <div class="form-group">
@@ -633,7 +225,7 @@
     <script>
         const AVATARS = {{ avatars | tojson }};
         const AVATARS_PREMIUM = {{ avatars_premium | tojson }};
-        let premium = {{ current_user.premium | tojson }};
+        let avatarsRares = {{ avatars_rares | tojson }};
         let currentLogo = {{ current_user.logo | tojson }};
 
         function flash(id, text) {
@@ -651,7 +243,7 @@
             document.getElementById('email-display').textContent = data.email;
             document.getElementById('team-display').textContent = data.team_name || 'Aucune team';
             document.getElementById('points-display').textContent = (Number(data.points) || 0) + ' pts';
-            document.getElementById('solde-display').textContent = (Number(data.solde) || 0) + '€';
+            document.getElementById('solde-display').textContent = (Number(data.solde) || 0) + ' €';
             document.getElementById('bio-input').value = data.bio || '';
             renderInventaire(data);
             if (AVATARS.includes(data.logo) || AVATARS_PREMIUM.includes(data.logo)) {
@@ -672,46 +264,57 @@
             });
         }
 
-        function renderInventaire(d) {
-            premium = d.premium;
-            const lien = '<a class="btn" href="/shop">Voir dans le shop</a>';
-            const set = (id, possede, html) => {
-                const el = document.getElementById(id);
-                el.classList.toggle('possede', possede);
-                el.querySelector('.inv-etat').innerHTML = html;
-                el.querySelectorAll('.btn').forEach(b => b.remove());
-            };
-            set('inv-badge', d.badge, d.badge ? '<strong>✓ Possédé</strong> : le badge ✔ Officiel s\'affiche à côté de ton pseudo.' : 'Pas encore acheté.');
-            if (!d.badge) document.getElementById('inv-badge').insertAdjacentHTML('beforeend', lien);
-            set('inv-skin', d.premium, d.premium ? '<strong>✓ Possédé</strong> : cadre doré et 4 avatars exclusifs débloqués (clique sur ta photo).' : 'Pas encore acheté.');
-            if (!d.premium) document.getElementById('inv-skin').insertAdjacentHTML('beforeend', lien);
-            
-            let etat = `${Number(d.boosts_disponibles)} boost(s) en stock.`;
-            if (d.boost_actif) etat += '<br><strong>⚡ Un boost est actif sur ta team</strong> : sa prochaine victoire rapporte le double.';
-            else if (!d.team_classee) etat += '<br>Il faut être dans une team au classement pour l\'activer.';
-            set('inv-boost', d.boosts_disponibles > 0 || d.boost_actif, etat);
-            const box = document.getElementById('inv-boost');
-            if (d.boosts_disponibles > 0 && !d.boost_actif && d.team_classee) {
-                box.insertAdjacentHTML('beforeend', '<button class="btn" type="button" onclick="activerBoost()">Activer pour ma team</button>');
-            } else if (d.boosts_disponibles === 0 && !d.boost_actif) {
-                box.insertAdjacentHTML('beforeend', lien);
+        const TYPES = { badge: 'Badge', cadre: "Cadre d'avatar", avatars: 'Avatars' };
+        
+        function appliquerApparence(d) {
+            const badge = document.getElementById('badge-display');
+            badge.textContent = d.badge || '';
+            badge.hidden = !d.badge;
+            for (const el of [document.getElementById('profil-pic-display'), document.getElementById('nav-avatar')]) {
+                if (!el) continue;
+                el.classList.remove('cadre-or', 'cadre-carbone');
+                if (d.cadre) el.classList.add('cadre-' + d.cadre.replace('cadre_', ''));
             }
         }
         
-        async function activerBoost() {
-            if (!confirm('Activer un boost ? La prochaine victoire de ta team rapportera le double de points.')) return;
-            const { ok, data } = await api('/api/boost/activer', { method: 'POST' });
+        function renderInventaire(d) {
+            avatarsRares = d.avatars_rares;
+            document.querySelectorAll('.logo-option.premium-opt').forEach(o => o.classList.toggle('verrou', !avatarsRares));
+            appliquerApparence(d);
+            const box = document.getElementById('inventaire');
+            if (!d.objets.length) {
+                box.innerHTML = '<p class="inventaire-vide">Rien pour l\'instant. Les objets du <a href="/shop">shop</a> sont gratuits.</p>';
+                return;
+            }
+            box.innerHTML = d.objets.map(o => {
+                const equipe = (o.type === 'badge' && o.code === d.badge_code) || (o.type === 'cadre' && o.code === d.cadre);
+                let action = '<div class="inv-etat">Débloqués dans le sélecteur d\'avatar.</div>';
+                if (o.type === 'badge' || o.type === 'cadre') {
+                    action = `<div class="inv-etat">${equipe ? 'Affiché sur ton profil.' : 'Pas affiché.'}</div>
+                        <button class="btn ${equipe ? 'secondaire' : ''} petit" type="button"
+                                data-type="${o.type}" data-code="${equipe ? '' : escapeHtml(o.code)}" onclick="equiper(this)">${equipe ? 'Retirer' : 'Équiper'}</button>`;
+                }
+                return `<div class="inv-item ${equipe ? 'equipe' : ''}">
+                    <span class="inv-type">${TYPES[o.type] || ''}</span>
+                    <span class="inv-nom">${escapeHtml(o.nom)}</span>
+                    ${action}
+                </div>`;
+            }).join('');
+        }
+        
+        async function equiper(btn) {
+            const body = { type: btn.dataset.type, code: btn.dataset.code || null };
+            const { ok, data } = await api('/api/profil/equiper', { method: 'POST', body });
             if (ok && data.success) {
                 renderInventaire(data);
-                flash('inv-success', '⚡ Boost activé ! La prochaine victoire de ta team comptera double.');
             } else {
                 flash('inv-error', data.error || 'Erreur');
             }
         }
         
         function selectLogo(logo) {
-            if (AVATARS_PREMIUM.includes(logo) && !premium) {
-                flash('error-message', '🔒 Cet avatar se débloque avec le Skin Premium (shop).');
+            if (AVATARS_PREMIUM.includes(logo) && !avatarsRares) {
+                flash('error-message', 'Cet avatar se débloque avec « Avatars rares », gratuit dans le shop.');
                 return;
             }
             if (!AVATARS.includes(logo) && !AVATARS_PREMIUM.includes(logo)) return;
@@ -751,17 +354,17 @@
         }
 
         function logout() {
-            if (confirm('Êtes-vous sûr de vouloir vous déconnecter ?')) {
+            if (confirm('Te déconnecter ?')) {
                 window.location.href = '/logout';
             }
         }
 
         async function deleteAccount() {
-            if (!confirm('⚠️ Êtes-vous sûr de vouloir supprimer votre compte ? Cette action est irréversible.')) return;
-            if (!confirm('🔴 CONFIRMATION FINALE : Votre compte et toutes vos données seront supprimées définitivement.')) return;
+            if (!confirm('Supprimer ton compte ? Cette action est définitive.')) return;
+            if (!confirm('Dernière confirmation : ton compte et toutes tes données seront effacés.')) return;
             const { ok, data } = await api('/api/profil/delete', { method: 'POST' });
             if (ok && data.success) {
-                alert('✓ Compte supprimé');
+                alert('Compte supprimé.');
                 window.location.href = '/login';
             } else {
                 flash('error-message', data.error || 'Erreur');

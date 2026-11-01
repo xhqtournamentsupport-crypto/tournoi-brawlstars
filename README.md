@@ -1,4 +1,4 @@
-# XHQ Tournament
+# XHQ League
 
 Plateforme de tournois e-sport (Flask + SQLite + HTML/CSS/JS vanille).
 
@@ -42,10 +42,13 @@ saison d'avant, plafond −15. Réglages en haut de `app.py` (`PENALITE_PAR_MATC
 `MULTIPLICATEUR_RECIDIVE`, `PENALITE_MAX`). Les teams voient leur participation (« 3 / 9 ») dans Ma Team.
 
 ## Shop
-- **Badge Officiel** : badge « ✔ Officiel » à côté du pseudo (profil, membres de la team).
-- **Skin Premium** : cadre doré autour de l'avatar (profil + nav) et 4 avatars exclusifs 🐉 🦄 🤖 👽.
-- **Boost 2x Points** : à activer depuis le profil (section Mon inventaire). La prochaine **victoire**
-  de la team rapporte le double ; un seul boost actif par team ; rendu si l'admin supprime le match.
+Tout est **gratuit** et **purement cosmétique** (aucun avantage en jeu). Tout le monde démarre à 0 €.
+- **Badge Fondateur** : réservé aux 100 premiers inscrits.
+- **Badge Saison 1** : récupérable uniquement pendant la saison 1.
+- **Cadre Or / Cadre Carbone** : contour autour de l'avatar (profil, menu, liste des membres).
+- **Avatars rares** : 4 avatars en plus dans le sélecteur du profil.
+
+Un badge et un cadre équipés à la fois, à choisir dans *Profil → Mon inventaire*.
 
 ## Teams
 - 5 joueurs maximum par team (`MAX_MEMBRES` en haut de `app.py`).

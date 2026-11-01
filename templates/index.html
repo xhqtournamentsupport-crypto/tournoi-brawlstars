@@ -3,196 +3,229 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>XHQ Tournament - Plateforme E-sports</title>
+    <title>XHQ League — ligue Brawl Stars 3v3</title>
     {% include '_head.html' %}
     <style>
-        .content {
+        .accueil {
             flex: 1;
-            padding: 4rem 2rem;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
             width: 100%;
+            max-width: 1240px;
+            margin: 0 auto;
+            padding: 4.5rem 2rem 5rem;
         }
 
         .hero {
-            text-align: center;
-            margin-bottom: 5rem;
-            max-width: 800px;
+            display: grid;
+            grid-template-columns: 1.4fr 1fr;
+            gap: 3rem;
+            align-items: end;
+            padding-bottom: 3.5rem;
+            border-bottom: 1px solid var(--line);
         }
 
         .hero h2 {
-            color: #fff;
-            font-size: 3.5rem;
-            font-weight: 900;
-            margin-bottom: 1.5rem;
-            background: linear-gradient(135deg, #667eea 0%, #00d9ff 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            font-size: clamp(3rem, 8vw, 6.2rem);
+            font-weight: 800;
+            line-height: 0.88;
+            text-transform: uppercase;
+            letter-spacing: -0.01em;
         }
+
+        .hero h2 span { color: var(--accent); }
 
         .hero p {
-            color: #a0a0b0;
-            font-size: 1.3rem;
-            line-height: 1.7;
-            margin-bottom: 2rem;
+            max-width: 460px;
+            margin: 1.6rem 0 2rem;
+            color: var(--muted);
+            font-size: 1.1rem;
+            line-height: 1.6;
         }
 
-        .hero-btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: #fff;
-            padding: 1.2rem 3rem;
-            text-decoration: none;
-            border-radius: 25px;
-            font-weight: 800;
-            text-transform: uppercase;
-            display: inline-block;
-            transition: all 0.3s;
+        .hero-actions { display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; }
+        .hero-btn { padding: 0.95rem 1.8rem; font-size: 1.15rem; }
+        .hero-lien { color: var(--muted); text-decoration: none; font-size: 0.95rem; }
+        .hero-lien:hover { color: var(--text); }
+
+        .chiffres {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            overflow: hidden;
         }
 
-        .hero-btn:hover {
-            transform: translateY(-4px);
+        .chiffre { padding: 1.3rem 1.4rem; background: var(--panel); }
+        .chiffre:nth-child(odd) { border-right: 1px solid var(--line); }
+        .chiffre:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+        .chiffre strong {
+            display: block;
+            font-family: var(--display);
+            font-size: 2.6rem;
+            font-weight: 700;
+            line-height: 1;
+            font-variant-numeric: tabular-nums;
         }
+        .chiffre span { color: var(--muted); font-size: 0.85rem; letter-spacing: 0.08em; text-transform: uppercase; }
+
+        .bloc-titre {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin: 3.5rem 0 1.5rem;
+        }
+
+        .bloc-titre h3 { font-size: 1.6rem; text-transform: uppercase; }
+        .bloc-titre span { color: var(--dim); font-size: 0.9rem; }
 
         .stack {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 2.5rem;
-            max-width: 1700px;
-            width: 100%;
-        }
-
-        @media (max-width: 1400px) {
-            .stack {
-                grid-template-columns: repeat(2, 1fr);
-            }
-        }
-
-        @media (max-width: 768px) {
-            .stack {
-                grid-template-columns: 1fr;
-            }
-            .hero h2 {
-                font-size: 2.4rem;
-            }
-            .content {
-                padding: 2.5rem 1rem;
-            }
+            border-top: 1px solid var(--line);
+            border-left: 1px solid var(--line);
         }
 
         .stack-card {
-            background: linear-gradient(135deg, rgba(30, 30, 60, 0.7) 0%, rgba(50, 50, 80, 0.5) 100%);
-            padding: 3rem 2rem;
-            border-radius: 20px;
-            border: 2px solid;
-            backdrop-filter: blur(10px);
-            text-align: center;
-            transition: all 0.3s;
+            position: relative;
+            padding: 1.6rem 1.4rem 1.8rem;
+            border-right: 1px solid var(--line);
+            border-bottom: 1px solid var(--line);
+            transition: background 0.15s;
         }
 
-        .stack-card:hover {
-            transform: translateY(-15px);
+        .stack-card::before {
+            content: '';
+            position: absolute;
+            top: -1px;
+            left: -1px;
+            width: 36px;
+            height: 3px;
+            background: var(--c, var(--accent));
         }
 
-        .stack-card.blue { border-color: #667eea; }
-        .stack-card.yellow { border-color: #ffd700; }
-        .stack-card.pink { border-color: #ff69b4; }
-        .stack-card.red { border-color: #ff6b6b; }
-        .stack-card.green { border-color: #51cf66; }
-        .stack-card.purple { border-color: #9d5ef5; }
-        .stack-card.cyan { border-color: #00d9ff; }
-        .stack-card.orange { border-color: #ff922b; }
+        .stack-card:hover { background: var(--panel); }
 
         .stack-icon {
-            font-size: 3.5rem;
-            margin-bottom: 1.5rem;
+            font-family: var(--display);
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--c, var(--accent));
+            letter-spacing: 0.1em;
+            margin-bottom: 1.8rem;
         }
 
         .stack-title {
-            font-size: 1.4rem;
-            font-weight: 900;
-            margin-bottom: 1rem;
+            font-family: var(--display);
+            font-size: 1.45rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
         }
 
-        .stack-card.blue .stack-title { color: #667eea; }
-        .stack-card.yellow .stack-title { color: #ffd700; }
-        .stack-card.pink .stack-title { color: #ff69b4; }
-        .stack-card.red .stack-title { color: #ff6b6b; }
-        .stack-card.green .stack-title { color: #51cf66; }
-        .stack-card.purple .stack-title { color: #9d5ef5; }
-        .stack-card.cyan .stack-title { color: #00d9ff; }
-        .stack-card.orange .stack-title { color: #ff922b; }
+        .stack-desc { color: var(--muted); font-size: 0.95rem; line-height: 1.55; }
 
-        .stack-desc {
-            color: #a0a0b0;
-            font-size: 1rem;
-            line-height: 1.7;
+        .stack-card.blue   { --c: #6f8cff; }
+        .stack-card.yellow { --c: var(--accent); }
+        .stack-card.pink   { --c: #ff6fb1; }
+        .stack-card.red    { --c: var(--lose); }
+        .stack-card.green  { --c: var(--win); }
+        .stack-card.purple { --c: #b08cff; }
+        .stack-card.cyan   { --c: #36d6e7; }
+        .stack-card.orange { --c: var(--warn); }
+
+        @media (max-width: 1100px) {
+            .stack { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        @media (max-width: 860px) {
+            .hero { grid-template-columns: 1fr; gap: 2rem; }
+            .accueil { padding: 2.5rem 1rem 3.5rem; }
+        }
+
+        @media (max-width: 560px) {
+            .stack { grid-template-columns: 1fr; }
         }
     </style>
 </head>
 <body>
     {% include '_nav.html' %}
 
-    <main class="content">
-        <div class="hero">
-            <h2>Bienvenue sur XHQ Tournament</h2>
-            <p>La plateforme de tournois e-sports la plus complète. Rejoignez des milliers de joueurs, participez à des compétitions épiques et remportez des récompenses exclusives.</p>
-            {% if current_user %}
-            <a href="/teams" class="hero-btn">Voir les teams</a>
-            {% else %}
-            <a href="/signup" class="hero-btn">Commencer maintenant</a>
-            {% endif %}
+    <main class="accueil">
+        <section class="hero">
+            <div>
+                <span class="kicker">Brawl Stars · 3v3 · Saison {{ chiffres.saison }}</span>
+                <h2>Monte.<br>Reste.<br><span>Ou dégage.</span></h2>
+                <p>Une ligue à dix divisions pour les teams Brawl Stars. Tu joues tes matchs, tu grimpes au classement, et chaque fin de saison décide qui monte et qui redescend.</p>
+                <div class="hero-actions">
+                    {% if current_user %}
+                    <a href="/ligue" class="hero-btn">Voir le classement</a>
+                    <a href="/teams" class="hero-lien">Ma team →</a>
+                    {% else %}
+                    <a href="/signup" class="hero-btn">Créer un compte</a>
+                    <a href="/login" class="hero-lien">J'ai déjà un compte →</a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="chiffres">
+                <div class="chiffre"><strong>{{ chiffres.saison }}</strong><span>Saison en cours</span></div>
+                <div class="chiffre"><strong>{{ chiffres.teams }}</strong><span>Teams classées</span></div>
+                <div class="chiffre"><strong>{{ chiffres.joueurs }}</strong><span>Joueurs inscrits</span></div>
+                <div class="chiffre"><strong>{{ chiffres.matchs }}</strong><span>Matchs cette saison</span></div>
+            </div>
+        </section>
+
+        <div class="bloc-titre">
+            <h3>Comment ça marche</h3>
+            <span>Les règles en 8 points</span>
         </div>
 
         <div class="stack">
-            <div class="stack-card blue">
-                <div class="stack-icon">🏆</div>
-                <div class="stack-title">Technologie</div>
-                <div class="stack-desc">Les meilleures innovations gaming</div>
-            </div>
-
             <div class="stack-card yellow">
-                <div class="stack-icon">🎮</div>
-                <div class="stack-title">Tableau de bord</div>
-                <div class="stack-desc">Suivez vos performances</div>
+                <div class="stack-icon">01</div>
+                <div class="stack-title">10 divisions</div>
+                <div class="stack-desc">De la Ligue 10 à la Ligue 1. Chaque nouvelle team commence tout en bas.</div>
             </div>
 
-            <div class="stack-card pink">
-                <div class="stack-icon">👍</div>
-                <div class="stack-title">Activation sponsor</div>
-                <div class="stack-desc">Connectez-vous avec les sponsors</div>
-            </div>
-
-            <div class="stack-card red">
-                <div class="stack-icon">⚡</div>
-                <div class="stack-title">Paiement</div>
-                <div class="stack-desc">Transactions sécurisées</div>
+            <div class="stack-card blue">
+                <div class="stack-icon">02</div>
+                <div class="stack-title">Poules de 10</div>
+                <div class="stack-desc">Une seule poule en haut, huit en Ligue 10. Tu affrontes les teams de ta poule.</div>
             </div>
 
             <div class="stack-card green">
-                <div class="stack-icon">📊</div>
-                <div class="stack-title">Métriques</div>
-                <div class="stack-desc">Analysez vos stats</div>
+                <div class="stack-icon">03</div>
+                <div class="stack-title">Montées</div>
+                <div class="stack-desc">Le premier de chaque poule monte. Les places libres sont repêchées par la division du dessous.</div>
             </div>
 
-            <div class="stack-card purple">
-                <div class="stack-icon">🎯</div>
-                <div class="stack-title">Matchmaking</div>
-                <div class="stack-desc">Trouvez vos adversaires</div>
-            </div>
-
-            <div class="stack-card cyan">
-                <div class="stack-icon">💬</div>
-                <div class="stack-title">Communauté</div>
-                <div class="stack-desc">Rejoignez la communauté</div>
+            <div class="stack-card red">
+                <div class="stack-icon">04</div>
+                <div class="stack-title">Descentes</div>
+                <div class="stack-desc">Les dernières places redescendent. En Ligue 1, le 10e tombe direct.</div>
             </div>
 
             <div class="stack-card orange">
-                <div class="stack-icon">🎁</div>
-                <div class="stack-title">Récompenses</div>
-                <div class="stack-desc">Gagnez des prix</div>
+                <div class="stack-icon">05</div>
+                <div class="stack-title">Absences</div>
+                <div class="stack-desc">Un match pas joué, c'est un point en moins. Aucun match sur la saison, et la team sort du classement.</div>
+            </div>
+
+            <div class="stack-card purple">
+                <div class="stack-icon">06</div>
+                <div class="stack-title">Teams de 5</div>
+                <div class="stack-desc">Trois titulaires, deux remplaçants. Le capitaine gère l'effectif.</div>
+            </div>
+
+            <div class="stack-card cyan">
+                <div class="stack-icon">07</div>
+                <div class="stack-title">Résultats vérifiés</div>
+                <div class="stack-desc">Les scores sont saisis par l'équipe d'organisation, pas par les joueurs.</div>
+            </div>
+
+            <div class="stack-card pink">
+                <div class="stack-icon">08</div>
+                <div class="stack-title">Objets exclusifs</div>
+                <div class="stack-desc">Badges et cadres gratuits, certains limités dans le temps. Aucun avantage en jeu.</div>
             </div>
         </div>
     </main>
