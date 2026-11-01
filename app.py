@@ -64,6 +64,9 @@ JEUX_DEFAUT = [
 ]
 JEU_DEFAUT = 'brawlstars'
 
+# Couleurs du site : 'neon' (violet / cyan) ou 'classique' (bleu nuit / jaune)
+THEME = 'neon'
+
 # Contact affiché sur le site (page Contact, pied de page, accueil)
 CONTACT_EMAIL = 'xhqtournamentsupport@gmail.com'
 DISCORD_URL = 'https://discord.gg/cwMZ7VQW74'
@@ -509,7 +512,7 @@ def injecter_utilisateur():
     except Exception:
         pass
     return {'current_user': current_user, 'jeux': jeux, 'jeu': jeu or (jeux[0] if jeux else None),
-            'contact_email': CONTACT_EMAIL, 'discord_url': DISCORD_URL}
+            'contact_email': CONTACT_EMAIL, 'discord_url': DISCORD_URL, 'theme': THEME}
 
 
 def page_connectee(f):
