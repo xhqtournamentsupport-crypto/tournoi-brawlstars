@@ -6,172 +6,187 @@
     <title>XHQ League — ligues e-sport amateurs</title>
     {% include '_head.html' %}
     <style>
-        .accueil { flex: 1; width: 100%; max-width: 1200px; margin: 0 auto; padding: 3.5rem 2rem 4.5rem; }
+        .accueil { flex: 1; width: 100%; max-width: 1240px; margin: 0 auto; padding: 4.5rem 2rem 5rem; }
 
-        .hero { display: grid; grid-template-columns: 1fr 1.05fr; gap: 3.5rem; align-items: start; }
-        .hero h1 { font-size: clamp(2.4rem, 5.2vw, 3.7rem); font-weight: 600; line-height: 1.08; letter-spacing: -0.02em; }
-        .hero h1 em { font-style: normal; color: var(--accent); }
-        .hero p { max-width: 470px; margin: 1.3rem 0 2rem; color: var(--text-soft); font-size: 1.08rem; line-height: 1.65; }
-        .hero-actions { display: flex; gap: 0.8rem; flex-wrap: wrap; }
-
-        .choix-titre { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.9rem; }
-        .choix-titre h2 { font-size: 1.05rem; font-weight: 500; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
-        .choix-titre span { color: var(--dim); font-size: 0.85rem; }
-
-        .cartes-jeux { display: grid; gap: 0.9rem; }
-
-        .carte-jeu {
-            position: relative;
+        /* ---------- Hero ---------- */
+        .hero {
             display: grid;
-            grid-template-columns: 64px 1fr auto;
-            gap: 1.1rem;
-            align-items: center;
-            padding: 1.2rem 1.3rem;
+            grid-template-columns: 1.4fr 1fr;
+            gap: 3rem;
+            align-items: end;
+            padding-bottom: 3.5rem;
+            border-bottom: 1px solid var(--line);
+        }
+        .hero h1 {
+            font-size: clamp(3rem, 8vw, 6rem);
+            font-weight: 700;
+            line-height: 0.9;
+            text-transform: uppercase;
+            letter-spacing: -0.01em;
+        }
+        .hero h1 span { color: var(--accent); }
+        .hero h1 i { font-style: normal; -webkit-text-stroke: 2px var(--bleu-clair); color: transparent; }
+        .hero p { max-width: 470px; margin: 1.6rem 0 2rem; color: var(--muted); font-size: 1.1rem; line-height: 1.6; }
+        .hero-actions { display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; }
+        .hero-btn { padding: 0.95rem 1.8rem; font-size: 1.1rem; }
+        .hero-lien { color: var(--muted); text-decoration: none; font-size: 0.95rem; }
+        .hero-lien:hover { color: var(--text); }
+
+        /* Chiffres : grille 2x2, première case jaune, coin coupé */
+        .chiffres {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            border: 1px solid var(--line);
+            border-radius: var(--radius) var(--radius) var(--radius) 0;
+            overflow: hidden;
+        }
+        .chiffre { padding: 1.3rem 1.4rem; background: var(--panel); }
+        .chiffre:nth-child(odd) { border-right: 1px solid var(--line); }
+        .chiffre:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+        .chiffre:first-child { background: var(--accent); }
+        .chiffre:first-child strong, .chiffre:first-child span { color: var(--ink); }
+        .chiffre strong { display: block; font-size: 2.6rem; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+        .chiffre span { color: var(--muted); font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; }
+        .chiffres-jeu { grid-column: 1 / -1; padding: 0.65rem 1.4rem; background: var(--bg-2); color: var(--dim); font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; }
+
+        /* ---------- Titres de bloc ---------- */
+        .bloc-titre { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; margin: 3.5rem 0 1.5rem; }
+        .bloc-titre h3 { font-size: 1.6rem; font-weight: 700; text-transform: uppercase; }
+        .bloc-titre h3::before { content: ''; display: inline-block; width: 0.55rem; height: 0.55rem; margin-right: 0.6rem; background: var(--accent); transform: rotate(45deg) translateY(-0.2rem); }
+        .bloc-titre span { color: var(--dim); font-size: 0.9rem; }
+
+        /* ---------- Cartes de jeu ---------- */
+        .jeux { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+        .jeu {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            padding: 1.6rem 1.4rem 1.4rem;
+            min-height: 210px;
             background: var(--panel);
             border: 1px solid var(--line);
             border-radius: var(--radius);
             color: var(--text);
             text-decoration: none;
-            transition: border-color 0.15s, background 0.15s;
+            overflow: hidden;
+            transition: border-color 0.15s, transform 0.15s;
         }
+        .jeu::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 8px; background: linear-gradient(90deg, var(--accent), var(--chaud)); }
+        .jeu:hover { border-color: var(--bleu); transform: translateY(-2px); }
+        .jeu-tag { align-self: flex-start; padding: 0.2rem 0.6rem; border-radius: 6px; background: var(--accent-dim); color: var(--accent); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+        .jeu-nom { margin: 1rem 0 0.3rem; font-size: 1.8rem; font-weight: 700; text-transform: uppercase; line-height: 1; }
+        .jeu-meta { color: var(--muted); font-size: 0.9rem; }
+        .jeu-bas { margin-top: auto; padding-top: 1.2rem; display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+        .jeu-jauge { flex: 1; height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+        .jeu-jauge i { display: block; height: 100%; background: var(--bleu); }
+        .jeu-go { color: var(--bleu-clair); font-weight: 600; white-space: nowrap; }
+        .jeu.bientot { border-style: dashed; background: transparent; cursor: default; }
+        .jeu.bientot::before { background: var(--line-2); }
+        .jeu.bientot:hover { border-color: var(--line); transform: none; }
+        .jeu.bientot .jeu-tag { background: var(--panel-2); color: var(--dim); }
+        .jeu.bientot .jeu-nom { color: var(--dim); }
 
-        .carte-jeu:hover { border-color: var(--bleu); background: var(--panel-2); }
-
-        .carte-icone {
-            width: 64px;
-            height: 64px;
-            display: grid;
-            place-items: center;
-            border-radius: 16px;
-            background: linear-gradient(145deg, #ffcf3f, #ff9f1c);
-            color: var(--ink);
-            font-size: 1.5rem;
-            font-weight: 700;
-        }
-
-        .carte-nom { font-size: 1.3rem; font-weight: 600; }
-        .carte-meta { color: var(--muted); font-size: 0.88rem; margin-top: 0.1rem; }
-        .carte-jauge { height: 5px; margin-top: 0.6rem; border-radius: 3px; background: var(--line); overflow: hidden; }
-        .carte-jauge i { display: block; height: 100%; background: var(--bleu); }
-        .carte-fleche { color: var(--bleu-clair); font-size: 0.95rem; font-weight: 500; white-space: nowrap; }
-
-        .carte-jeu.bientot { grid-template-columns: 64px 1fr; border-style: dashed; background: transparent; cursor: default; }
-        .carte-jeu.bientot:hover { border-color: var(--line); }
-        .carte-jeu.bientot .carte-icone { background: var(--panel-2); color: var(--dim); }
-
-        .bloc-titre { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; margin: 4rem 0 1.3rem; }
-        .bloc-titre h3 { font-size: 1.6rem; font-weight: 600; }
-        .bloc-titre span { color: var(--dim); font-size: 0.9rem; }
-
-        .etapes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; counter-reset: etape; }
-        .etape { padding: 1.3rem; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
-        .etape::before {
-            counter-increment: etape;
-            content: counter(etape);
-            display: inline-grid;
-            place-items: center;
-            width: 2rem;
-            height: 2rem;
-            margin-bottom: 0.9rem;
-            border-radius: 50%;
-            background: var(--bleu);
-            color: #fff;
-            font-weight: 600;
-        }
-        .etape h4 { font-size: 1.1rem; font-weight: 600; margin-bottom: 0.3rem; }
-        .etape p { color: var(--text-soft); font-size: 0.93rem; margin: 0; }
-
+        /* ---------- Règlement ---------- */
         .stack { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
-        .stack-card { padding: 1.2rem 1.25rem; border-left: 3px solid var(--c, var(--bleu)); background: var(--bg-2); border-radius: 0 var(--radius) var(--radius) 0; }
-        .stack-title { font-weight: 600; margin-bottom: 0.3rem; }
-        .stack-desc { color: var(--text-soft); font-size: 0.92rem; line-height: 1.55; }
-        .stack-card.blue { --c: var(--bleu); }
+        .stack-card {
+            position: relative;
+            padding: 1.6rem 1.4rem 1.6rem;
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+        .stack-card::before { content: ''; position: absolute; top: 0; left: 0; width: 42%; height: 6px; background: var(--c, var(--accent)); border-radius: 0 0 6px 0; }
+        .stack-card:hover { border-color: var(--line-2); }
+        .stack-num { position: absolute; top: 0.6rem; right: 1rem; font-size: 2.6rem; font-weight: 700; line-height: 1; color: transparent; -webkit-text-stroke: 1px var(--line-2); }
+        .stack-title { margin: 0.7rem 0 0.5rem; padding-right: 3.6rem; font-size: 1.35rem; font-weight: 700; text-transform: uppercase; }
+        .stack-desc { color: var(--muted); font-size: 0.95rem; line-height: 1.55; }
+        .stack-card.blue   { --c: var(--bleu); }
         .stack-card.yellow { --c: var(--accent); }
-        .stack-card.pink { --c: #ff8ac2; }
-        .stack-card.red { --c: var(--lose); }
-        .stack-card.green { --c: var(--win); }
-        .stack-card.purple { --c: #c3a6ff; }
-        .stack-card.cyan { --c: #5fd3e6; }
+        .stack-card.pink   { --c: #e0458f; }
+        .stack-card.red    { --c: var(--lose); }
+        .stack-card.green  { --c: var(--win); }
+        .stack-card.purple { --c: #7d4dd8; }
+        .stack-card.cyan   { --c: #0f9fb3; }
         .stack-card.orange { --c: var(--warn); }
 
-        @media (max-width: 1000px) {
-            .hero { grid-template-columns: 1fr; gap: 2.5rem; }
-            .etapes, .stack { grid-template-columns: repeat(2, 1fr); }
+        @media (max-width: 1100px) {
+            .stack { grid-template-columns: repeat(2, 1fr); }
+            .jeux { grid-template-columns: repeat(2, 1fr); }
         }
-
+        @media (max-width: 860px) {
+            .hero { grid-template-columns: 1fr; gap: 2rem; }
+            .accueil { padding: 2.5rem 1rem 3.5rem; }
+        }
         @media (max-width: 560px) {
-            .accueil { padding: 2.2rem 1rem 3rem; }
-            .etapes, .stack { grid-template-columns: 1fr; }
-            .carte-jeu { grid-template-columns: 52px 1fr; }
-            .carte-icone { width: 52px; height: 52px; font-size: 1.2rem; }
-            .carte-fleche { grid-column: 1 / -1; }
+            .stack, .jeux { grid-template-columns: 1fr; }
+            .bloc-titre { flex-direction: column; gap: 0.3rem; }
         }
     </style>
 </head>
 <body>
     {% include '_nav.html' %}
+    {% set principal = cartes[0] if cartes else None %}
 
     <main class="accueil">
         <section class="hero">
             <div>
-                <span class="kicker">Ligues e-sport amateurs</span>
-                <h1>Choisis ton jeu.<br>Monte ta team.<br><em>Vise la Ligue 1.</em></h1>
-                <p>XHQ organise des ligues par saison pour les teams amateurs. Chaque jeu a ses propres divisions : tu commences en Ligue {{ nb_ligues }}, tu joues ta poule, et les meilleurs montent.</p>
+                <span class="kicker">Ligues e-sport amateurs{% if principal %} · Saison {{ principal.saison }}{% endif %}</span>
+                <h1>Choisis.<br><i>Grimpe.</i><br><span>Règne.</span></h1>
+                <p>Des ligues par saison pour les teams amateurs, un classement par jeu. Tu démarres en Ligue {{ nb_ligues }}, tu joues ta poule, et chaque fin de saison décide qui monte et qui redescend.</p>
                 <div class="hero-actions">
                     {% if current_user %}
-                    <a href="/teams" class="hero-btn">Ma team</a>
-                    <a href="/ligue" class="btn secondaire">Classements</a>
+                    <a href="/ligue" class="hero-btn">Voir les classements</a>
+                    <a href="/teams" class="hero-lien">Ma team →</a>
                     {% else %}
                     <a href="/signup" class="hero-btn">Créer un compte</a>
-                    <a href="/ligue" class="btn secondaire">Voir les classements</a>
+                    <a href="/login" class="hero-lien">J'ai déjà un compte →</a>
                     {% endif %}
                     {% if discord_url %}<a href="{{ discord_url }}" class="btn secondaire" target="_blank" rel="noopener">Discord</a>{% endif %}
                 </div>
             </div>
 
-            <div>
-                <div class="choix-titre"><h2>Choisis ton jeu</h2><span>{{ joueurs_total }} inscrit{{ 's' if joueurs_total != 1 }}</span></div>
-                <div class="cartes-jeux">
-                    {% for c in cartes %}
-                    <a class="carte-jeu" href="/ligue?jeu={{ c.code }}">
-                        <span class="carte-icone">{{ c.nom[:2] | upper }}</span>
-                        <span>
-                            <span class="carte-nom">{{ c.nom }}</span>
-                            <span class="carte-meta" style="display:block">{{ c.format }} · Saison {{ '%02d' % c.saison }} · {{ c.teams }}/{{ c.places }} teams · {{ c.matchs }} match{{ 's' if c.matchs != 1 }}</span>
-                            <span class="carte-jauge" style="display:block"><i style="width:{{ (100 * c.teams / c.places) | round | int if c.places else 0 }}%"></i></span>
-                        </span>
-                        <span class="carte-fleche">Classements →</span>
-                    </a>
-                    {% endfor %}
-                    <div class="carte-jeu bientot">
-                        <span class="carte-icone">+</span>
-                        <span>
-                            <span class="carte-nom">D'autres jeux arrivent</span>
-                            <span class="carte-meta" style="display:block">Même principe : des ligues, des saisons, un palmarès par jeu.</span>
-                        </span>
-                    </div>
-                </div>
+            {% if principal %}
+            <div class="chiffres">
+                <div class="chiffre"><strong>{{ principal.saison }}</strong><span>Saison en cours</span></div>
+                <div class="chiffre"><strong>{{ principal.teams }}</strong><span>Teams classées</span></div>
+                <div class="chiffre"><strong>{{ joueurs_total }}</strong><span>Joueurs inscrits</span></div>
+                <div class="chiffre"><strong>{{ principal.matchs }}</strong><span>Matchs cette saison</span></div>
+                <div class="chiffres-jeu">{{ principal.nom }} · {{ principal.format }}</div>
             </div>
+            {% endif %}
         </section>
 
-        <div class="bloc-titre"><h3>Comment ça marche</h3><span>4 étapes</span></div>
-        <div class="etapes">
-            <div class="etape"><h4>Crée ton compte</h4><p>Un seul compte pour tous les jeux.</p></div>
-            <div class="etape"><h4>Monte ta team</h4><p>3 à 5 joueurs par team, une team par jeu.</p></div>
-            <div class="etape"><h4>Joue ta poule</h4><p>Tu démarres en Ligue {{ nb_ligues }}, contre les teams de ta poule.</p></div>
-            <div class="etape"><h4>Monte</h4><p>À chaque fin de saison, les premiers passent à la division du dessus.</p></div>
+        <div class="bloc-titre"><h3>Choisis ton jeu</h3><span>Un classement par jeu</span></div>
+        <div class="jeux">
+            {% for c in cartes %}
+            <a class="jeu" href="/ligue?jeu={{ c.code }}">
+                <span class="jeu-tag">{{ c.format }} · Saison {{ c.saison }}</span>
+                <span class="jeu-nom">{{ c.nom }}</span>
+                <span class="jeu-meta">{{ c.teams }}/{{ c.places }} teams · {{ c.matchs }} match{{ 's' if c.matchs != 1 }}</span>
+                <span class="jeu-bas">
+                    <span class="jeu-jauge"><i style="width:{{ (100 * c.teams / c.places) | round | int if c.places else 0 }}%"></i></span>
+                    <span class="jeu-go">Classements →</span>
+                </span>
+            </a>
+            {% endfor %}
+            <div class="jeu bientot">
+                <span class="jeu-tag">Bientôt</span>
+                <span class="jeu-nom">D'autres jeux</span>
+                <span class="jeu-meta">Même principe : des ligues, des saisons, un palmarès par jeu.</span>
+            </div>
         </div>
 
-        <div class="bloc-titre"><h3>Le règlement en bref</h3><span>Valable pour chaque jeu</span></div>
+        <div class="bloc-titre"><h3>Comment ça marche</h3><span>Les règles en 8 points</span></div>
         <div class="stack">
-            <div class="stack-card yellow"><div class="stack-title">{{ nb_ligues }} divisions</div><div class="stack-desc">De la Ligue {{ nb_ligues }} à la Ligue 1. Les nouvelles teams commencent tout en bas.</div></div>
-            <div class="stack-card blue"><div class="stack-title">Poules de {{ par_poule }}</div><div class="stack-desc">Une poule en Ligues 1 à 3, deux poules en Ligues 4 et 5.</div></div>
-            <div class="stack-card green"><div class="stack-title">Montées</div><div class="stack-desc">Le premier de chaque poule monte. Les places libres sont repêchées par la division du dessous.</div></div>
-            <div class="stack-card red"><div class="stack-title">Descentes</div><div class="stack-desc">Les dernières places redescendent d'une division.</div></div>
-            <div class="stack-card orange"><div class="stack-title">Absences</div><div class="stack-desc">Un match pas joué, c'est un point en moins. Aucun match sur la saison, et la team sort du classement.</div></div>
-            <div class="stack-card purple"><div class="stack-title">Teams de 5</div><div class="stack-desc">Trois titulaires, deux remplaçants. Le capitaine gère l'effectif.</div></div>
-            <div class="stack-card cyan"><div class="stack-title">Résultats vérifiés</div><div class="stack-desc">Les scores sont saisis par l'organisation, pas par les joueurs.</div></div>
-            <div class="stack-card pink"><div class="stack-title">Objets exclusifs</div><div class="stack-desc">Badges et cadres gratuits, certains limités dans le temps. Aucun avantage en jeu.</div></div>
+            <div class="stack-card yellow"><div class="stack-num">01</div><div class="stack-title">{{ nb_ligues }} divisions</div><div class="stack-desc">De la Ligue {{ nb_ligues }} à la Ligue 1. Chaque nouvelle team commence tout en bas.</div></div>
+            <div class="stack-card blue"><div class="stack-num">02</div><div class="stack-title">Poules de {{ par_poule }}</div><div class="stack-desc">Une poule en Ligues 1 à 3, deux en Ligues 4 et 5. Tu affrontes les teams de ta poule.</div></div>
+            <div class="stack-card green"><div class="stack-num">03</div><div class="stack-title">Montées</div><div class="stack-desc">Le premier de chaque poule monte. Les places libres sont repêchées par la division du dessous.</div></div>
+            <div class="stack-card red"><div class="stack-num">04</div><div class="stack-title">Descentes</div><div class="stack-desc">Les dernières places redescendent. En Ligue 1, le dernier tombe direct.</div></div>
+            <div class="stack-card orange"><div class="stack-num">05</div><div class="stack-title">Absences</div><div class="stack-desc">Un match pas joué, c'est un point en moins. Aucun match sur la saison, et la team sort du classement.</div></div>
+            <div class="stack-card purple"><div class="stack-num">06</div><div class="stack-title">Teams de 5</div><div class="stack-desc">Trois titulaires, deux remplaçants, une team par jeu. Le capitaine gère l'effectif.</div></div>
+            <div class="stack-card cyan"><div class="stack-num">07</div><div class="stack-title">Résultats vérifiés</div><div class="stack-desc">Les scores sont saisis par l'organisation, pas par les joueurs.</div></div>
+            <div class="stack-card pink"><div class="stack-num">08</div><div class="stack-title">Objets exclusifs</div><div class="stack-desc">Badges et cadres gratuits, certains limités dans le temps. Aucun avantage en jeu.</div></div>
         </div>
     </main>
 
