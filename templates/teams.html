@@ -63,7 +63,7 @@
             place-items: center;
             font-size: 1.1rem;
             background: var(--panel-2);
-            border: 1px solid var(--line-2);
+            border: 2px solid var(--trait);
             border-radius: var(--radius);
         }
 
@@ -81,14 +81,14 @@
             border-radius: 3px;
         }
 
-        .match-res.v { background: rgba(61, 220, 132, 0.15); color: var(--win); }
-        .match-res.d { background: rgba(255, 81, 70, 0.15); color: var(--lose); }
-        .match-score { font-family: var(--display); font-size: 1.15rem; font-weight: 700; color: var(--accent); }
+        .match-res.v { background: var(--win); color: #fff; }
+        .match-res.d { background: var(--lose); color: #fff; }
+        .match-score { font-family: var(--display); font-size: 1.15rem; font-weight: 800; }
         .match-adv { flex: 1; overflow-wrap: anywhere; }
         .match-pts { color: var(--muted); font-size: 0.85rem; }
         .team-matchs > p { color: var(--muted); font-size: 0.92rem; }
 
-        .participation { padding: 1rem 1.1rem; background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius); }
+        .participation { padding: 1rem 1.1rem; background: var(--panel-2); border: 2px solid var(--trait); border-radius: var(--radius); }
         .participation-haut { display: flex; justify-content: space-between; gap: 1rem; font-weight: 600; }
         .participation-haut strong { font-family: var(--display); font-size: 1.2rem; }
         .barre { height: 4px; margin-top: 0.6rem; background: var(--line); overflow: hidden; }
@@ -101,13 +101,13 @@
             margin-top: 1rem;
             padding: 0.75rem 1rem;
             border-left: 3px solid var(--lose);
-            background: rgba(255, 81, 70, 0.08);
+            background: var(--lose-fond);
             font-size: 0.9rem;
         }
 
         .hors-classement { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; color: var(--warn); }
 
-        .team-edit { display: none; padding: 1.2rem; background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius); }
+        .team-edit { display: none; padding: 1.2rem; background: var(--panel-2); border: 2px solid var(--trait); border-radius: var(--radius); }
         .team-edit.open { display: block; }
 
         .search-box { margin-bottom: 0.6rem; }

@@ -22,26 +22,31 @@
             display: flex;
             flex-direction: column;
             background: var(--panel);
-            border: 1px solid var(--line);
-            border-radius: 6px;
+            border: 2px solid var(--trait);
+            border-radius: var(--radius);
+            box-shadow: var(--ombre);
             overflow: hidden;
         }
 
-        .item-card.possede { border-color: rgba(61, 220, 132, 0.45); }
+        .item-card.possede .item-image { background: var(--win-fond); }
 
         .item-image {
             height: 150px;
             display: grid;
             place-items: center;
             background: var(--bg-2);
-            border-bottom: 1px solid var(--line);
+            border-bottom: 2px solid var(--trait);
         }
 
         /* Aperçus dessinés en CSS, pas d'images génériques */
         .apercu-badge {
             padding: 0.35rem 1rem;
-            border: 2px solid var(--accent);
-            color: var(--accent);
+            border: 2px solid var(--trait);
+            border-radius: 8px;
+            background: var(--accent);
+            color: var(--ink);
+            box-shadow: var(--ombre-petite);
+            transform: rotate(-3deg);
             font-family: var(--display);
             font-size: 1.6rem;
             font-weight: 800;
@@ -49,7 +54,7 @@
             text-transform: uppercase;
         }
 
-        .apercu-badge.saison { border-color: #6f8cff; color: #6f8cff; }
+        .apercu-badge.saison { background: var(--bleu); color: #fff; }
 
         .apercu-cadre {
             width: 84px;
@@ -72,7 +77,7 @@
         .item-price { font-family: var(--display); font-size: 1.1rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--win); }
         .item-limite { color: var(--warn); font-size: 0.82rem; }
         .item-btn { padding: 0.6rem 1.1rem; font-size: 0.95rem; }
-        .item-btn:disabled { background: transparent; color: var(--muted); border-color: var(--line-2); opacity: 1; clip-path: none; }
+        
     </style>
 </head>
 <body>
