@@ -88,6 +88,41 @@ body {
 }
 .xhq-avatar:hover { transform: scale(1.08); box-shadow: 0 0 20px rgba(0, 217, 255, 0.5); }
 
+/* ----- Effets du shop ----- */
+.xhq-avatar.premium {
+    border-color: #ffd700;
+    background: linear-gradient(135deg, #ffd700 0%, #ff922b 100%);
+    box-shadow: 0 0 18px rgba(255, 215, 0, 0.55);
+}
+
+.badge-officiel {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.15rem 0.55rem;
+    border-radius: 10px;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: #0f0f1e;
+    background: linear-gradient(135deg, #00d9ff 0%, #667eea 100%);
+    vertical-align: middle;
+    white-space: nowrap;
+    -webkit-text-fill-color: #0f0f1e;
+}
+
+.tag-boost {
+    display: inline-block;
+    padding: 0.1rem 0.5rem;
+    border-radius: 8px;
+    font-size: 0.72rem;
+    font-weight: 900;
+    color: #1a1a2e;
+    background: linear-gradient(135deg, #ffd43b 0%, #ff922b 100%);
+    white-space: nowrap;
+}
+
 /* ----- Contenu ----- */
 .xhq-main { flex: 1; width: 100%; padding: 2rem; }
 .xhq-main.center { display: flex; align-items: center; justify-content: center; }

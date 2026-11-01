@@ -335,6 +335,61 @@
             transform: scale(1.12);
         }
 
+        .profil-pic.premium {
+            border-color: #ffd700;
+            background: linear-gradient(135deg, #ffd700 0%, #ff922b 50%, #764ba2 100%);
+            box-shadow: 0 0 70px rgba(255, 215, 0, 0.55), inset 0 0 30px rgba(255, 255, 255, 0.15);
+        }
+        
+        .logo-premium-titre {
+            margin: 0.5rem 0 1rem;
+            color: #ffd700 !important;
+        }
+        
+        .logo-option.verrou {
+            opacity: 0.35;
+            filter: grayscale(1);
+            position: relative;
+        }
+        
+        .logo-option.verrou::after {
+            content: '🔒';
+            position: absolute;
+            font-size: 1.2rem;
+            bottom: 4px;
+            right: 6px;
+        }
+        
+        .logo-option.premium-opt { border-color: rgba(255, 215, 0, 0.6); }
+        
+        .inventaire {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+        }
+        
+        @media (max-width: 900px) {
+            .inventaire { grid-template-columns: 1fr; }
+        }
+        
+        .inv-item {
+            background: rgba(102, 126, 234, 0.08);
+            border: 2px solid rgba(102, 126, 234, 0.3);
+            border-radius: 18px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+        }
+        
+        .inv-item.possede { border-color: rgba(81, 207, 102, 0.6); }
+        .inv-icone { font-size: 2.4rem; }
+        .inv-nom { color: #fff; font-weight: 900; font-size: 1.1rem; }
+        .inv-etat { color: #a0a0b0; font-size: 0.9rem; line-height: 1.5; flex: 1; }
+        .inv-etat strong { color: #51cf66; }
+        .inv-item .btn { padding: 1rem 1.2rem; font-size: 0.85rem; }
+        .inv-item a.btn { text-decoration: none; text-align: center; }
+        
         .logo-option.active {
             border-color: #00d9ff;
             background: linear-gradient(135deg, rgba(102, 126, 234, 0.4) 0%, rgba(0, 217, 255, 0.3) 100%);
@@ -470,9 +525,9 @@
         <div class="profil-main">
             <div class="profil-card">
                 <div class="profil-pic-wrapper">
-                    <div class="profil-pic" id="profil-pic-display" onclick="openLogoSelector()" title="Changer d'avatar">{{ current_user.logo }}</div>
+                    <div class="profil-pic{% if current_user.premium %} premium{% endif %}" id="profil-pic-display" onclick="openLogoSelector()" title="Changer d'avatar">{{ current_user.logo }}</div>
                 </div>
-                <div class="username" id="username-display">{{ current_user.username }}</div>
+                <div class="username"><span id="username-display">{{ current_user.username }}</span>{% if current_user.badge %} <span class="badge-officiel">✔ Officiel</span>{% endif %}</div>
                 <div class="email" id="email-display">{{ current_user.email }}</div>
 
                 <div class="stats-grid">
@@ -500,6 +555,12 @@
                         <div class="logo-option{% if avatar == current_user.logo %} active{% endif %}" data-logo="{{ avatar }}" onclick="selectLogo(this.dataset.logo)">{{ avatar }}</div>
                         {% endfor %}
                     </div>
+                    <label class="logo-premium-titre">✨ Avatars Skin Premium{% if not current_user.premium %} (à débloquer dans le shop){% endif %}</label>
+                    <div class="logo-selector">
+                        {% for avatar in avatars_premium %}
+                        <div class="logo-option premium-opt{% if not current_user.premium %} verrou{% endif %}{% if avatar == current_user.logo %} active{% endif %}" data-logo="{{ avatar }}" onclick="selectLogo(this.dataset.logo)">{{ avatar }}</div>
+                        {% endfor %}
+                    </div>
                 </div>
 
                 <div class="form-group">
@@ -514,6 +575,29 @@
             </div>
         </div>
 
+        <div class="section">
+            <h2 class="section-title">Mon inventaire</h2>
+            <div class="success-message" id="inv-success"></div>
+            <div class="error-message" id="inv-error"></div>
+            <div class="inventaire">
+                <div class="inv-item" id="inv-badge">
+                    <div class="inv-icone">🏅</div>
+                    <div class="inv-nom">Badge Officiel</div>
+                    <div class="inv-etat">…</div>
+                </div>
+                <div class="inv-item" id="inv-skin">
+                    <div class="inv-icone">🎨</div>
+                    <div class="inv-nom">Skin Premium</div>
+                    <div class="inv-etat">…</div>
+                </div>
+                <div class="inv-item" id="inv-boost">
+                    <div class="inv-icone">⚡</div>
+                    <div class="inv-nom">Boost 2x Points</div>
+                    <div class="inv-etat">…</div>
+                </div>
+            </div>
+        </div>
+        
         <div class="section">
             <h2 class="section-title">Changer mon mot de passe</h2>
             <div class="success-message" id="pwd-success">✓ Mot de passe modifié !</div>
@@ -548,6 +632,8 @@
 
     <script>
         const AVATARS = {{ avatars | tojson }};
+        const AVATARS_PREMIUM = {{ avatars_premium | tojson }};
+        let premium = {{ current_user.premium | tojson }};
         let currentLogo = {{ current_user.logo | tojson }};
 
         function flash(id, text) {
@@ -567,7 +653,8 @@
             document.getElementById('points-display').textContent = (Number(data.points) || 0) + ' pts';
             document.getElementById('solde-display').textContent = (Number(data.solde) || 0) + '€';
             document.getElementById('bio-input').value = data.bio || '';
-            if (AVATARS.includes(data.logo)) {
+            renderInventaire(data);
+            if (AVATARS.includes(data.logo) || AVATARS_PREMIUM.includes(data.logo)) {
                 currentLogo = data.logo;
                 document.getElementById('profil-pic-display').textContent = currentLogo;
                 updateLogoSelector();
@@ -585,8 +672,49 @@
             });
         }
 
+        function renderInventaire(d) {
+            premium = d.premium;
+            const lien = '<a class="btn" href="/shop">Voir dans le shop</a>';
+            const set = (id, possede, html) => {
+                const el = document.getElementById(id);
+                el.classList.toggle('possede', possede);
+                el.querySelector('.inv-etat').innerHTML = html;
+                el.querySelectorAll('.btn').forEach(b => b.remove());
+            };
+            set('inv-badge', d.badge, d.badge ? '<strong>✓ Possédé</strong> : le badge ✔ Officiel s\'affiche à côté de ton pseudo.' : 'Pas encore acheté.');
+            if (!d.badge) document.getElementById('inv-badge').insertAdjacentHTML('beforeend', lien);
+            set('inv-skin', d.premium, d.premium ? '<strong>✓ Possédé</strong> : cadre doré et 4 avatars exclusifs débloqués (clique sur ta photo).' : 'Pas encore acheté.');
+            if (!d.premium) document.getElementById('inv-skin').insertAdjacentHTML('beforeend', lien);
+            
+            let etat = `${Number(d.boosts_disponibles)} boost(s) en stock.`;
+            if (d.boost_actif) etat += '<br><strong>⚡ Un boost est actif sur ta team</strong> : sa prochaine victoire rapporte le double.';
+            else if (!d.team_classee) etat += '<br>Il faut être dans une team au classement pour l\'activer.';
+            set('inv-boost', d.boosts_disponibles > 0 || d.boost_actif, etat);
+            const box = document.getElementById('inv-boost');
+            if (d.boosts_disponibles > 0 && !d.boost_actif && d.team_classee) {
+                box.insertAdjacentHTML('beforeend', '<button class="btn" type="button" onclick="activerBoost()">Activer pour ma team</button>');
+            } else if (d.boosts_disponibles === 0 && !d.boost_actif) {
+                box.insertAdjacentHTML('beforeend', lien);
+            }
+        }
+        
+        async function activerBoost() {
+            if (!confirm('Activer un boost ? La prochaine victoire de ta team rapportera le double de points.')) return;
+            const { ok, data } = await api('/api/boost/activer', { method: 'POST' });
+            if (ok && data.success) {
+                renderInventaire(data);
+                flash('inv-success', '⚡ Boost activé ! La prochaine victoire de ta team comptera double.');
+            } else {
+                flash('inv-error', data.error || 'Erreur');
+            }
+        }
+        
         function selectLogo(logo) {
-            if (!AVATARS.includes(logo)) return;
+            if (AVATARS_PREMIUM.includes(logo) && !premium) {
+                flash('error-message', '🔒 Cet avatar se débloque avec le Skin Premium (shop).');
+                return;
+            }
+            if (!AVATARS.includes(logo) && !AVATARS_PREMIUM.includes(logo)) return;
             currentLogo = logo;
             document.getElementById('profil-pic-display').textContent = logo;
             updateLogoSelector();

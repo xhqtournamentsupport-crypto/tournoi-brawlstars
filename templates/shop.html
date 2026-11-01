@@ -373,7 +373,7 @@
         async function buyItem(itemId) {
             const { ok, data } = await api(`/api/shop/buy/${itemId}`, { method: 'POST' });
             if (ok && data.success) {
-                showMessage(`✓ ${data.item} acheté !`, 'success');
+                showMessage(`✓ ${data.item} acheté !` + (/Boost/.test(data.item) ? ' Active-le depuis ton profil (section Mon inventaire).' : ''), 'success');
                 afficherSolde(data.solde);
                 loadShop();
             } else {

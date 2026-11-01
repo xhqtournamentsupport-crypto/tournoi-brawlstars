@@ -310,6 +310,12 @@
         
         .places.pleine { background: rgba(255, 107, 107, 0.2); color: #ff8787; }
         
+        .member-chip.premium {
+            border-color: #ffd700;
+            background: rgba(255, 215, 0, 0.18);
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.35);
+        }
+        
         .member-chip {
             background: rgba(81, 207, 102, 0.12);
             border: 1px solid rgba(81, 207, 102, 0.5);
@@ -585,6 +591,7 @@
         let membres = [];
         let mesMatchs = [];
         let maxMembres = 5;
+        let boostActif = false;
         let participation = null, dernierePenalite = null;
         let reglePenalite = { par_match: 1, recidive: 2, max: 15 };
 
@@ -607,6 +614,7 @@
             membres = data.membres || [];
             mesMatchs = data.matchs || [];
             maxMembres = data.max_membres || maxMembres;
+            boostActif = !!data.boost_actif;
             participation = data.participation;
             dernierePenalite = data.derniere_penalite;
             reglePenalite = data.regle_penalite || reglePenalite;
@@ -633,14 +641,14 @@
                         <h3>${escapeHtml(myTeam.nom)}</h3>
                         <p>${escapeHtml(myTeam.bio || 'Pas de description')}</p>
                         <div class="team-creator">👑 Capitaine : ${escapeHtml(myTeam.createur)}</div>
-                        <div class="team-meta">${ligue}</div>
+                        <div class="team-meta">${ligue}${boostActif ? ' <span class="tag-boost">⚡ Boost ×2 actif</span>' : ''}</div>
                         ${renderParticipation()}
                         <div class="membres-liste">
                             <h4>Membres <span class="places ${membres.length >= maxMembres ? 'pleine' : ''}">${membres.length}/${maxMembres}</span></h4>
                             ${membres.map(m => `
                                 <div class="membre-ligne">
-                                    <span class="member-chip">${escapeHtml(m.logo)}</span>
-                                    <span class="membre-nom">${escapeHtml(m.username)}${m.is_me ? ' <span class="muted">(vous)</span>' : ''}</span>
+                                    <span class="member-chip${m.premium ? ' premium' : ''}">${escapeHtml(m.logo)}</span>
+                                    <span class="membre-nom">${escapeHtml(m.username)}${m.badge ? ' <span class="badge-officiel">✔ Officiel</span>' : ''}${m.is_me ? ' <span class="muted">(vous)</span>' : ''}</span>
                                     ${m.is_capitaine ? '<span class="membre-role">👑 Capitaine</span>' : ''}
                                     ${myTeam.is_creator && !m.is_me ? `
                                         <span class="membre-actions">
@@ -669,7 +677,7 @@
                                     <span class="match-res ${m.victoire ? 'v' : 'd'}">${m.victoire ? 'V' : 'D'}</span>
                                     <span class="match-score">${Number(m.score_pour)} - ${Number(m.score_contre)}</span>
                                     <span class="match-adv">vs ${escapeHtml(m.adversaire)}</span>
-                                    <span class="match-pts">+${Number(m.points_gagnes)} pts</span>
+                                    <span class="match-pts">+${Number(m.points_gagnes)} pts${m.boost ? ' <span class="tag-boost">⚡×2</span>' : ''}</span>
                                 </div>`).join('') : '<p>Aucun match joué pour le moment</p>'}
                         </div>
                     </div>

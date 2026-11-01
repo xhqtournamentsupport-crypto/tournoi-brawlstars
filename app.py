@@ -34,6 +34,8 @@ app = Flask(__name__)
 app.secret_key = charger_secret_key()
 
 AVATARS = ['👤', '🎮', '🏆', '⚡', '🔥', '💎', '👑', '🚀', '⭐', '🎯', '💪', '🌟']
+# Avatars exclusifs débloqués par le Skin Premium
+AVATARS_PREMIUM = ['🐉', '🦄', '🤖', '👽']
 AVATAR_DEFAUT = '👤'
 
 # ---------------------------------------------------------------------------
@@ -57,9 +59,9 @@ LIGUES = {
 }
 
 SHOP_DEFAUT = [
-    ('Badge Officiel', 'Affichez le badge officiel XHQ sur votre profil.', 50, 'badge'),
-    ('Skin Premium', 'Un skin exclusif pour vous démarquer des autres joueurs.', 100, 'cosmetic'),
-    ('Boost 2x Points', 'Doublez les points de ligue gagnés par votre team.', 200, 'boost'),
+    ('Badge Officiel', 'Le badge ✔ Officiel s\'affiche à côté de votre pseudo (profil et liste des membres de votre team).', 50, 'badge'),
+    ('Skin Premium', 'Cadre doré autour de votre avatar (profil et menu) + 4 avatars exclusifs : 🐉 🦄 🤖 👽.', 100, 'cosmetic'),
+    ('Boost 2x Points', 'À activer depuis votre profil : la prochaine victoire de votre team rapporte le double de points.', 200, 'boost'),
 ]
 # Types qu'on ne peut posséder qu'une fois
 TYPES_UNIQUES = {'badge', 'cosmetic'}
@@ -126,6 +128,7 @@ def choisir_poule(c, ligue_num):
 
 
 def supprimer_team(c, team_id):
+    c.execute('DELETE FROM boosts WHERE team_id = ? AND match_id IS NULL', (team_id,))
     c.execute('DELETE FROM ligue WHERE team_id = ?', (team_id,))
     c.execute('DELETE FROM team_members WHERE team_id = ?', (team_id,))
     c.execute('UPDATE users SET team_id = NULL WHERE team_id = ?', (team_id,))
@@ -296,18 +299,29 @@ def init_db():
     ajouter_colonne(c, 'saison_classements', 'matchs_manques', 'INTEGER DEFAULT 0')
     ajouter_colonne(c, 'saison_classements', 'points_avant', 'INTEGER')
     ajouter_colonne(c, 'saison_classements', 'recidive', 'INTEGER DEFAULT 0')
+    ajouter_colonne(c, 'inventory', 'utilise_at', 'TEXT')
+    ajouter_colonne(c, 'matchs', 'boost1', 'INTEGER DEFAULT 0')
+    ajouter_colonne(c, 'matchs', 'boost2', 'INTEGER DEFAULT 0')
+    c.execute("""CREATE TABLE IF NOT EXISTS boosts (
+                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                     team_id INTEGER NOT NULL,
+                     user_id INTEGER,
+                     inventory_id INTEGER,
+                     active_at TEXT,
+                     match_id INTEGER
+                 )""")
     c.execute("UPDATE users SET created_at = datetime('now') WHERE created_at IS NULL")
     c.execute("UPDATE teams SET created_at = datetime('now') WHERE created_at IS NULL")
+    tous_avatars = AVATARS + AVATARS_PREMIUM
     c.execute("UPDATE users SET profile_pic = ? WHERE profile_pic IS NULL OR profile_pic NOT IN (%s)"
-              % ','.join('?' * len(AVATARS)), (AVATAR_DEFAUT, *AVATARS))
+              % ','.join('?' * len(tous_avatars)), (AVATAR_DEFAUT, *tous_avatars))
 
     # Shop par défaut (l'ancien item "Badge" devient "Badge Officiel")
     if not c.execute("SELECT 1 FROM shop_items WHERE nom = 'Badge Officiel'").fetchone():
         c.execute("UPDATE shop_items SET nom = 'Badge Officiel' WHERE nom = 'Badge'")
     for nom, description, prix, type_ in SHOP_DEFAUT:
         if c.execute('SELECT 1 FROM shop_items WHERE nom = ?', (nom,)).fetchone():
-            c.execute("UPDATE shop_items SET description = ?, type = ?, prix = ? WHERE nom = ? AND (type IS NULL OR type = '')",
-                      (description, type_, prix, nom))
+            c.execute('UPDATE shop_items SET description = ?, type = ? WHERE nom = ?', (description, type_, nom))
         else:
             c.execute('INSERT INTO shop_items (nom, description, prix, type) VALUES (?, ?, ?, ?)',
                       (nom, description, prix, type_))
@@ -335,7 +349,30 @@ def utilisateur_connecte():
 
 
 def logo_valide(logo):
-    return logo if logo in AVATARS else AVATAR_DEFAUT
+    return logo if logo in AVATARS or logo in AVATARS_PREMIUM else AVATAR_DEFAUT
+
+
+# ---------------------------------------------------------------------------
+# Effets du shop
+# ---------------------------------------------------------------------------
+def possede(db, user_id, type_):
+    """Le joueur possède-t-il un item de ce type (badge, cosmetic) ?"""
+    return db.execute("""SELECT 1 FROM inventory i JOIN shop_items s ON s.id = i.item_id
+                         WHERE i.user_id = ? AND s.type = ?""", (user_id, type_)).fetchone() is not None
+
+
+def boosts_disponibles(db, user_id):
+    """Boosts achetés et pas encore activés."""
+    return db.execute("""SELECT COUNT(*) FROM inventory i JOIN shop_items s ON s.id = i.item_id
+                         WHERE i.user_id = ? AND s.type = 'boost' AND i.utilise_at IS NULL""", (user_id,)).fetchone()[0]
+
+
+def boost_actif(db, team_id):
+    """Boost activé sur la team et pas encore utilisé (consommé par sa prochaine victoire)."""
+    if not team_id:
+        return None
+    return db.execute('SELECT * FROM boosts WHERE team_id = ? AND match_id IS NULL ORDER BY id LIMIT 1',
+                      (team_id,)).fetchone()
 
 
 @app.context_processor
@@ -344,7 +381,9 @@ def injecter_utilisateur():
     current_user = None
     if user:
         current_user = {'username': user['username'], 'email': user['email'], 'logo': logo_valide(user['profile_pic']),
-                        'is_admin': bool(user['is_admin'])}
+                        'is_admin': bool(user['is_admin']),
+                        'premium': possede(get_db(), user['id'], 'cosmetic'),
+                        'badge': possede(get_db(), user['id'], 'badge')}
     return {'current_user': current_user}
 
 
@@ -429,7 +468,7 @@ def signup_page():
 @app.route('/profil')
 @page_connectee
 def profil_page():
-    return render_template('profil.html', avatars=AVATARS)
+    return render_template('profil.html', avatars=AVATARS, avatars_premium=AVATARS_PREMIUM)
 
 
 @app.route('/teams')
@@ -545,7 +584,45 @@ def api_profil():
         'points': user['points'] or 0,
         'ligue_num': user['ligue_num'],
         'created_at': user['created_at'],
+        **inventaire(get_db(), user['id']),
     }), 200
+
+
+def inventaire(db, user_id):
+    team = db.execute('SELECT team_id FROM team_members WHERE user_id = ?', (user_id,)).fetchone()
+    team_id = team['team_id'] if team else None
+    actif = boost_actif(db, team_id)
+    return {
+        'badge': possede(db, user_id, 'badge'),
+        'premium': possede(db, user_id, 'cosmetic'),
+        'boosts_disponibles': boosts_disponibles(db, user_id),
+        'boost_actif': bool(actif),
+        'team_classee': bool(team_id and db.execute('SELECT 1 FROM ligue WHERE team_id = ?', (team_id,)).fetchone()),
+    }
+
+
+@app.route('/api/boost/activer', methods=['POST'])
+@api_connectee
+def api_activer_boost():
+    uid = session['user_id']
+    db = get_db()
+    team = db.execute('SELECT team_id FROM team_members WHERE user_id = ?', (uid,)).fetchone()
+    if not team:
+        return jsonify({'success': False, 'error': 'Rejoignez une team pour utiliser un boost'}), 400
+    if not db.execute('SELECT 1 FROM ligue WHERE team_id = ?', (team['team_id'],)).fetchone():
+        return jsonify({'success': False, 'error': "Votre team n'est pas au classement"}), 400
+    if boost_actif(db, team['team_id']):
+        return jsonify({'success': False, 'error': 'Un boost est déjà actif sur votre team'}), 400
+    item = db.execute("""SELECT i.id FROM inventory i JOIN shop_items s ON s.id = i.item_id
+                         WHERE i.user_id = ? AND s.type = 'boost' AND i.utilise_at IS NULL
+                         ORDER BY i.id LIMIT 1""", (uid,)).fetchone()
+    if not item:
+        return jsonify({'success': False, 'error': "Vous n'avez pas de boost : achetez-en un dans le shop"}), 400
+    db.execute("UPDATE inventory SET utilise_at = datetime('now') WHERE id = ?", (item['id'],))
+    db.execute("INSERT INTO boosts (team_id, user_id, inventory_id, active_at) VALUES (?, ?, ?, datetime('now'))",
+               (team['team_id'], uid, item['id']))
+    db.commit()
+    return jsonify({'success': True, **inventaire(db, uid)}), 200
 
 
 @app.route('/api/profil/update', methods=['POST'])
@@ -561,7 +638,9 @@ def api_profil_update():
     bio = bio.strip()[:500]
 
     logo = data.get('logo', user['profile_pic'])
-    if logo not in AVATARS:
+    if logo in AVATARS_PREMIUM and not possede(db, session['user_id'], 'cosmetic'):
+        return jsonify({'success': False, 'error': 'Cet avatar est réservé au Skin Premium'}), 403
+    if logo not in AVATARS and logo not in AVATARS_PREMIUM:
         return jsonify({'success': False, 'error': 'Logo invalide'}), 400
 
     db.execute('UPDATE users SET bio = ?, profile_pic = ? WHERE id = ?', (bio, logo, session['user_id']))
@@ -639,6 +718,8 @@ def api_teams():
             m['logo'] = logo_valide(m['logo'])
             m['is_capitaine'] = m['id'] == createur_id
             m['is_me'] = m['id'] == uid
+            m['badge'] = possede(db, m['id'], 'badge')
+            m['premium'] = possede(db, m['id'], 'cosmetic')
     matchs = matchs_de_team(db, user_team_id, limite=10) if user_team_id else []
     participation, derniere_penalite = None, None
     if user_team_id:
@@ -655,6 +736,7 @@ def api_teams():
     return jsonify({'teams': teams_list, 'user_team_id': user_team_id, 'user_id': uid, 'membres': membres,
                     'matchs': matchs, 'max_membres': MAX_MEMBRES, 'participation': participation,
                     'derniere_penalite': derniere_penalite,
+                    'boost_actif': bool(boost_actif(db, user_team_id)),
                     'regle_penalite': {'par_match': PENALITE_PAR_MATCH, 'recidive': MULTIPLICATEUR_RECIDIVE,
                                        'max': PENALITE_MAX}}), 200
 
@@ -996,7 +1078,7 @@ def api_contact():
 REQ_MATCHS = """
     SELECT m.id, m.ligue_num, m.poule, m.team1_id, m.team2_id,
            COALESCE(t1.nom, m.team1_nom) AS team1_nom, COALESCE(t2.nom, m.team2_nom) AS team2_nom,
-           m.score1, m.score2, m.points1, m.points2, m.created_at, m.saison
+           m.score1, m.score2, m.points1, m.points2, m.created_at, m.saison, m.boost1, m.boost2
     FROM matchs m
     LEFT JOIN teams t1 ON t1.id = m.team1_id
     LEFT JOIN teams t2 ON t2.id = m.team2_id"""
@@ -1012,6 +1094,7 @@ def matchs_de_team(db, team_id, limite=10):
         m['score_pour'], m['score_contre'] = (m['score1'], m['score2']) if domicile else (m['score2'], m['score1'])
         m['victoire'] = m['score_pour'] > m['score_contre']
         m['points_gagnes'] = m['points1'] if domicile else m['points2']
+        m['boost'] = bool(m['boost1'] if domicile else m['boost2'])
         resultats.append(m)
     return resultats
 
@@ -1108,17 +1191,28 @@ def api_admin_create_match():
     ligue_num, poule = t1['ligue_num'], t1['poule']
     points1 = POINTS_VICTOIRE if score1 > score2 else POINTS_DEFAITE
     points2 = POINTS_VICTOIRE if score2 > score1 else POINTS_DEFAITE
+    # Boost 2x : la team gagnante consomme son boost actif
+    gagnant_id = team1_id if score1 > score2 else team2_id
+    boost = boost_actif(db, gagnant_id)
+    boost1 = 1 if boost and gagnant_id == team1_id else 0
+    boost2 = 1 if boost and gagnant_id == team2_id else 0
+    if boost1:
+        points1 *= 2
+    if boost2:
+        points2 *= 2
     c.execute("""INSERT INTO matchs (ligue_num, poule, team1_id, team2_id, team1_nom, team2_nom,
-                                     score1, score2, points1, points2, saisi_par, created_at, saison)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?)""",
+                                     score1, score2, points1, points2, saisi_par, created_at, saison, boost1, boost2)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, ?, ?)""",
               (ligue_num, poule, team1_id, team2_id, t1['nom'], t2['nom'],
-               score1, score2, points1, points2, session['user_id'], saison_actuelle(db)))
+               score1, score2, points1, points2, session['user_id'], saison_actuelle(db), boost1, boost2))
     match_id = c.lastrowid
+    if boost:
+        c.execute('UPDATE boosts SET match_id = ? WHERE id = ?', (match_id, boost['id']))
     ajuster_points(c, team1_id, ligue_num, poule, points1)
     ajuster_points(c, team2_id, ligue_num, poule, points2)
     db.commit()
     gagnant = t1['nom'] if score1 > score2 else t2['nom']
-    return jsonify({'success': True, 'match_id': match_id, 'gagnant': gagnant,
+    return jsonify({'success': True, 'match_id': match_id, 'gagnant': gagnant, 'boost': bool(boost),
                     'ligue_num': ligue_num, 'poule': poule}), 201
 
 
@@ -1135,6 +1229,8 @@ def api_admin_delete_match(match_id):
     ajuster_points(c, m['team1_id'], m['ligue_num'], m['poule'], -m['points1'])
     ajuster_points(c, m['team2_id'], m['ligue_num'], m['poule'], -m['points2'])
     c.execute('DELETE FROM matchs WHERE id = ?', (match_id,))
+    # Si ce match avait consommé un boost, on le rend à la team
+    c.execute('UPDATE boosts SET match_id = NULL WHERE match_id = ?', (match_id,))
     db.commit()
     return jsonify({'success': True}), 200
 
@@ -1144,6 +1240,7 @@ def api_admin_delete_match(match_id):
 def api_admin_teams():
     rows = get_db().execute("""
         SELECT t.id, t.nom, u.username AS createur, l.ligue_num, l.poule, l.points,
+               (SELECT COUNT(*) FROM boosts b WHERE b.team_id = t.id AND b.match_id IS NULL) AS boost,
                (SELECT COUNT(*) FROM team_members tm WHERE tm.team_id = t.id) AS nb_membres
         FROM teams t
         LEFT JOIN users u ON u.id = t.createur_id

@@ -10,7 +10,7 @@
                 <a href="/admin" class="xhq-nav-btn admin{% if request.path == '/admin' %} active{% endif %}">Admin</a>
                 {% endif %}
             </div>
-            <a href="/profil" class="xhq-avatar" id="nav-avatar" title="{{ current_user.username }}">{{ current_user.logo }}</a>
+            <a href="/profil" class="xhq-avatar{% if current_user.premium %} premium{% endif %}" id="nav-avatar" title="{{ current_user.username }}">{{ current_user.logo }}</a>
             {% else %}
             <div class="xhq-nav-auth">
                 <a href="/login" class="xhq-nav-btn outline">Connexion</a>

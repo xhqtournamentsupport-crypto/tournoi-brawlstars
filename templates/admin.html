@@ -614,7 +614,7 @@
             const ligue = Number(document.getElementById('m-ligue').value);
             const poule = document.getElementById('m-poule').value;
             const dispo = teams.filter(t => t.ligue_num === ligue && t.poule === poule);
-            const options = dispo.map(t => `<option value="${t.id}">${escapeHtml(t.nom)} (${Number(t.points) || 0} pts)</option>`).join('');
+            const options = dispo.map(t => `<option value="${t.id}">${escapeHtml(t.nom)} (${Number(t.points) || 0} pts)${t.boost ? ' ⚡ boost ×2' : ''}</option>`).join('');
             const s1 = document.getElementById('m-team1'), s2 = document.getElementById('m-team2');
             const v1 = s1.value, v2 = s2.value;
             s1.innerHTML = '<option value="">— Choisir —</option>' + options;
@@ -639,7 +639,7 @@
             }
             const { ok, data } = await api('/api/admin/matchs', { method: 'POST', body });
             if (ok && data.success) {
-                showMessage(`✓ Résultat enregistré : victoire de ${data.gagnant}`, 'success');
+                showMessage(`✓ Résultat enregistré : victoire de ${data.gagnant}` + (data.boost ? ' (⚡ boost ×2 utilisé : points doublés)' : ''), 'success');
                 document.getElementById('m-score1').value = 0;
                 document.getElementById('m-score2').value = 0;
                 await chargerTeams();
@@ -662,9 +662,9 @@
                 <tr>
                     <td class="muted">${dateCourte(m.created_at)}</td>
                     <td><span class="tag">L${Number(m.ligue_num)} · ${escapeHtml(m.poule)}</span></td>
-                    <td class="${m.score1 > m.score2 ? 'gagnant' : ''}">${escapeHtml(m.team1_nom)} <span class="muted">+${Number(m.points1)}</span></td>
+                    <td class="${m.score1 > m.score2 ? 'gagnant' : ''}">${escapeHtml(m.team1_nom)} <span class="muted">+${Number(m.points1)}</span>${m.boost1 ? ' <span class="tag-boost">⚡×2</span>' : ''}</td>
                     <td class="score">${Number(m.score1)} - ${Number(m.score2)}</td>
-                    <td class="${m.score2 > m.score1 ? 'gagnant' : ''}">${escapeHtml(m.team2_nom)} <span class="muted">+${Number(m.points2)}</span></td>
+                    <td class="${m.score2 > m.score1 ? 'gagnant' : ''}">${escapeHtml(m.team2_nom)} <span class="muted">+${Number(m.points2)}</span>${m.boost2 ? ' <span class="tag-boost">⚡×2</span>' : ''}</td>
                     <td><button class="btn petit danger" type="button" onclick="supprimerMatch(${Number(m.id)})">Supprimer</button></td>
                 </tr>`).join('');
         }
@@ -714,7 +714,7 @@
                 <tr>
                     <td><strong>${escapeHtml(t.nom)}</strong></td>
                     <td>${t.ligue_num ? `<span class="tag">L${Number(t.ligue_num)} · Poule ${escapeHtml(t.poule)}</span>` : '<span class="tag" style="color:#ff8787">Hors classement</span>'}</td>
-                    <td class="score">${Number(t.points) || 0}</td>
+                    <td class="score">${Number(t.points) || 0}${t.boost ? ' <span class="tag-boost">⚡×2</span>' : ''}</td>
                     <td>${Number(t.nb_membres) || 0}</td>
                     <td class="muted">${escapeHtml(t.createur || '—')}</td>
                     <td><div class="actions">
