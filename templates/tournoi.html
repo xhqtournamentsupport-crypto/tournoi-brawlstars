@@ -7,36 +7,23 @@
     {% include '_head.html' %}
     <style>
         .infos { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem 1.2rem; margin: -0.6rem 0 1.6rem; color: var(--muted); }
-        .statut { padding: 0.2rem 0.7rem; border-radius: 999px; font-size: 0.78rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; background: var(--accent-dim); color: var(--accent); }
-        .statut.inscriptions { background: var(--win-fond); color: var(--win); }
-        .statut.termine { background: var(--gold-fond); color: var(--gold); }
-        .description { max-width: 760px; color: var(--text-soft); white-space: pre-line; margin-bottom: 1.8rem; }
+        .statut { padding: 0 0.4rem; border-radius: 2px; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; background: var(--ink); color: #fff; }
+        .statut.inscriptions { background: var(--accent); }
+        .statut.termine { background: var(--gold); }
+        .description { max-width: 760px; color: var(--text-soft); white-space: pre-line; margin-bottom: 1.6rem; }
 
-        /* Étapes du tournoi */
-        .etapes { display: flex; gap: 0.4rem; margin-bottom: 2rem; flex-wrap: wrap; }
-        .etape { display: flex; align-items: center; gap: 0.5rem; padding: 0.45rem 0.9rem; border-radius: 999px; border: 1px solid var(--line); color: var(--dim); font-size: 0.88rem; font-weight: 500; }
-        .etape b { display: inline-grid; place-items: center; width: 1.4rem; height: 1.4rem; border-radius: 50%; background: var(--panel-2); font-size: 0.75rem; }
-        .etape.faite { color: var(--text-soft); }
-        .etape.faite b { background: var(--win); color: var(--ink); }
-        .etape.active { color: var(--text); border-color: var(--bleu); background: var(--panel); }
-        .etape.active b { background: var(--bleu); color: #fff; }
+        /* Étapes du tournoi : une barre en 4 segments */
+        .etapes { display: grid; grid-template-columns: repeat(4, 1fr); margin-bottom: 1.8rem; border: 1px solid var(--line); background: #fff; }
+        .etape { padding: 0.5rem 0.8rem; border-right: 1px solid var(--line); border-top: 3px solid transparent; color: var(--dim); font-family: var(--display); font-size: 1rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+        .etape:last-child { border-right: 0; }
+        .etape b { margin-right: 0.4rem; font-weight: 700; }
+        .etape.faite { color: var(--text-soft); border-top-color: var(--text-soft); }
+        .etape.active { color: var(--text); border-top-color: var(--accent); background: var(--panel-2); }
 
         /* Champion */
-        .champion-banniere {
-            position: relative;
-            overflow: hidden;
-            margin-bottom: 2rem;
-            padding: 1.8rem 1.6rem;
-            border-radius: var(--radius);
-            border: 1px solid var(--gold);
-            background: linear-gradient(120deg, var(--gold-fond), transparent 70%), var(--panel);
-            text-align: center;
-            animation: xhq-apparait 0.6s both;
-        }
-        .champion-banniere small { color: var(--gold); font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; }
-        .champion-banniere strong { display: block; margin-top: 0.4rem; font-size: clamp(1.8rem, 5vw, 2.8rem); font-weight: 800; }
-        .champion-banniere::after { content: ''; position: absolute; top: 0; left: -40%; width: 30%; height: 100%; background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.12), transparent); transform: skewX(-20deg); animation: balaye 4s ease-in-out 1s infinite; }
-        @keyframes balaye { 0% { left: -40%; } 40%, 100% { left: 130%; } }
+        .champion-banniere { margin-bottom: 1.8rem; padding: 1rem 1.2rem; background: #fff; border: 1px solid var(--line); border-left: 6px solid var(--gold); }
+        .champion-banniere small { color: var(--gold); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+        .champion-banniere strong { display: block; font-family: var(--display); font-size: clamp(1.8rem, 5vw, 2.5rem); text-transform: uppercase; line-height: 1.1; }
 
         /* Inscription */
         .inscription { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 2rem; padding: 1.1rem 1.3rem; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
@@ -44,7 +31,7 @@
 
         .bloc { margin-bottom: 2.6rem; }
         .inscrits { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(210px, 100%), 1fr)); gap: 0.6rem; }
-        .inscrit { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; padding: 0.65rem 0.9rem; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; font-weight: 500; animation: xhq-apparait 0.4s both; overflow-wrap: anywhere; }
+        .inscrit { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; padding: 0.65rem 0.9rem; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); font-weight: 500; overflow-wrap: anywhere; }
         .inscrit.moi { border-color: var(--bleu); }
         .inscrit .btn-mini { flex-shrink: 0; }
 
@@ -55,11 +42,11 @@
         .table-poule th { color: var(--muted); font-size: 0.75rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
         .table-poule td.nom, .table-poule th.nom { text-align: left; }
         .table-poule tr.qualifie td:first-child { box-shadow: inset 3px 0 0 var(--win); }
-        .table-poule tr.qualifie td.nom::after { content: 'Qualifiée'; margin-left: 0.5rem; padding: 0.05rem 0.45rem; border-radius: 999px; background: var(--win-fond); color: var(--win); font-size: 0.68rem; font-weight: 600; text-transform: uppercase; }
+        .table-poule tr.qualifie td.nom::after { content: 'Qualifiée'; margin-left: 0.5rem; padding: 0.05rem 0.45rem; border-radius: 2px; background: var(--win-fond); color: var(--win); font-size: 0.68rem; font-weight: 600; text-transform: uppercase; }
         .table-poule td.pts { font-weight: 700; }
         .poule-tournoi .poule-title::after { content: none; }
         .matchs-poule { padding: 0.6rem 0.8rem 0.9rem; display: grid; gap: 0.4rem; }
-        .match-ligne { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 0.7rem; padding: 0.45rem 0.6rem; border-radius: 8px; background: var(--bg-2); font-size: 0.92rem; }
+        .match-ligne { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 0.7rem; padding: 0.45rem 0.6rem; border-radius: var(--radius); background: var(--bg-2); font-size: 0.92rem; }
         .match-ligne .e1 { text-align: right; }
         .match-ligne .g { font-weight: 700; color: var(--text); }
         .match-ligne .p { color: var(--muted); }
@@ -73,30 +60,32 @@
         .bracket-wrap { overflow-x: auto; padding-bottom: 0.8rem; }
         .bracket { display: flex; gap: 2.4rem; min-width: max-content; }
         .tour { display: flex; flex-direction: column; min-width: 230px; }
-        .tour h4 { margin-bottom: 0.8rem; color: var(--muted); font-size: 0.8rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .tour h4 { margin-bottom: 0.6rem; color: var(--muted); font-size: 0.95rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
         .tour-corps { flex: 1; display: flex; flex-direction: column; }
         .paire { position: relative; flex: 1; display: flex; flex-direction: column; }
-        .paire::after { content: ''; position: absolute; right: -1.2rem; top: 25%; bottom: 25%; width: 1.2rem; border: 2px solid var(--line-2); border-left: 0; border-radius: 0 6px 6px 0; }
+        .paire::after { content: ''; position: absolute; right: -1.2rem; top: 25%; bottom: 25%; width: 1.2rem; border: 2px solid var(--line-2); border-left: 0; }
         .case { flex: 1; display: flex; align-items: center; padding: 0.4rem 0; position: relative; }
         .tour:not(:first-child) .case::before { content: ''; position: absolute; left: -1.2rem; top: 50%; width: 1.2rem; border-top: 2px solid var(--line-2); }
-        .bm { width: 100%; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; animation: xhq-apparait 0.45s both; }
-        .bm.finale { border-color: var(--gold); box-shadow: 0 0 24px var(--gold-fond); }
+        .bm { width: 100%; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+        .bm.finale { border: 2px solid var(--ink); }
         .bm-team { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; padding: 0.5rem 0.75rem; font-size: 0.92rem; }
         .bm-team + .bm-team { border-top: 1px solid var(--line); }
         .bm-team .n { overflow-wrap: anywhere; }
-        .bm-team.g { font-weight: 700; background: linear-gradient(90deg, var(--accent-dim), transparent); }
+        .bm-team.g { font-weight: 700; background: var(--panel-2); box-shadow: inset 3px 0 0 var(--accent); }
         .bm-team.p { color: var(--muted); }
         .bm-team.tbd { color: var(--dim); font-style: italic; }
         .bm-team .s { font-weight: 700; font-variant-numeric: tabular-nums; }
         .bm-saisie { display: flex; justify-content: center; padding: 0.45rem; border-top: 1px dashed var(--line); background: var(--bg-2); }
 
         @media (max-width: 560px) {
+            .etapes { grid-template-columns: repeat(2, 1fr); }
+            .etape:nth-child(2) { border-right: 0; }
             .table-poule tr.qualifie td.nom::after { content: 'Q'; }
             .table-poule th, .table-poule td { padding: 0.5rem 0.25rem; font-size: 0.9rem; }
             .match-ligne { font-size: 0.85rem; gap: 0.4rem; }
         }
-        .admin-box { margin-bottom: 2rem; padding: 1.1rem 1.3rem; border: 1px dashed var(--accent); border-radius: var(--radius); background: var(--accent-dim); }
-        .admin-box h3 { font-size: 1rem; margin-bottom: 0.4rem; color: var(--accent); }
+        .admin-box { margin-bottom: 1.8rem; padding: 1rem 1.2rem; border: 1px solid var(--line); border-top: 4px solid var(--ink); background: #fff; }
+        .admin-box h3 { font-size: 1.15rem; margin-bottom: 0.3rem; text-transform: uppercase; }
         .admin-box p { color: var(--text-soft); margin: 0 0 0.8rem; font-size: 0.92rem; }
         .admin-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; }
     </style>
@@ -141,7 +130,7 @@
             const noms = ['Inscriptions', 'Poules', 'Phase finale', 'Champion'];
             const idx = ordre.indexOf(statut);
             return '<div class="etapes">' + noms.map((n, i) =>
-                `<span class="etape ${i < idx || statut === 'termine' ? 'faite' : ''} ${i === idx && statut !== 'termine' ? 'active' : ''}"><b>${i < idx || statut === 'termine' ? '✓' : i + 1}</b>${n}</span>`
+                `<span class="etape ${i < idx || statut === 'termine' ? 'faite' : ''} ${i === idx && statut !== 'termine' ? 'active' : ''}"><b>${i + 1}.</b>${n}</span>`
             ).join('') + '</div>';
         }
 
@@ -150,7 +139,7 @@
             if (t.statut !== 'inscriptions') return '';
             let texte, bouton = '';
             if (moi.inscrit) {
-                texte = `✅ <strong>${escapeHtml(moi.team.nom)}</strong> est inscrite.`;
+                texte = `<strong>${escapeHtml(moi.team.nom)}</strong> est inscrite.`;
                 if (moi.team.capitaine) bouton = `<button class="btn danger petit" type="button" onclick="desinscrire()">Se désinscrire</button>`;
             } else if (moi.peut_agir) {
                 texte = `Inscris <strong>${escapeHtml(moi.team.nom)}</strong> : ${t.places - t.inscrits} place${t.places - t.inscrits > 1 ? 's' : ''} restante${t.places - t.inscrits > 1 ? 's' : ''}.`;
@@ -190,7 +179,7 @@
             const maTeam = d.moi.team && d.moi.team.id;
             const retirer = d.admin && d.tournoi.statut === 'inscriptions';
             const liste = d.inscrits.map((i, n) => `
-                <div class="inscrit ${i.team_id === maTeam ? 'moi' : ''}" style="animation-delay:${Math.min(n, 12) * 0.04}s">
+                <div class="inscrit ${i.team_id === maTeam ? 'moi' : ''}" >
                     <span>${escapeHtml(i.nom)}</span>
                     ${retirer ? `<button class="btn-mini rouge" type="button" onclick="retirerTeam(${i.team_id})">Retirer</button>` : ''}
                 </div>`).join('');
@@ -240,7 +229,7 @@
             if (!d.bracket.length) return '';
             const dernier = d.bracket.length;
             const tours = d.bracket.map(t => {
-                const boite = (m, i) => `<div class="case"><div class="bm ${t.tour === dernier ? 'finale' : ''}" style="animation-delay:${(t.tour - 1) * 0.15 + i * 0.04}s">
+                const boite = (m, i) => `<div class="case"><div class="bm ${t.tour === dernier ? 'finale' : ''}">
                     ${equipeBracket(m, 'team1')}${equipeBracket(m, 'team2')}
                     ${d.admin && m.modifiable ? `<div class="bm-saisie">${saisie(m)}</div>` : ''}
                 </div></div>`;
@@ -259,12 +248,12 @@
             if (t.jeu) document.getElementById('retour').href = '/tournois?jeu=' + encodeURIComponent(t.jeu.code);
             document.getElementById('infos').innerHTML =
                 `<span class="statut ${t.statut}">${escapeHtml(t.statut_label)}</span>` +
-                (t.quand ? `<span>📅 ${escapeHtml(t.quand)}</span>` : '') +
+                (t.quand ? `<span>${escapeHtml(t.quand)}</span>` : '') +
                 `<span>${t.inscrits}/${t.places} teams</span>` +
                 (t.jeu ? `<span>${escapeHtml(t.jeu.format)}</span>` : '');
             let html = '';
             if (t.statut === 'termine' && t.champion) {
-                html += `<div class="champion-banniere"><small>🏆 Champion du tournoi</small><strong>${escapeHtml(t.champion)}</strong></div>`;
+                html += `<div class="champion-banniere"><small>Vainqueur du tournoi</small><strong>${escapeHtml(t.champion)}</strong></div>`;
             }
             html += htmlEtapes(t.statut);
             if (t.description) html += `<p class="description">${escapeHtml(t.description)}</p>`;
@@ -305,7 +294,7 @@
             const res = await poster(`/api/admin/tournois/${TOURNOI_ID}/matchs/${matchId}`,
                 { score1: Number(champs[0].value), score2: Number(champs[1].value) }, 'Score enregistré.');
             if (!res) bouton.disabled = false;
-            if (res && etat && etat.tournoi.statut === 'termine') showMessage('🏆 Le tournoi est terminé : le champion reçoit son badge !', 'success');
+            if (res && etat && etat.tournoi.statut === 'termine') showMessage('Tournoi terminé : chaque joueur de la team gagnante reçoit le badge Champion.', 'success');
         }
 
         async function supprimer() {

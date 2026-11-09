@@ -19,25 +19,23 @@
             color: var(--text);
             text-decoration: none;
             overflow: hidden;
-            animation: xhq-apparait 0.45s cubic-bezier(.2, .7, .2, 1) both;
-            transition: transform 0.2s, border-color 0.2s;
         }
-        .carte-tournoi::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 5px; background: linear-gradient(90deg, var(--bleu), var(--accent)); }
-        .carte-tournoi:hover { border-color: var(--bleu); transform: translateY(-2px); }
+        .carte-tournoi::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 4px; background: var(--ink); }
+        .carte-tournoi:hover { border-color: var(--text-soft); }
         .carte-tournoi.termine::before { background: var(--gold); }
-        .carte-tournoi h3 { font-size: 1.35rem; font-weight: 700; margin-top: 0.4rem; }
+        .carte-tournoi h3 { font-size: 1.45rem; text-transform: uppercase; margin-top: 0.3rem; }
         .carte-tournoi .quand { color: var(--muted); font-size: 0.9rem; }
         .carte-tournoi .desc { color: var(--text-soft); font-size: 0.92rem; margin: 0.2rem 0 0; }
         .carte-bas { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-top: auto; padding-top: 0.9rem; }
         .jauge { flex: 1; height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
-        .jauge i { display: block; height: 100%; background: var(--bleu); }
+        .jauge i { display: block; height: 100%; background: var(--text-soft); }
         .places { color: var(--muted); font-size: 0.85rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
-        .statut { align-self: flex-start; padding: 0.15rem 0.6rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; background: var(--accent-dim); color: var(--accent); }
-        .statut.inscriptions { background: var(--win-fond); color: var(--win); }
-        .statut.termine { background: var(--gold-fond); color: var(--gold); }
+        .statut { align-self: flex-start; padding: 0 0.4rem; border-radius: 2px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; background: var(--ink); color: #fff; }
+        .statut.inscriptions { background: var(--accent); color: #fff; }
+        .statut.termine { background: var(--gold); color: #fff; }
         .champion { color: var(--gold); font-weight: 600; }
 
-        .creer { margin-bottom: 2.2rem; padding: 1.4rem; background: var(--panel); border: 1px dashed var(--line-2); border-radius: var(--radius); }
+        .creer { margin-bottom: 2.2rem; padding: 1.4rem; background: var(--panel); border: 1px solid var(--line); border-top: 4px solid var(--accent); border-radius: var(--radius); }
         .creer h2 { font-size: 1.1rem; margin-bottom: 1rem; }
         .creer-grille { display: grid; grid-template-columns: 2fr 1.4fr 0.8fr; gap: 0.9rem; }
         .creer-grille .large { grid-column: 1 / -1; }
@@ -95,13 +93,13 @@
         function carte(t, i) {
             const pct = Math.round(100 * t.inscrits / t.places);
             const bas = t.statut === 'termine'
-                ? `<span class="champion">🏆 ${escapeHtml(t.champion || '')}</span><span class="places">${t.inscrits} teams</span>`
+                ? `<span class="champion">Vainqueur : ${escapeHtml(t.champion || '')}</span><span class="places">${t.inscrits} teams</span>`
                 : `<span class="jauge"><i style="width:${pct}%"></i></span><span class="places">${t.inscrits}/${t.places} teams</span>`;
             return `
-                <a class="carte-tournoi ${t.statut}" href="/tournois/${t.id}" style="animation-delay:${i * 0.06}s">
+                <a class="carte-tournoi ${t.statut}" href="/tournois/${t.id}">
                     <span class="statut ${t.statut}">${escapeHtml(t.statut_label)}</span>
                     <h3>${escapeHtml(t.nom)}</h3>
-                    ${t.quand ? `<span class="quand">📅 ${escapeHtml(t.quand)}</span>` : ''}
+                    ${t.quand ? `<span class="quand">${escapeHtml(t.quand)}</span>` : ''}
                     ${t.description ? `<p class="desc">${escapeHtml(t.description.length > 140 ? t.description.slice(0, 140) + '…' : t.description)}</p>` : ''}
                     <span class="carte-bas">${bas}</span>
                 </a>`;

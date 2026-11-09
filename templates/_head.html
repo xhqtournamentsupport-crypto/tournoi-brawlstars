@@ -1,16 +1,7 @@
-<script>(function () {
-        var t = {{ theme | tojson }};
-        try {
-            var q = new URLSearchParams(location.search).get('theme');
-            if (q === 'neon' || q === 'classique') sessionStorage.setItem('xhq-theme', q);
-            t = sessionStorage.getItem('xhq-theme') || t;
-        } catch (e) {}
-        document.documentElement.setAttribute('data-theme', t);
-    })();</script>
-    <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
+<link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800;900&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <script>window.XHQ_JEU = {{ (jeu.code if jeu else 'brawlstars') | tojson }};</script>
     <script src="{{ url_for('static', filename='xhq.js') }}"></script>

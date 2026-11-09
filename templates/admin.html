@@ -20,17 +20,17 @@
             border: 0;
             background: none;
             color: var(--muted);
-            
-            font-size: 1.15rem;
+            font-family: var(--display);
+            font-size: 1.2rem;
             font-weight: 600;
-            letter-spacing: 0.08em;
+            letter-spacing: 0.04em;
             text-transform: uppercase;
             cursor: pointer;
         }
 
         .tab:hover { color: var(--text); }
         .tab.active { color: var(--text); }
-        .tab.active::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; border-radius: 2px; background: var(--bleu); }
+        .tab.active::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 3px; background: var(--accent); }
 
         .tab .pastille {
             display: inline-block;
@@ -56,7 +56,7 @@
 
         .mdp-box { display: none; margin-bottom: 1.4rem; padding: 1rem 1.2rem; border-left: 3px solid var(--gold); background: rgba(233, 185, 58, 0.07); line-height: 1.7; }
         .mdp-box.show { display: block; }
-        .mdp-box code { padding: 0.15rem 0.5rem; background: var(--accent); border-radius: 6px; color: var(--ink); font-size: 1.05rem; user-select: all; }
+        .mdp-box code { padding: 0.15rem 0.5rem; background: var(--accent); border-radius: var(--radius); color: var(--ink); font-size: 1.05rem; user-select: all; }
 
         .actions { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
         .actions select { width: auto; padding: 0.4rem 0.5rem; font-size: 0.9rem; }
@@ -71,7 +71,7 @@
         .mvt.repechage { color: var(--bleu); }
         .mvt.inactive { color: var(--muted); }
 
-        .cloture { margin-top: 1.6rem; padding: 1.2rem; border: 1px solid rgba(255, 81, 70, 0.4); border-radius: 6px; }
+        .cloture { margin-top: 1.6rem; padding: 1.2rem; border: 1px solid rgba(255, 81, 70, 0.4); border-radius: var(--radius); }
         .cloture p { color: var(--muted); }
         .cloture p strong { color: var(--text); }
         .cloture .ligne { display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; }

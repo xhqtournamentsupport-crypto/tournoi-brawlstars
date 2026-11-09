@@ -3,353 +3,221 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>XHQ League — ligues e-sport amateurs</title>
+    <title>XHQ League — ligues et tournois {{ jeu_actuel.nom }}</title>
     {% include '_head.html' %}
     <style>
-        .accueil { flex: 1; width: 100%; max-width: 1240px; margin: 0 auto; padding: 0.5rem 2rem 5rem; }
+        .tete { display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 1rem; padding-bottom: 0.8rem; margin-bottom: 1.5rem; border-bottom: 2px solid var(--text); }
+        .tete h1 { font-size: clamp(2rem, 5vw, 2.9rem); text-transform: uppercase; }
+        .tete p { margin: 0.3rem 0 0; color: var(--muted); max-width: 620px; }
+        .tete-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
 
-        /* ---------- Arène (hero plein écran) ---------- */
-        .arene {
-            position: relative;
-            overflow: hidden;
-            min-height: 640px;
-            display: grid;
-            place-items: center;
-            padding: 4rem 1.5rem 4.5rem;
-            border-bottom: 1px solid var(--line);
-            background:
-                radial-gradient(ellipse 55% 45% at 50% 42%, var(--halo-1), transparent 70%),
-                radial-gradient(ellipse 35% 30% at 50% 78%, var(--halo-2), transparent 70%),
-                radial-gradient(circle at 1px 1px, var(--points) 1px, transparent 0) 0 0 / 26px 26px,
-                var(--bg);
-        }
-        .bracket { position: absolute; top: 50%; width: min(21vw, 430px); height: auto; transform: translateY(-50%); pointer-events: none; }
-        .bracket path { fill: none; stroke-width: 3; stroke-linejoin: miter; stroke-linecap: square; }
-        .bracket .trace { stroke: var(--bleu); opacity: 0.8; stroke-dasharray: 100; stroke-dashoffset: 100; animation: tracer 1.2s ease-out forwards; }
-        .bracket .trace.fin { stroke: var(--bleu-clair); stroke-width: 4; }
-        /* Signal lumineux qui remonte l'arbre jusqu'au centre, en boucle */
-        .bracket .flux { stroke: var(--accent); stroke-width: 3.5; stroke-dasharray: 16 300; stroke-dashoffset: 16; opacity: 0; filter: drop-shadow(0 0 6px var(--accent)); animation: flux 4s linear infinite; }
-        .bracket .n1 { animation-delay: 1.4s; }
-        .bracket .n2 { animation-delay: 2.2s; }
-        .bracket .n3 { animation-delay: 3s; }
-        .bracket .n4 { animation-delay: 3.8s; stroke-width: 5; }
-        @keyframes tracer { to { stroke-dashoffset: 0; } }
-        @keyframes flux {
-            0% { stroke-dashoffset: 16; opacity: 1; }
-            22% { stroke-dashoffset: -100; opacity: 1; }
-            23%, 100% { stroke-dashoffset: -100; opacity: 0; }
-        }
+        .tableau-bord { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 1.2rem; align-items: start; }
+        .colonne { display: grid; gap: 1.2rem; min-width: 0; }
 
-        /* Halo qui respire, point « en direct » */
-        .arene::after { content: ''; position: absolute; left: 50%; top: 42%; width: 720px; height: 420px; transform: translate(-50%, -50%); background: radial-gradient(ellipse at center, var(--halo-1), transparent 65%); animation: respire 6s ease-in-out infinite; pointer-events: none; }
-        @keyframes respire { 0%, 100% { opacity: 0.35; transform: translate(-50%, -50%) scale(0.95); } 50% { opacity: 0.8; transform: translate(-50%, -50%) scale(1.08); } }
-        .live { display: inline-block; width: 8px; height: 8px; margin-right: 0.55rem; border-radius: 50%; background: var(--accent); vertical-align: 0.05em; animation: live 1.6s ease-out infinite; }
-        @keyframes live { 0% { box-shadow: 0 0 0 0 var(--accent); } 70%, 100% { box-shadow: 0 0 0 8px transparent; } }
+        .boite { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+        .boite-titre { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; padding: 0.45rem 0.9rem; background: var(--ink); color: #fff; }
+        .boite-titre h2 { font-size: 1.1rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
+        .boite-titre a { color: #c9cdd3; font-size: 0.85rem; text-decoration: none; white-space: nowrap; }
+        .boite-titre a:hover { color: #fff; text-decoration: underline; }
+        .boite-corps { padding: 0.9rem; }
+        .boite-vide { padding: 1rem 0.9rem; color: var(--muted); font-size: 0.95rem; }
 
-        /* Entrée du hero */
-        .arene-centre > * { animation: monte 0.7s cubic-bezier(.2, .7, .2, 1) both; }
-        .arene-centre > :nth-child(2) { animation-delay: 0.1s; }
-        .arene-centre > :nth-child(3) { animation-delay: 0.2s; }
-        .arene-centre > :nth-child(4) { animation-delay: 0.3s; }
-        .arene-centre > :nth-child(5) { animation-delay: 0.35s; }
-        .arene-centre > :nth-child(6) { animation-delay: 0.45s; }
-        .arene-centre > :nth-child(7) { animation-delay: 0.55s; }
-        @keyframes monte { from { opacity: 0; transform: translateY(16px); } }
-        .arene-titre img { animation: flotte 5s ease-in-out 1s infinite; }
-        @keyframes flotte { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+        /* Classement compact */
+        .classement { min-width: 0; font-variant-numeric: tabular-nums; }
+        .classement th, .classement td { padding: 0.42rem 0.6rem; }
+        .classement td.num, .classement th.num { width: 2.6rem; text-align: center; }
+        .classement td.rg { width: 2.2rem; text-align: center; font-family: var(--display); font-size: 1.05rem; font-weight: 700; color: var(--muted); }
+        .classement td.pts { font-family: var(--display); font-size: 1.15rem; font-weight: 700; }
+        .classement td.nom { font-weight: 600; }
+        .classement tr.champion td { background: var(--gold-fond); }
+        .classement tr.descend td { background: var(--lose-fond); }
+        .classement tr.champion td:first-child { box-shadow: inset 4px 0 0 var(--gold); }
+        .classement tr.descend td:first-child { box-shadow: inset 4px 0 0 var(--lose); }
+        .classement tr.libre td { color: var(--vide); font-weight: 400; }
+        .legende { display: flex; gap: 1.2rem; padding: 0.5rem 0.9rem; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.82rem; }
+        .legende i { display: inline-block; width: 10px; height: 10px; margin-right: 0.35rem; vertical-align: -1px; }
 
-        /* Reflet qui balaie le bouton principal */
-        .arene-actions .hero-btn { position: relative; overflow: hidden; }
-        .arene-actions .hero-btn::after { content: ''; position: absolute; top: 0; left: -60%; width: 40%; height: 100%; background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.35), transparent); transform: skewX(-20deg); animation: reflet 3.5s ease-in-out 1.5s infinite; }
-        @keyframes reflet { 0% { left: -60%; } 35%, 100% { left: 130%; } }
+        /* Résultats */
+        .match { display: grid; grid-template-columns: 1fr auto 1fr 4.5rem; align-items: center; gap: 0.7rem; padding: 0.45rem 0.9rem; border-bottom: 1px solid var(--line); font-size: 0.95rem; }
+        .match:last-child { border-bottom: 0; }
+        .match .a { text-align: right; }
+        .match .g { font-weight: 700; }
+        .match .p { color: var(--muted); }
+        .match .sc { padding: 0 0.5rem; background: var(--ink); color: #fff; border-radius: 2px; font-family: var(--display); font-size: 1.05rem; font-weight: 600; letter-spacing: 0.06em; font-variant-numeric: tabular-nums; }
+        .match .ou { color: var(--muted); font-size: 0.8rem; text-align: right; white-space: nowrap; }
 
-        .stack-card { transition: transform 0.2s, border-color 0.2s; }
-        .stack-card:hover { transform: translateY(-3px); }
-        .stack-card:hover .stack-num { -webkit-text-stroke-color: var(--c, var(--accent)); }
+        /* Ligues */
+        .ligues { min-width: 0; }
+        .ligues td, .ligues th { padding: 0.42rem 0.7rem; }
+        .ligues td:first-child { font-weight: 700; }
+        .ligues a { color: var(--text); text-decoration: none; }
+        .ligues a:hover { color: var(--accent); text-decoration: underline; }
+        .barre { display: inline-block; width: 70px; height: 6px; margin-right: 0.5rem; background: var(--panel-2); border: 1px solid var(--line); vertical-align: 1px; }
+        .barre i { display: block; height: 100%; background: var(--text-soft); }
 
-        @media (prefers-reduced-motion: reduce) {
-            .bracket .trace { animation: none; stroke-dashoffset: 0; }
-            .bracket .flux, .arene::after, .live, .arene-actions .hero-btn::after { animation: none; display: none; }
-            .arene-centre > *, .arene-titre img { animation: none; }
-        }
-        .bracket.gauche { left: 0; }
-        .bracket.droite { right: 0; transform: translateY(-50%) scaleX(-1); }
+        /* Colonne de droite */
+        .rejoindre p { margin: 0 0 0.8rem; color: var(--text-soft); font-size: 0.95rem; }
+        .rejoindre .btn { width: 100%; margin-top: 0.4rem; }
+        .tournoi-ligne { display: block; padding: 0.6rem 0.9rem; border-bottom: 1px solid var(--line); color: var(--text); text-decoration: none; }
+        .tournoi-ligne:last-child { border-bottom: 0; }
+        .tournoi-ligne:hover { background: var(--panel-2); }
+        .tournoi-ligne strong { display: block; font-size: 1rem; }
+        .tournoi-ligne span { color: var(--muted); font-size: 0.85rem; }
+        .tournoi-ligne .etat { color: var(--accent); font-weight: 600; }
+        .tournoi-ligne .etat.fini { color: var(--gold); }
+        .infos-saison { display: grid; grid-template-columns: 1fr auto; margin: 0; }
+        .infos-saison dt, .infos-saison dd { margin: 0; padding: 0.42rem 0.9rem; border-bottom: 1px solid var(--line); }
+        .infos-saison dt { color: var(--muted); }
+        .infos-saison dd { font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+        .infos-saison dt:last-of-type, .infos-saison dd:last-of-type { border-bottom: 0; }
+        .reglement { margin: 0; padding: 0.7rem 0.9rem 0.7rem 2.1rem; color: var(--text-soft); font-size: 0.92rem; }
+        .reglement li { padding: 0.18rem 0; }
+        .reglement b { color: var(--text); }
 
-        .arene-centre { position: relative; z-index: 1; max-width: 780px; text-align: center; display: flex; flex-direction: column; align-items: center; }
-        .arene-pill { padding: 0.5rem 1.2rem; border: 1px solid var(--line-2); border-radius: 999px; background: rgba(13, 26, 61, 0.7); color: var(--text-soft); font-size: 0.95rem; font-weight: 500; }
-        .arene-pill b { color: var(--accent); font-weight: 600; }
-        .arene-titre { display: flex; align-items: center; justify-content: center; gap: clamp(0.6rem, 2vw, 1.2rem); margin: 1.8rem 0 1rem; line-height: 1; }
-        .arene-titre img { height: clamp(80px, 13vw, 150px); width: auto; display: block; }
-        .arene-titre span { font-size: clamp(2.6rem, 8vw, 6.2rem); font-weight: 900; letter-spacing: -0.02em; text-transform: uppercase; color: var(--text); }
-        .arene-sous { color: var(--text-soft); font-size: clamp(1.05rem, 2vw, 1.35rem); margin: 0; }
-        .arene-chiffre { margin-top: 2.6rem; font-size: clamp(4.5rem, 13vw, 9rem); font-weight: 900; line-height: 0.9; letter-spacing: -0.03em; color: var(--accent); font-variant-numeric: tabular-nums; text-shadow: 0 6px 40px var(--halo-2); }
-        .arene-label { margin-top: 0.9rem; font-size: 1.05rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
-        .arene-actions { display: flex; gap: 0.8rem; flex-wrap: wrap; justify-content: center; margin-top: 2.2rem; }
-        .arene-actions .hero-btn { padding: 1rem 2.4rem; font-size: 1.1rem; }
-        .arene-stats { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.4rem 1.4rem; margin-top: 1.8rem; color: var(--muted); font-size: 0.85rem; letter-spacing: 0.06em; text-transform: uppercase; }
-        .arene-stats strong { color: var(--text); font-weight: 600; }
-
-        /* ---------- Titres de bloc ---------- */
-        .bloc-titre { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; margin: 3.5rem 0 1.5rem; }
-        .bloc-titre h3 { font-size: 1.6rem; font-weight: 700; text-transform: uppercase; }
-        .bloc-titre h3::before { content: ''; display: inline-block; width: 0.55rem; height: 0.55rem; margin-right: 0.6rem; background: var(--accent); transform: rotate(45deg) translateY(-0.2rem); }
-        .bloc-titre span { color: var(--dim); font-size: 0.9rem; }
-
-        /* ---------- Cartes de jeu ---------- */
-        .jeux { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
-        .jeu {
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            padding: 1.6rem 1.4rem 1.4rem;
-            min-height: 210px;
-            background: var(--panel);
-            border: 1px solid var(--line);
-            border-radius: var(--radius);
-            color: var(--text);
-            text-decoration: none;
-            overflow: hidden;
-            transition: border-color 0.15s, transform 0.15s;
-        }
-        .jeu::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 8px; background: linear-gradient(90deg, var(--accent), var(--chaud)); }
-        .jeu:hover { border-color: var(--bleu); transform: translateY(-2px); }
-        .jeu-tag { align-self: flex-start; padding: 0.2rem 0.6rem; border-radius: 6px; background: var(--accent-dim); color: var(--accent); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
-        .jeu-nom { margin: 1rem 0 0.3rem; font-size: 1.8rem; font-weight: 700; text-transform: uppercase; line-height: 1; }
-        .jeu-meta { color: var(--muted); font-size: 0.9rem; }
-        .jeu-bas { margin-top: auto; padding-top: 1.2rem; display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
-        .jeu-jauge { flex: 1; height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
-        .jeu-jauge i { display: block; height: 100%; background: var(--bleu); }
-        .jeu-go { color: var(--bleu-clair); font-weight: 600; white-space: nowrap; }
-        .jeu.bientot { border-style: dashed; background: transparent; cursor: default; }
-        .jeu.bientot::before { background: var(--line-2); }
-        .jeu.bientot:hover { border-color: var(--line); transform: none; }
-        .jeu.bientot .jeu-tag { background: var(--panel-2); color: var(--dim); }
-        .jeu.bientot .jeu-nom { color: var(--dim); }
-        .lien-tournois { color: var(--bleu-clair); text-decoration: none; }
-        .lien-tournois:hover { color: var(--text); }
-
-        /* ---------- Règlement ---------- */
-        .stack { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
-        .stack-card {
-            position: relative;
-            padding: 1.6rem 1.4rem 1.6rem;
-            background: var(--panel);
-            border: 1px solid var(--line);
-            border-radius: var(--radius);
-            overflow: hidden;
-        }
-        .stack-card::before { content: ''; position: absolute; top: 0; left: 0; width: 42%; height: 6px; background: var(--c, var(--accent)); border-radius: 0 0 6px 0; }
-        .stack-card:hover { border-color: var(--line-2); }
-        .stack-num { position: absolute; top: 0.6rem; right: 1rem; font-size: 2.6rem; font-weight: 700; line-height: 1; color: transparent; -webkit-text-stroke: 1px var(--line-2); }
-        .stack-title { margin: 0.7rem 0 0.5rem; padding-right: 3.6rem; font-size: 1.35rem; font-weight: 700; text-transform: uppercase; }
-        .stack-desc { color: var(--muted); font-size: 0.95rem; line-height: 1.55; }
-        .stack-card.blue   { --c: var(--bleu); }
-        .stack-card.yellow { --c: var(--accent); }
-        .stack-card.pink   { --c: #e0458f; }
-        .stack-card.red    { --c: var(--lose); }
-        .stack-card.green  { --c: var(--win); }
-        .stack-card.purple { --c: #7d4dd8; }
-        .stack-card.cyan   { --c: #0f9fb3; }
-        .stack-card.orange { --c: var(--warn); }
-
-        @media (max-width: 1100px) {
-            .stack { grid-template-columns: repeat(2, 1fr); }
-            .jeux { grid-template-columns: repeat(2, 1fr); }
-        }
-        @media (max-width: 1200px) {
-            .bracket { display: none; }
-        }
-        @media (max-width: 860px) {
-            .accueil { padding: 0.5rem 1rem 3.5rem; }
-            .arene { min-height: 0; padding: 3rem 1rem 3.5rem; }
+        @media (max-width: 900px) {
+            .tableau-bord { grid-template-columns: 1fr; }
         }
         @media (max-width: 560px) {
-            .stack, .jeux { grid-template-columns: 1fr; }
-            .bloc-titre { flex-direction: column; gap: 0.3rem; }
+            .cache-mobile { display: none; }
+            .ligues td:first-child { white-space: nowrap; }
+            .match { grid-template-columns: 1fr auto 1fr; }
+            .match .ou { display: none; }
+            .tete-actions { width: 100%; }
         }
-        html[data-theme="neon"] .arene-pill { border-color: var(--accent); color: var(--text); }
-        html[data-theme="neon"] .bracket .trace { filter: drop-shadow(0 0 5px rgba(139, 92, 246, 0.6)); }
-                html[data-theme="neon"] .jeu, html[data-theme="neon"] .stack-card { clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 0 100%); }
-        html[data-theme="neon"] .jeu::before { background: linear-gradient(90deg, var(--bleu), var(--accent)); }
-        html[data-theme="neon"] .bloc-titre h3::before { background: var(--accent); }
     </style>
 </head>
 <body>
     {% include '_nav.html' %}
-    {% set principal = cartes[0] if cartes else None %}
 
-    {% set places = cartes | sum(attribute='places') %}{% set teams = cartes | sum(attribute='teams') %}{% set matchs = cartes | sum(attribute='matchs') %}
-    <section class="arene">
-        <svg class="bracket gauche" viewBox="0 0 540 765" aria-hidden="true">
-            <path class="trace" pathLength="100" d="M0 10 H110 V52.5"/>
-            <path class="trace" pathLength="100" d="M0 95 H110 V52.5"/>
-            <path class="trace" pathLength="100" d="M0 200 H110 V242.5"/>
-            <path class="trace" pathLength="100" d="M0 285 H110 V242.5"/>
-            <path class="trace" pathLength="100" d="M0 480 H110 V522.5"/>
-            <path class="trace" pathLength="100" d="M0 565 H110 V522.5"/>
-            <path class="trace" pathLength="100" d="M0 670 H110 V712.5"/>
-            <path class="trace" pathLength="100" d="M0 755 H110 V712.5"/>
-            <path class="trace" pathLength="100" d="M110 52.5 H220 V147.5"/>
-            <path class="trace" pathLength="100" d="M110 242.5 H220 V147.5"/>
-            <path class="trace" pathLength="100" d="M110 522.5 H220 V617.5"/>
-            <path class="trace" pathLength="100" d="M110 712.5 H220 V617.5"/>
-            <path class="trace" pathLength="100" d="M220 147.5 H470 V360"/>
-            <path class="trace" pathLength="100" d="M220 617.5 H470 V405"/>
-            <path class="trace fin" pathLength="100" d="M470 382 H540"/>
-            <path class="flux n1" pathLength="100" d="M0 10 H110 V52.5"/>
-            <path class="flux n1" pathLength="100" d="M0 95 H110 V52.5"/>
-            <path class="flux n1" pathLength="100" d="M0 200 H110 V242.5"/>
-            <path class="flux n1" pathLength="100" d="M0 285 H110 V242.5"/>
-            <path class="flux n1" pathLength="100" d="M0 480 H110 V522.5"/>
-            <path class="flux n1" pathLength="100" d="M0 565 H110 V522.5"/>
-            <path class="flux n1" pathLength="100" d="M0 670 H110 V712.5"/>
-            <path class="flux n1" pathLength="100" d="M0 755 H110 V712.5"/>
-            <path class="flux n2" pathLength="100" d="M110 52.5 H220 V147.5"/>
-            <path class="flux n2" pathLength="100" d="M110 242.5 H220 V147.5"/>
-            <path class="flux n2" pathLength="100" d="M110 522.5 H220 V617.5"/>
-            <path class="flux n2" pathLength="100" d="M110 712.5 H220 V617.5"/>
-            <path class="flux n3" pathLength="100" d="M220 147.5 H470 V360"/>
-            <path class="flux n3" pathLength="100" d="M220 617.5 H470 V405"/>
-            <path class="flux n4 fin" pathLength="100" d="M470 382 H540"/>
-        </svg>
-        <svg class="bracket droite" viewBox="0 0 540 765" aria-hidden="true">
-            <path class="trace" pathLength="100" d="M0 10 H110 V52.5"/>
-            <path class="trace" pathLength="100" d="M0 95 H110 V52.5"/>
-            <path class="trace" pathLength="100" d="M0 200 H110 V242.5"/>
-            <path class="trace" pathLength="100" d="M0 285 H110 V242.5"/>
-            <path class="trace" pathLength="100" d="M0 480 H110 V522.5"/>
-            <path class="trace" pathLength="100" d="M0 565 H110 V522.5"/>
-            <path class="trace" pathLength="100" d="M0 670 H110 V712.5"/>
-            <path class="trace" pathLength="100" d="M0 755 H110 V712.5"/>
-            <path class="trace" pathLength="100" d="M110 52.5 H220 V147.5"/>
-            <path class="trace" pathLength="100" d="M110 242.5 H220 V147.5"/>
-            <path class="trace" pathLength="100" d="M110 522.5 H220 V617.5"/>
-            <path class="trace" pathLength="100" d="M110 712.5 H220 V617.5"/>
-            <path class="trace" pathLength="100" d="M220 147.5 H470 V360"/>
-            <path class="trace" pathLength="100" d="M220 617.5 H470 V405"/>
-            <path class="trace fin" pathLength="100" d="M470 382 H540"/>
-            <path class="flux n1" pathLength="100" d="M0 10 H110 V52.5"/>
-            <path class="flux n1" pathLength="100" d="M0 95 H110 V52.5"/>
-            <path class="flux n1" pathLength="100" d="M0 200 H110 V242.5"/>
-            <path class="flux n1" pathLength="100" d="M0 285 H110 V242.5"/>
-            <path class="flux n1" pathLength="100" d="M0 480 H110 V522.5"/>
-            <path class="flux n1" pathLength="100" d="M0 565 H110 V522.5"/>
-            <path class="flux n1" pathLength="100" d="M0 670 H110 V712.5"/>
-            <path class="flux n1" pathLength="100" d="M0 755 H110 V712.5"/>
-            <path class="flux n2" pathLength="100" d="M110 52.5 H220 V147.5"/>
-            <path class="flux n2" pathLength="100" d="M110 242.5 H220 V147.5"/>
-            <path class="flux n2" pathLength="100" d="M110 522.5 H220 V617.5"/>
-            <path class="flux n2" pathLength="100" d="M110 712.5 H220 V617.5"/>
-            <path class="flux n3" pathLength="100" d="M220 147.5 H470 V360"/>
-            <path class="flux n3" pathLength="100" d="M220 617.5 H470 V405"/>
-            <path class="flux n4 fin" pathLength="100" d="M470 382 H540"/>
-        </svg>
-
-        <div class="arene-centre">
-            <span class="arene-pill"><span class="live"></span>{% if principal %}Saison {{ principal.saison }} en cours · {% endif %}<b>{{ nb_ligues }} divisions</b>, une seule couronne</span>
-            <h1 class="arene-titre"><img src="{{ url_for('static', filename='logo-xhq-clair.png') }}" alt="XHQ"></h1>
-            <p class="arene-sous">Ligues par saison, classements par jeu et palmarès pour les teams e-sport</p>
-            <div class="arene-chiffre" data-compte="{{ places }}">{{ places }}</div>
-            <div class="arene-label">Places en ligue cette saison</div>
-            <div class="arene-actions">
+    <main class="xhq-main">
+    <div class="container">
+        <div class="tete">
+            <div>
+                <h1><span class="kicker">XHQ League · {{ jeu_actuel.format }}</span>{{ jeu_actuel.nom }} — Saison {{ '%02d' % chiffres.saison }}</h1>
+                <p>Ligue amateur par saison : {{ nb_ligues }} divisions, poules de {{ par_poule }}. Les nouvelles teams commencent en Ligue {{ ligue_depart }}.</p>
+            </div>
+            <div class="tete-actions">
                 {% if current_user %}
-                <a href="/ligue" class="hero-btn">Voir les classements</a>
-                <a href="/teams" class="btn secondaire">Ma team</a>
+                <a href="/teams" class="btn">Ma team</a>
                 {% else %}
-                <a href="/signup" class="hero-btn">Créer ma team</a>
-                <a href="/ligue" class="btn secondaire">Classements</a>
+                <a href="/signup" class="btn">Inscrire ma team</a>
                 {% endif %}
                 {% if discord_url %}<a href="{{ discord_url }}" class="btn secondaire" target="_blank" rel="noopener">Discord</a>{% endif %}
             </div>
-            <div class="arene-stats">
-                {% if principal %}<span>Saison <strong>{{ principal.saison }}</strong></span>{% endif %}
-                <span><strong>{{ teams }}</strong> teams</span>
-                <span><strong>{{ joueurs_total }}</strong> joueurs</span>
-                <span><strong>{{ matchs }}</strong> matchs</span>
-            </div>
         </div>
-    </section>
+        {% include '_jeux.html' %}
 
-    <main class="accueil">
-        <div class="bloc-titre"><h3>Choisis ton jeu</h3><span>Un classement par jeu</span></div>
-        <div class="jeux">
-            {% for c in cartes %}
-            <a class="jeu reveal" href="/ligue?jeu={{ c.code }}">
-                <span class="jeu-tag">{{ c.format }} · Saison {{ c.saison }}</span>
-                <span class="jeu-nom">{{ c.nom }}</span>
-                <span class="jeu-meta">{{ c.teams }}/{{ c.places }} teams · {{ c.matchs }} match{{ 's' if c.matchs != 1 }}</span>
-                <span class="jeu-bas">
-                    <span class="jeu-jauge"><i style="width:{{ (100 * c.teams / c.places) | round | int if c.places else 0 }}%"></i></span>
-                    <span class="jeu-go">Classements →</span>
-                </span>
-            </a>
-            {% endfor %}
-            <div class="jeu bientot reveal" style="--d:0.1s">
-                <span class="jeu-tag">Bientôt</span>
-                <span class="jeu-nom">D'autres jeux</span>
-                <span class="jeu-meta">Même principe : des ligues, des saisons, un palmarès par jeu.</span>
-            </div>
-        </div>
+        <div class="tableau-bord">
+            <div class="colonne">
+                <section class="boite">
+                    <div class="boite-titre"><h2>Ligue 1 — classement</h2><a href="/ligue?jeu={{ jeu_actuel.code }}">Toutes les ligues →</a></div>
+                    <table class="classement">
+                        <thead><tr><th class="num">#</th><th>Team</th><th class="num">J</th><th class="num cache-mobile">V</th><th class="num cache-mobile">D</th><th class="num">+/-</th><th class="num">Pts</th></tr></thead>
+                        <tbody>
+                            {% for p in ligue1 %}
+                            <tr class="{{ p.statut }}{% if not p.team_id %} libre{% endif %}">
+                                <td class="rg">{{ p.rang }}</td>
+                                <td class="nom">{{ p.team_name if p.team_id else '—' }}</td>
+                                <td class="num">{{ p.joues }}</td>
+                                <td class="num cache-mobile">{{ p.victoires }}</td>
+                                <td class="num cache-mobile">{{ p.defaites }}</td>
+                                <td class="num">{{ '+' if p.diff > 0 }}{{ p.diff }}</td>
+                                <td class="num pts">{{ p.points }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    <div class="legende"><span><i style="background:var(--gold)"></i>Champion</span><span><i style="background:var(--lose)"></i>Descend en Ligue 2</span></div>
+                </section>
 
-        <div class="bloc-titre"><h3>Tournois</h3><span><a href="/tournois" class="lien-tournois">Tous les tournois →</a></span></div>
-        <div class="jeux">
-            {% for t in tournois %}
-            <a class="jeu reveal" href="/tournois/{{ t.id }}">
-                <span class="jeu-tag">{{ t.statut_label }}{% if t.jeu %} · {{ t.jeu.nom }}{% endif %}</span>
-                <span class="jeu-nom">{{ t.nom }}</span>
-                <span class="jeu-meta">{% if t.quand %}{{ t.quand }} · {% endif %}{{ t.inscrits }}/{{ t.places }} teams</span>
-                <span class="jeu-bas">
-                    <span class="jeu-jauge"><i style="width:{{ (100 * t.inscrits / t.places) | round | int }}%"></i></span>
-                    <span class="jeu-go">{{ "S'inscrire" if t.statut == 'inscriptions' else 'Suivre' }} →</span>
-                </span>
-            </a>
-            {% else %}
-            <div class="jeu bientot reveal">
-                <span class="jeu-tag">Bientôt</span>
-                <span class="jeu-nom">Prochain tournoi</span>
-                <span class="jeu-meta">Poules puis phase finale. Le champion gagne un badge exclusif. Annonce sur le Discord.</span>
-            </div>
-            {% endfor %}
-        </div>
+                <section class="boite">
+                    <div class="boite-titre"><h2>Derniers résultats</h2><a href="/ligue?jeu={{ jeu_actuel.code }}">Classements →</a></div>
+                    {% for m in derniers %}
+                    <div class="match">
+                        <span class="a {{ 'g' if m.score1 > m.score2 else 'p' }}">{{ m.team1_nom }}</span>
+                        <span class="sc">{{ m.score1 }}-{{ m.score2 }}</span>
+                        <span class="{{ 'g' if m.score2 > m.score1 else 'p' }}">{{ m.team2_nom }}</span>
+                        <span class="ou">L{{ m.ligue_num }}{% if m.ligue_num >= 4 %} · {{ m.poule }}{% endif %}</span>
+                    </div>
+                    {% else %}
+                    <p class="boite-vide">Aucun match joué cette saison pour l'instant.</p>
+                    {% endfor %}
+                </section>
 
-        <div class="bloc-titre"><h3>Comment ça marche</h3><span>Les règles en 8 points</span></div>
-        <div class="stack">
-            <div class="stack-card yellow reveal" style="--d:0.00s"><div class="stack-num">01</div><div class="stack-title">{{ nb_ligues }} divisions</div><div class="stack-desc">De la Ligue {{ nb_ligues }} à la Ligue 1. Chaque nouvelle team commence tout en bas.</div></div>
-            <div class="stack-card blue reveal" style="--d:0.08s"><div class="stack-num">02</div><div class="stack-title">Poules de {{ par_poule }}</div><div class="stack-desc">Une poule en Ligues 1 à 3, deux en Ligues 4 et 5. Tu affrontes les teams de ta poule.</div></div>
-            <div class="stack-card green reveal" style="--d:0.16s"><div class="stack-num">03</div><div class="stack-title">Montées</div><div class="stack-desc">Le premier de chaque poule monte. Les places libres sont repêchées par la division du dessous.</div></div>
-            <div class="stack-card red reveal" style="--d:0.24s"><div class="stack-num">04</div><div class="stack-title">Descentes</div><div class="stack-desc">Les dernières places redescendent. En Ligue 1, le dernier tombe direct.</div></div>
-            <div class="stack-card orange reveal" style="--d:0.00s"><div class="stack-num">05</div><div class="stack-title">Absences</div><div class="stack-desc">Un match pas joué, c'est un point en moins. Aucun match sur la saison, et la team sort du classement.</div></div>
-            <div class="stack-card purple reveal" style="--d:0.08s"><div class="stack-num">06</div><div class="stack-title">Teams de 5</div><div class="stack-desc">Trois titulaires, deux remplaçants, une team par jeu. Le capitaine gère l'effectif.</div></div>
-            <div class="stack-card cyan reveal" style="--d:0.16s"><div class="stack-num">07</div><div class="stack-title">Résultats vérifiés</div><div class="stack-desc">Les scores sont saisis par l'organisation, pas par les joueurs.</div></div>
-            <div class="stack-card pink reveal" style="--d:0.24s"><div class="stack-num">08</div><div class="stack-title">Objets exclusifs</div><div class="stack-desc">Badges et cadres gratuits, certains limités dans le temps. Aucun avantage en jeu.</div></div>
+                <section class="boite">
+                    <div class="boite-titre"><h2>Les divisions</h2></div>
+                    <table class="ligues">
+                        <thead><tr><th>Ligue</th><th class="cache-mobile">Poules</th><th>Teams</th><th class="cache-mobile">Fin de saison</th></tr></thead>
+                        <tbody>
+                            {% for l in remplissage %}
+                            <tr>
+                                <td><a href="/ligue?jeu={{ jeu_actuel.code }}#{{ l.num }}">Ligue {{ l.num }}</a></td>
+                                <td class="cache-mobile">{{ l.poules }}</td>
+                                <td><span class="barre"><i style="width:{{ (100 * l.teams / l.places) | round | int }}%"></i></span>{{ l.teams }}/{{ l.places }}</td>
+                                <td class="muted cache-mobile">{% if l.num == 1 %}1er champion, 8e descend{% elif l.num == nb_ligues %}1er de chaque poule monte{% elif l.num == 3 %}1er monte, 7e et 8e descendent{% else %}1er monte, 8e descend{% endif %}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </section>
+            </div>
+
+            <aside class="colonne">
+                <section class="boite">
+                    <div class="boite-titre"><h2>{{ 'Ta team' if current_user else 'Rejoindre' }}</h2></div>
+                    <div class="boite-corps rejoindre">
+                        {% if current_user %}
+                        <p>Gère ton effectif, suis tes matchs et inscris ta team aux tournois.</p>
+                        <a href="/teams?jeu={{ jeu_actuel.code }}" class="btn">Ouvrir ma team</a>
+                        {% else %}
+                        <p>Crée un compte, monte ta team (3 à 5 joueurs) et commence en Ligue {{ ligue_depart }}. C'est gratuit.</p>
+                        <a href="/signup" class="btn">Créer un compte</a>
+                        <a href="/login" class="btn secondaire">J'ai déjà un compte</a>
+                        {% endif %}
+                    </div>
+                </section>
+
+                <section class="boite">
+                    <div class="boite-titre"><h2>Tournois</h2><a href="/tournois?jeu={{ jeu_actuel.code }}">Tout voir →</a></div>
+                    {% for t in tournois %}
+                    <a class="tournoi-ligne" href="/tournois/{{ t.id }}">
+                        <strong>{{ t.nom }}</strong>
+                        <span class="etat{% if t.statut == 'termine' %} fini{% endif %}">{{ t.statut_label }}</span>
+                        <span>{% if t.statut == 'termine' and t.champion %} · vainqueur {{ t.champion }}{% else %}{% if t.quand %} · {{ t.quand }}{% endif %} · {{ t.inscrits }}/{{ t.places }} teams{% endif %}</span>
+                    </a>
+                    {% else %}
+                    <p class="boite-vide">Pas de tournoi annoncé. Les dates sont données sur le Discord.</p>
+                    {% endfor %}
+                </section>
+
+                <section class="boite">
+                    <div class="boite-titre"><h2>Saison {{ chiffres.saison }}</h2></div>
+                    <dl class="infos-saison">
+                        <dt>Teams classées</dt><dd>{{ chiffres.teams }}/{{ chiffres.places }}</dd>
+                        <dt>Joueurs en team</dt><dd>{{ chiffres.joueurs }}</dd>
+                        <dt>Matchs joués</dt><dd>{{ chiffres.matchs }}</dd>
+                        <dt>Comptes créés</dt><dd>{{ joueurs_total }}</dd>
+                        {% for p in palmares %}<dt>Champion saison {{ p.numero }}</dt><dd>{{ p.champion or '—' }}</dd>{% endfor %}
+                    </dl>
+                </section>
+
+                <section class="boite">
+                    <div class="boite-titre"><h2>Règlement en bref</h2></div>
+                    <ul class="reglement">
+                        <li><b>Victoire</b> 3 pts, défaite 0. Pas de match nul.</li>
+                        <li>Le <b>1er</b> de chaque poule monte, les derniers descendent.</li>
+                        <li>Place libre : la ligue du dessous est <b>repêchée</b>.</li>
+                        <li>Match non joué : <b>−1 pt</b> (doublé en cas de récidive, max −15).</li>
+                        <li>Aucun match de la saison : team <b>retirée</b> du classement.</li>
+                        <li>Scores saisis par l'organisation uniquement.</li>
+                        <li>Une team par jeu, 5 joueurs max.</li>
+                    </ul>
+                </section>
+            </aside>
         </div>
+    </div>
     </main>
 
     {% include '_footer.html' %}
-    <script>
-        (function () {
-            var calme = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
-            // Compteur qui défile jusqu'au chiffre
-            var el = document.querySelector('[data-compte]');
-            if (el && !calme) {
-                var cible = parseInt(el.dataset.compte, 10) || 0, t0 = null;
-                el.textContent = '0';
-                requestAnimationFrame(function pas(t) {
-                    if (!t0) t0 = t;
-                    var p = Math.min((t - t0) / 1400, 1);
-                    el.textContent = Math.round(cible * (1 - Math.pow(1 - p, 3)));
-                    if (p < 1) requestAnimationFrame(pas);
-                });
-            }
-            // Cartes qui apparaissent au défilement
-            if (!calme && 'IntersectionObserver' in window) {
-                document.documentElement.classList.add('anim-ok');
-                var obs = new IntersectionObserver(function (entrees) {
-                    entrees.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('vu'); obs.unobserve(e.target); } });
-                }, { threshold: 0.15 });
-                document.querySelectorAll('.reveal').forEach(function (n) { obs.observe(n); });
-            }
-        })();
-    </script>
 </body>
 </html>

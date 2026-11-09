@@ -64,9 +64,6 @@ JEUX_DEFAUT = [
 ]
 JEU_DEFAUT = 'brawlstars'
 
-# Couleurs du site : 'neon' (violet / cyan) ou 'classique' (bleu nuit / jaune)
-THEME = 'neon'
-
 # Contact affiché sur le site (page Contact, pied de page, accueil)
 CONTACT_EMAIL = 'xhqtournamentsupport@gmail.com'
 DISCORD_URL = 'https://discord.gg/cwMZ7VQW74'
@@ -557,7 +554,7 @@ def injecter_utilisateur():
     except Exception:
         pass
     return {'current_user': current_user, 'jeux': jeux, 'jeu': jeu or (jeux[0] if jeux else None),
-            'contact_email': CONTACT_EMAIL, 'discord_url': DISCORD_URL, 'theme': THEME}
+            'contact_email': CONTACT_EMAIL, 'discord_url': DISCORD_URL}
 
 
 def page_connectee(f):
@@ -634,12 +631,25 @@ def chiffres_jeu(db, jeu_id):
 
 @app.route('/')
 def index():
+    """Accueil = tableau de bord du jeu choisi : classement de Ligue 1, derniers résultats, tournois."""
     db = get_db()
-    cartes = [{**j, **chiffres_jeu(db, j['id'])} for j in liste_jeux(db)]
+    jeu = trouver_jeu(db) or trouver_jeu(db, JEU_DEFAUT)
+    chiffres = chiffres_jeu(db, jeu['id'])
+    ligue1 = classement_poule(db, jeu['id'], 1, lettres_poules(1)[0])
+    remplissage = []
+    for n, config in LIGUES.items():
+        nb = db.execute('SELECT COUNT(*) FROM ligue l JOIN teams t ON t.id = l.team_id WHERE t.jeu_id = ? AND l.ligue_num = ?',
+                        (jeu['id'], n)).fetchone()[0]
+        remplissage.append({'num': n, 'teams': nb, 'places': config['poules'] * TEAMS_PAR_POULE, 'poules': config['poules']})
+    derniers = [dict(r) for r in db.execute(REQ_MATCHS + ' WHERE m.jeu_id = ? AND m.saison = ? ORDER BY m.id DESC LIMIT 8',
+                                             (jeu['id'], chiffres['saison']))]
     tournois = [resume_tournoi(db, t) for t in db.execute(
-        "SELECT * FROM tournois WHERE statut != 'termine' ORDER BY id DESC LIMIT 3")]
-    return render_template('index.html', cartes=cartes, nb_ligues=LIGUE_MAX, par_poule=TEAMS_PAR_POULE,
-                           joueurs_total=db.execute('SELECT COUNT(*) FROM users').fetchone()[0], tournois=tournois)
+        """SELECT * FROM tournois WHERE jeu_id = ? ORDER BY CASE statut WHEN 'termine' THEN 1 ELSE 0 END, id DESC LIMIT 4""",
+        (jeu['id'],))]
+    return render_template('index.html', jeu_actuel=jeu, chiffres=chiffres, ligue1=ligue1, remplissage=remplissage,
+                           derniers=derniers, tournois=tournois, palmares=palmares(db, jeu['id'], 3),
+                           nb_ligues=LIGUE_MAX, par_poule=TEAMS_PAR_POULE, ligue_depart=LIGUE_DEPART,
+                           joueurs_total=db.execute('SELECT COUNT(*) FROM users').fetchone()[0])
 
 
 @app.route('/login')

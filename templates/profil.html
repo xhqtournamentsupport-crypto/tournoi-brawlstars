@@ -77,13 +77,13 @@
             font-size: 1.8rem;
             background: var(--bg-2);
             border: 2px solid var(--line-2);
-            border-radius: 8px;
+            border-radius: var(--radius);
             cursor: pointer;
             transition: border-color 0.15s;
         }
 
         .logo-option:hover { border-color: var(--text); }
-        .logo-option.active { border-color: var(--bleu); background: rgba(75, 92, 255, 0.18); }
+        .logo-option.active { border-color: var(--bleu); background: var(--accent-dim); }
         .logo-option.verrou { opacity: 0.3; filter: grayscale(1); }
         .logo-premium-titre { margin-top: 0.4rem; }
 
@@ -101,7 +101,7 @@
             border-radius: var(--radius);
         }
 
-        .inv-item.equipe { border-color: var(--bleu); background: rgba(75, 92, 255, 0.1); }
+        .inv-item.equipe { border-color: var(--bleu); background: var(--accent-dim); }
         .inv-type { color: var(--dim); font-size: 0.75rem; letter-spacing: 0.14em; text-transform: uppercase; }
         .inv-nom { font-size: 1.3rem; font-weight: 700; }
         .inv-etat { color: var(--muted); font-size: 0.88rem; flex: 1; }
