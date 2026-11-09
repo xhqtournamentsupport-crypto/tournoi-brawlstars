@@ -1,43 +1,45 @@
 /* =====================================================================
    XHQ League — feuille de style commune
    Style « outil de compétition » : fond gris clair, contenu dans des
-   blocs blancs, en-têtes de tableaux sombres, une seule couleur d'accent
-   (rouge). Coins quasi droits, pas de dégradés ni d'ombres décoratives.
+   blocs blancs, en-têtes indigo, une seule couleur d'accent (bleu-violet
+   du logo). Coins quasi droits, pas de dégradés ni d'ombres décoratives.
    ===================================================================== */
 
 :root {
-    --bg: #e8eaed;          /* fond de page */
-    --bg-2: #f5f6f7;        /* zones en retrait (champs, lignes de match) */
+    /* Palette tirée du logo : indigo profond + bleu lavande */
+    --bg: #eceef6;          /* fond de page */
+    --bg-2: #f5f6fb;        /* zones en retrait */
     --panel: #ffffff;       /* blocs */
-    --panel-2: #f0f1f3;     /* en-têtes de tableaux clairs, survol */
-    --line: #d7dade;
-    --line-2: #babfc6;
-    --trait: #babfc6;
-    --text: #16181b;
-    --text-soft: #3b4048;
-    --muted: #6b717a;
-    --dim: #9aa0a8;
-    --vide: #c4c8ce;
-    --ink: #16181b;         /* barre du haut, en-têtes de poules */
-    --ink-2: #24272c;
+    --panel-2: #f0f1f8;     /* en-têtes de tableaux clairs, survol */
+    --line: #d9dceb;
+    --line-2: #b9bdd6;
+    --trait: #b9bdd6;
+    --text: #15162b;
+    --text-soft: #3b3d58;
+    --muted: #6c6f8b;
+    --dim: #9da0b8;
+    --vide: #c6c9dc;
+    --ink: #17164a;         /* barre du haut, en-têtes (indigo du logo) */
+    --ink-2: #24236b;
+    --ink-texte: #c9cdf5;   /* texte clair sur l'indigo */
 
-    --accent: #d62839;      /* LA couleur d'accent */
-    --accent-dim: #fbe9eb;
-    --bleu: #d62839;        /* (nom historique) = bouton principal */
-    --bleu-clair: #b31f2e;  /* liens */
-    --bleu-hover: #b31f2e;
-    --chaud: #d62839;
+    --accent: #4b4fe0;      /* bleu-violet du logo */
+    --accent-dim: #ecedfd;
+    --bleu: #4b4fe0;
+    --bleu-clair: #3a3dc0;  /* liens */
+    --bleu-hover: #3a3dc0;
+    --chaud: #4b4fe0;
 
-    --win: #1d7f46;
-    --win-fond: #e4f2e9;
-    --lose: #c0262d;
-    --lose-fond: #fae6e7;
-    --gold: #a87400;
-    --gold-fond: #f8eed3;
+    --win: #1d7f52;
+    --win-fond: #e3f2ea;
+    --lose: #c23b4a;
+    --lose-fond: #f9e7ea;
+    --gold: #b07d0a;
+    --gold-fond: #f8efd8;
     --warn: #a65c00;
 
-    --nav-bg: #16181b;
-    --focus: rgba(214, 40, 57, 0.18);
+    --nav-bg: #17164a;
+    --focus: rgba(75, 79, 224, 0.2);
     --halo-1: transparent;
     --halo-2: transparent;
     --points: transparent;
@@ -45,7 +47,7 @@
     --display: 'Barlow Condensed', 'Arial Narrow', Arial, sans-serif;
     --body: 'Barlow', 'Segoe UI', Arial, sans-serif;
     --radius: 3px;
-    --ombre: 0 6px 18px rgba(0, 0, 0, 0.12);
+    --ombre: 0 6px 18px rgba(23, 22, 74, 0.14);
     --ombre-petite: none;
 }
 
@@ -88,12 +90,12 @@ a { color: var(--bleu-clair); }
     min-height: 56px;
     padding: 0 1.5rem;
     background: var(--nav-bg);
-    border-bottom: 3px solid var(--accent);
+    border-bottom: 3px solid #aeb3ff;
 }
 
 .xhq-logo { display: inline-flex; align-items: center; gap: 0.6rem; text-decoration: none; color: #fff; }
 .xhq-logo img { height: 28px; width: auto; display: block; }
-.xhq-logo small { color: #9aa0a8; font-size: 0.75rem; letter-spacing: 0.18em; text-transform: uppercase; }
+.xhq-logo small { color: #9ea2d4; font-size: 0.75rem; letter-spacing: 0.18em; text-transform: uppercase; }
 
 .xhq-nav-right { display: flex; align-items: stretch; gap: 1.2rem; flex-wrap: wrap; }
 .xhq-nav-links { display: flex; align-items: stretch; flex-wrap: wrap; }
@@ -103,7 +105,7 @@ a { color: var(--bleu-clair); }
     display: inline-flex;
     align-items: center;
     padding: 0 0.9rem;
-    color: #c9cdd3;
+    color: var(--ink-texte);
     text-decoration: none;
     font-family: var(--display);
     font-size: 1.05rem;
@@ -115,10 +117,10 @@ a { color: var(--bleu-clair); }
 }
 
 .xhq-nav-btn:hover { color: #fff; background: var(--ink-2); }
-.xhq-nav-btn.active { color: #fff; border-bottom-color: #fff; }
-.xhq-nav-btn.admin { color: #ff8a95; }
+.xhq-nav-btn.active { color: #fff; border-bottom-color: #aeb3ff; }
+.xhq-nav-btn.admin { color: #aeb3ff; }
 
-.xhq-nav-auth .xhq-nav-btn { margin: 0; padding: 0.4rem 0.9rem; border: 1px solid #4a4f57; border-radius: var(--radius); font-size: 0.95rem; }
+.xhq-nav-auth .xhq-nav-btn { margin: 0; padding: 0.4rem 0.9rem; border: 1px solid #3d3c86; border-radius: var(--radius); font-size: 0.95rem; }
 .xhq-nav-btn.outline:hover { border-color: #fff; background: transparent; }
 .xhq-nav-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 .xhq-nav-btn.primary:hover { background: var(--bleu-hover); }
@@ -135,7 +137,7 @@ a { color: var(--bleu-clair); }
     font-size: 1.15rem;
     text-decoration: none;
     background: var(--ink-2);
-    border: 1px solid #4a4f57;
+    border: 1px solid #3d3c86;
     border-radius: var(--radius);
 }
 
@@ -344,7 +346,7 @@ table { width: 100%; min-width: 640px; border-collapse: collapse; background: #f
 th { text-align: left; padding: 0.5rem 0.7rem; background: var(--panel-2); color: var(--muted); font-size: 0.78rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; border-bottom: 1px solid var(--line-2); }
 td { padding: 0.55rem 0.7rem; border-bottom: 1px solid var(--line); vertical-align: middle; overflow-wrap: anywhere; }
 tr:last-child td { border-bottom: 0; }
-tbody tr:hover td { background: #fafafb; }
+tbody tr:hover td { background: #f8f9fc; }
 
 /* =====================================================================
    Classements, poules, résultats
@@ -413,7 +415,7 @@ tbody tr:hover td { background: #fafafb; }
     text-transform: uppercase;
 }
 
-.poule-title::after { content: 'Pts'; color: #9aa0a8; font-size: 0.85rem; }
+.poule-title::after { content: 'Pts'; color: #9ea2d4; font-size: 0.85rem; }
 
 .leaderboard { list-style: none; margin: 0; padding: 0; }
 
@@ -427,7 +429,7 @@ tbody tr:hover td { background: #fafafb; }
 }
 
 .leaderboard-item:last-child { border-bottom: 0; }
-.leaderboard-item:nth-child(even) { background: #fafafb; }
+.leaderboard-item:nth-child(even) { background: #f8f9fc; }
 .leaderboard-item::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; }
 .leaderboard-item.monte::before { background: var(--win); }
 .leaderboard-item.descend::before { background: var(--lose); }
@@ -520,13 +522,13 @@ tbody tr:hover td { background: #fafafb; }
     gap: 0.8rem;
     padding: 1rem 1.5rem;
     background: var(--ink);
-    color: #9aa0a8;
+    color: #9ea2d4;
     font-size: 0.88rem;
 }
 
 .xhq-footer p { margin: 0; }
 .xhq-footer-links { display: flex; gap: 1.4rem; flex-wrap: wrap; }
-.xhq-footer-links a { color: #c9cdd3; text-decoration: none; }
+.xhq-footer-links a { color: var(--ink-texte); text-decoration: none; }
 .xhq-footer-links a:hover { color: #fff; text-decoration: underline; }
 
 /* ---------------------------------------------------------------------
