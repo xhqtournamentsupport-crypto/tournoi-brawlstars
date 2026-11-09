@@ -7,47 +7,47 @@
 
 :root {
     /* 3 couleurs seulement, tirées du logo :
-         INDIGO  #17164a  (texte, barre du haut, en-têtes)
+         INDIGO  #17164a  (fonds sombres, en déclinaisons plus ou moins foncées)
          VIOLET  #4b4fe0  (boutons, liens, ce qui est actif ou qui monte)
-         BLANC   #ffffff  (fonds)
-       Tous les « gris » ci-dessous sont des mélanges indigo + blanc. */
+         BLANC   #ffffff  (texte)
+       Les teintes ci-dessous sont des mélanges de ces trois couleurs. */
     --indigo: #17164a;
     --violet: #4b4fe0;
 
-    --bg: #eeeef5;          /* indigo très dilué */
-    --bg-2: #f6f6fa;
-    --panel: #ffffff;
-    --panel-2: #f1f1f7;
-    --line: #dcdcea;
-    --line-2: #bdbdd4;
-    --trait: #bdbdd4;
-    --text: #17164a;
-    --text-soft: #3d3c6b;
-    --muted: #74739a;
-    --dim: #a3a2bf;
-    --vide: #c9c9db;
-    --ink: #17164a;
-    --ink-2: #2a2961;
-    --ink-texte: #c5c5dc;   /* blanc dilué sur l'indigo */
+    --bg: #0c0b26;          /* indigo très foncé */
+    --bg-2: #121133;        /* champs, zones en retrait */
+    --panel: #17164a;       /* blocs = indigo du logo */
+    --panel-2: #1e1d58;     /* en-têtes de tableaux, survol */
+    --line: #2a2968;
+    --line-2: #3c3b85;
+    --trait: #3c3b85;
+    --text: #ffffff;
+    --text-soft: #d6d6f0;
+    --muted: #9c9bcb;
+    --dim: #6c6ba3;
+    --vide: #3e3d7a;
+    --ink: #0e0d2e;         /* barre du haut, bandeaux de titres */
+    --ink-2: #1e1d58;
+    --ink-texte: #c9c8ea;
 
     --accent: #4b4fe0;
-    --accent-dim: #ececfc;
+    --accent-dim: rgba(75, 79, 224, 0.2);
     --bleu: #4b4fe0;
-    --bleu-clair: #4b4fe0;
-    --bleu-hover: #3b3ec4;
+    --bleu-clair: #9a9dff;  /* liens (violet éclairci pour se lire sur fond sombre) */
+    --bleu-hover: #5d61f0;
     --chaud: #4b4fe0;
 
     /* Statuts avec les mêmes 3 couleurs */
-    --win: #4b4fe0;         /* monte / succès = violet */
-    --win-fond: #ececfc;
-    --lose: #17164a;        /* descend / erreur = indigo */
-    --lose-fond: #e6e6ef;
-    --gold: #4b4fe0;        /* champion = violet (jamais dans la même ligue qu'une montée) */
-    --gold-fond: #ececfc;
-    --warn: #4b4fe0;
+    --win: #9a9dff;         /* monte / succès = violet */
+    --win-fond: rgba(75, 79, 224, 0.2);
+    --lose: #9c9bcb;        /* descend / erreur = indigo-blanc */
+    --lose-fond: rgba(255, 255, 255, 0.04);
+    --gold: #9a9dff;        /* champion = violet */
+    --gold-fond: rgba(75, 79, 224, 0.26);
+    --warn: #9a9dff;
 
-    --nav-bg: #17164a;
-    --focus: rgba(75, 79, 224, 0.2);
+    --nav-bg: #0e0d2e;
+    --focus: rgba(75, 79, 224, 0.35);
     --halo-1: transparent;
     --halo-2: transparent;
     --points: transparent;
@@ -55,7 +55,7 @@
     --display: 'Barlow Condensed', 'Arial Narrow', Arial, sans-serif;
     --body: 'Barlow', 'Segoe UI', Arial, sans-serif;
     --radius: 3px;
-    --ombre: 0 6px 18px rgba(23, 22, 74, 0.14);
+    --ombre: 0 10px 28px rgba(0, 0, 0, 0.45);
     --ombre-petite: none;
 }
 
@@ -67,7 +67,11 @@ body {
     font-size: 16px;
     line-height: 1.5;
     color: var(--text);
-    background: var(--bg);
+    background:
+        radial-gradient(ellipse 70% 45% at 50% 0%, rgba(75, 79, 224, 0.28), transparent 70%),
+        radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.07) 1px, transparent 0) 0 0 / 26px 26px,
+        var(--bg);
+    background-attachment: fixed;
     min-height: 100vh;
     display: flex;
     flex-direction: column;
@@ -77,6 +81,13 @@ h1, h2, h3, h4 { margin: 0; font-family: var(--display); font-weight: 700; lette
 p { margin: 0 0 1rem; }
 a { color: var(--bleu-clair); }
 ::selection { background: var(--accent); color: #fff; }
+
+/* Lignes d'arbre de tournoi sur les côtés (grands écrans seulement) */
+.decor-bracket { position: fixed; top: 50%; z-index: -1; width: calc((100vw - 1240px) / 2); max-width: 420px; transform: translateY(-50%); pointer-events: none; opacity: 0.75; }
+.decor-bracket path { fill: none; stroke: var(--violet); stroke-width: 3; }
+.decor-bracket.gauche { left: 0; }
+.decor-bracket.droite { right: 0; transform: translateY(-50%) scaleX(-1); }
+@media (max-width: 1500px) { .decor-bracket { display: none; } }
 
 [hidden] { display: none !important; }
 .muted { color: var(--muted); }
@@ -98,7 +109,7 @@ a { color: var(--bleu-clair); }
     min-height: 56px;
     padding: 0 1.5rem;
     background: var(--nav-bg);
-    border-bottom: 3px solid var(--violet);
+    border-bottom: 1px solid var(--line-2);
 }
 
 .xhq-logo { display: inline-flex; align-items: center; gap: 0.6rem; text-decoration: none; color: #fff; }
@@ -151,7 +162,7 @@ a { color: var(--bleu-clair); }
 
 .xhq-avatar:hover { border-color: #fff; }
 
-.cadre-or { border: 2px solid var(--violet) !important; box-shadow: inset 0 0 0 2px #fff; }
+.cadre-or { border: 2px solid var(--violet) !important; }
 .cadre-carbone {
     border: 2px solid var(--indigo) !important;
     outline: 1px solid var(--muted);
@@ -189,7 +200,7 @@ a { color: var(--bleu-clair); }
     gap: 0.6rem 1rem;
     padding-bottom: 0.8rem;
     margin-bottom: 1.5rem;
-    border-bottom: 2px solid var(--text);
+    border-bottom: 2px solid var(--line-2);
 }
 
 .header-nav h1, .header h1 { font-size: clamp(2rem, 4.5vw, 2.7rem); text-transform: uppercase; }
@@ -239,7 +250,7 @@ label { display: block; margin-bottom: 0.3rem; color: var(--text-soft); font-siz
 input, textarea, select {
     width: 100%;
     padding: 0.6rem 0.75rem;
-    background: #fff;
+    background: var(--bg-2);
     border: 1px solid var(--line-2);
     border-radius: var(--radius);
     color: var(--text);
@@ -281,10 +292,10 @@ select { cursor: pointer; }
     cursor: not-allowed;
 }
 
-.btn-danger, .btn.danger { background: #fff; border-color: var(--lose); color: var(--lose); }
+.btn-danger, .btn.danger { background: transparent; border-color: var(--lose); color: var(--lose); }
 .btn-danger:hover, .btn.danger:hover { background: var(--lose-fond); border-color: var(--lose); }
 
-.btn-ghost, .btn.secondaire { background: #fff; border-color: var(--line-2); color: var(--text); }
+.btn-ghost, .btn.secondaire { background: transparent; border-color: var(--line-2); color: var(--text); }
 .btn-ghost:hover, .btn.secondaire:hover { background: var(--panel-2); border-color: var(--text-soft); }
 
 .btn.petit { padding: 0.3rem 0.7rem; font-size: 0.88rem; }
@@ -293,7 +304,7 @@ select { cursor: pointer; }
     padding: 0.22rem 0.6rem;
     border: 1px solid var(--line-2);
     border-radius: var(--radius);
-    background: #fff;
+    background: transparent;
     color: var(--text);
     font-family: var(--body);
     font-size: 0.85rem;
@@ -350,7 +361,7 @@ select { cursor: pointer; }
 
 /* Tableaux */
 .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); }
-table { width: 100%; min-width: 640px; border-collapse: collapse; background: #fff; }
+table { width: 100%; min-width: 640px; border-collapse: collapse; background: var(--panel); }
 th { text-align: left; padding: 0.5rem 0.7rem; background: var(--panel-2); color: var(--muted); font-size: 0.78rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; border-bottom: 1px solid var(--line-2); }
 td { padding: 0.55rem 0.7rem; border-bottom: 1px solid var(--line); vertical-align: middle; overflow-wrap: anywhere; }
 tr:last-child td { border-bottom: 0; }
@@ -360,7 +371,7 @@ tbody tr:hover td { background: var(--bg-2); }
    Classements, poules, résultats
    ===================================================================== */
 .selector-wrapper { position: relative; z-index: 100; width: fit-content; margin-bottom: 1.5rem; }
-.selector-btn { padding: 0.5rem 1rem; background: #fff; border-color: var(--line-2); color: var(--text); font-family: var(--display); font-size: 1.15rem; text-transform: uppercase; }
+.selector-btn { padding: 0.5rem 1rem; background: var(--panel); border-color: var(--line-2); color: var(--text); font-family: var(--display); font-size: 1.15rem; text-transform: uppercase; }
 .selector-btn:hover { background: var(--panel-2); border-color: var(--text-soft); }
 .dropdown-arrow { font-size: 0.7rem; }
 .dropdown-arrow.open { transform: rotate(180deg); }
@@ -373,7 +384,7 @@ tbody tr:hover td { background: var(--bg-2); }
     display: none;
     min-width: 200px;
     padding: 4px 0;
-    background: #fff;
+    background: var(--panel);
     border: 1px solid var(--line-2);
     border-radius: var(--radius);
     box-shadow: var(--ombre);
@@ -475,7 +486,7 @@ tbody tr:hover td { background: var(--bg-2); }
 /* Résultats */
 .resultats { margin-top: 2rem; }
 .resultats h3 { font-size: 1.3rem; text-transform: uppercase; margin-bottom: 0.7rem; }
-.liste-resultats { display: grid; gap: 0; border: 1px solid var(--line); border-radius: var(--radius); background: #fff; }
+.liste-resultats { display: grid; gap: 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
 
 .resultat {
     display: grid;
@@ -515,7 +526,7 @@ tbody tr:hover td { background: var(--bg-2); }
 }
 .jeu-onglet small { font-size: 0.78rem; font-weight: 500; }
 .jeu-onglet:hover { color: var(--text); }
-.jeu-onglet.actif { background: #fff; border-color: var(--line-2); border-top: 3px solid var(--accent); color: var(--text); }
+.jeu-onglet.actif { background: var(--panel); border-color: var(--line-2); border-top: 3px solid var(--accent); color: var(--text); }
 .jeu-onglet.bientot { color: var(--dim); font-weight: 500; font-style: italic; }
 
 /* ---------------------------------------------------------------------
@@ -560,5 +571,5 @@ tbody tr:hover td { background: var(--bg-2); }
 
 @media print {
     .xhq-nav, .xhq-footer { display: none; }
-    body { background: #fff; }
+    body { background: #fff; color: #000; }
 }

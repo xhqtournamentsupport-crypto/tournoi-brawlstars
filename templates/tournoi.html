@@ -7,13 +7,13 @@
     {% include '_head.html' %}
     <style>
         .infos { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem 1.2rem; margin: -0.6rem 0 1.6rem; color: var(--muted); }
-        .statut { padding: 0 0.4rem; border-radius: 2px; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; background: var(--ink); color: #fff; }
+        .statut { padding: 0 0.4rem; border-radius: 2px; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; background: var(--panel-2); border: 1px solid var(--line-2); color: #fff; }
         .statut.inscriptions { background: var(--accent); }
         .statut.termine { background: var(--gold); }
         .description { max-width: 760px; color: var(--text-soft); white-space: pre-line; margin-bottom: 1.6rem; }
 
         /* Étapes du tournoi : une barre en 4 segments */
-        .etapes { display: grid; grid-template-columns: repeat(4, 1fr); margin-bottom: 1.8rem; border: 1px solid var(--line); background: #fff; }
+        .etapes { display: grid; grid-template-columns: repeat(4, 1fr); margin-bottom: 1.8rem; border: 1px solid var(--line); background: var(--panel); }
         .etape { padding: 0.5rem 0.8rem; border-right: 1px solid var(--line); border-top: 3px solid transparent; color: var(--dim); font-family: var(--display); font-size: 1rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
         .etape:last-child { border-right: 0; }
         .etape b { margin-right: 0.4rem; font-weight: 700; }
@@ -21,7 +21,7 @@
         .etape.active { color: var(--text); border-top-color: var(--accent); background: var(--panel-2); }
 
         /* Champion */
-        .champion-banniere { margin-bottom: 1.8rem; padding: 1rem 1.2rem; background: #fff; border: 1px solid var(--line); border-left: 6px solid var(--gold); }
+        .champion-banniere { margin-bottom: 1.8rem; padding: 1rem 1.2rem; background: var(--panel); border: 1px solid var(--line); border-left: 6px solid var(--gold); }
         .champion-banniere small { color: var(--gold); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
         .champion-banniere strong { display: block; font-family: var(--display); font-size: clamp(1.8rem, 5vw, 2.5rem); text-transform: uppercase; line-height: 1.1; }
 
@@ -84,7 +84,7 @@
             .table-poule th, .table-poule td { padding: 0.5rem 0.25rem; font-size: 0.9rem; }
             .match-ligne { font-size: 0.85rem; gap: 0.4rem; }
         }
-        .admin-box { margin-bottom: 1.8rem; padding: 1rem 1.2rem; border: 1px solid var(--line); border-top: 4px solid var(--ink); background: #fff; }
+        .admin-box { margin-bottom: 1.8rem; padding: 1rem 1.2rem; border: 1px solid var(--line); border-top: 4px solid var(--ink); background: var(--panel); }
         .admin-box h3 { font-size: 1.15rem; margin-bottom: 0.3rem; text-transform: uppercase; }
         .admin-box p { color: var(--text-soft); margin: 0 0 0.8rem; font-size: 0.92rem; }
         .admin-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; }
