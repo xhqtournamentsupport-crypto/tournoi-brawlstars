@@ -52,6 +52,7 @@
         }
 
         .apercu-badge.saison { background: var(--bleu); color: #fff; }
+        .apercu-badge.champion { background: linear-gradient(135deg, #ffe08a, var(--gold) 45%, #d9902b); color: var(--ink); box-shadow: 0 0 26px var(--gold-fond); }
 
         .apercu-cadre {
             width: 84px;
@@ -106,6 +107,7 @@
             switch (item.code) {
                 case 'fondateur': return '<span class="apercu-badge">Fondateur</span>';
                 case 'saison1': return '<span class="apercu-badge saison">Saison 1</span>';
+                case 'champion_tournoi': return '<span class="apercu-badge champion">🏆 Champion</span>';
                 case 'cadre_or': return `<span class="apercu-cadre cadre-or">${escapeHtml(monAvatar)}</span>`;
                 case 'cadre_carbone': return `<span class="apercu-cadre cadre-carbone">${escapeHtml(monAvatar)}</span>`;
                 case 'pack_rare': return '<span class="apercu-avatars">🐉 🦄 🤖 👽</span>';

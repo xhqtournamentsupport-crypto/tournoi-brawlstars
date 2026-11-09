@@ -125,6 +125,8 @@
         .jeu.bientot:hover { border-color: var(--line); transform: none; }
         .jeu.bientot .jeu-tag { background: var(--panel-2); color: var(--dim); }
         .jeu.bientot .jeu-nom { color: var(--dim); }
+        .lien-tournois { color: var(--bleu-clair); text-decoration: none; }
+        .lien-tournois:hover { color: var(--text); }
 
         /* ---------- Règlement ---------- */
         .stack { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
@@ -287,6 +289,27 @@
                 <span class="jeu-nom">D'autres jeux</span>
                 <span class="jeu-meta">Même principe : des ligues, des saisons, un palmarès par jeu.</span>
             </div>
+        </div>
+
+        <div class="bloc-titre"><h3>Tournois</h3><span><a href="/tournois" class="lien-tournois">Tous les tournois →</a></span></div>
+        <div class="jeux">
+            {% for t in tournois %}
+            <a class="jeu reveal" href="/tournois/{{ t.id }}">
+                <span class="jeu-tag">{{ t.statut_label }}{% if t.jeu %} · {{ t.jeu.nom }}{% endif %}</span>
+                <span class="jeu-nom">{{ t.nom }}</span>
+                <span class="jeu-meta">{% if t.quand %}{{ t.quand }} · {% endif %}{{ t.inscrits }}/{{ t.places }} teams</span>
+                <span class="jeu-bas">
+                    <span class="jeu-jauge"><i style="width:{{ (100 * t.inscrits / t.places) | round | int }}%"></i></span>
+                    <span class="jeu-go">{{ "S'inscrire" if t.statut == 'inscriptions' else 'Suivre' }} →</span>
+                </span>
+            </a>
+            {% else %}
+            <div class="jeu bientot reveal">
+                <span class="jeu-tag">Bientôt</span>
+                <span class="jeu-nom">Prochain tournoi</span>
+                <span class="jeu-meta">Poules puis phase finale. Le champion gagne un badge exclusif. Annonce sur le Discord.</span>
+            </div>
+            {% endfor %}
         </div>
 
         <div class="bloc-titre"><h3>Comment ça marche</h3><span>Les règles en 8 points</span></div>

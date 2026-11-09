@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ tournoi_nom }} - XHQ</title>
+    {% include '_head.html' %}
+    <style>
+        .infos { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem 1.2rem; margin: -0.6rem 0 1.6rem; color: var(--muted); }
+        .statut { padding: 0.2rem 0.7rem; border-radius: 999px; font-size: 0.78rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; background: var(--accent-dim); color: var(--accent); }
+        .statut.inscriptions { background: var(--win-fond); color: var(--win); }
+        .statut.termine { background: var(--gold-fond); color: var(--gold); }
+        .description { max-width: 760px; color: var(--text-soft); white-space: pre-line; margin-bottom: 1.8rem; }
+
+        /* Étapes du tournoi */
+        .etapes { display: flex; gap: 0.4rem; margin-bottom: 2rem; flex-wrap: wrap; }
+        .etape { display: flex; align-items: center; gap: 0.5rem; padding: 0.45rem 0.9rem; border-radius: 999px; border: 1px solid var(--line); color: var(--dim); font-size: 0.88rem; font-weight: 500; }
+        .etape b { display: inline-grid; place-items: center; width: 1.4rem; height: 1.4rem; border-radius: 50%; background: var(--panel-2); font-size: 0.75rem; }
+        .etape.faite { color: var(--text-soft); }
+        .etape.faite b { background: var(--win); color: var(--ink); }
+        .etape.active { color: var(--text); border-color: var(--bleu); background: var(--panel); }
+        .etape.active b { background: var(--bleu); color: #fff; }
+
+        /* Champion */
+        .champion-banniere {
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 2rem;
+            padding: 1.8rem 1.6rem;
+            border-radius: var(--radius);
+            border: 1px solid var(--gold);
+            background: linear-gradient(120deg, var(--gold-fond), transparent 70%), var(--panel);
+            text-align: center;
+            animation: xhq-apparait 0.6s both;
+        }
+        .champion-banniere small { color: var(--gold); font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; }
+        .champion-banniere strong { display: block; margin-top: 0.4rem; font-size: clamp(1.8rem, 5vw, 2.8rem); font-weight: 800; }
+        .champion-banniere::after { content: ''; position: absolute; top: 0; left: -40%; width: 30%; height: 100%; background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.12), transparent); transform: skewX(-20deg); animation: balaye 4s ease-in-out 1s infinite; }
+        @keyframes balaye { 0% { left: -40%; } 40%, 100% { left: 130%; } }
+
+        /* Inscription */
+        .inscription { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 2rem; padding: 1.1rem 1.3rem; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
+        .inscription p { margin: 0; color: var(--text-soft); }
+
+        .bloc { margin-bottom: 2.6rem; }
+        .inscrits { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(210px, 100%), 1fr)); gap: 0.6rem; }
+        .inscrit { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; padding: 0.65rem 0.9rem; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; font-weight: 500; animation: xhq-apparait 0.4s both; overflow-wrap: anywhere; }
+        .inscrit.moi { border-color: var(--bleu); }
+        .inscrit .btn-mini { flex-shrink: 0; }
+
+        /* Poules */
+        .poule-tournoi .table-poule { width: 100%; min-width: 0; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+        .table-poule td:not(.nom), .table-poule th:not(.nom) { width: 2.8rem; padding-left: 0.3rem; padding-right: 0.3rem; }
+        .table-poule th, .table-poule td { padding: 0.55rem 0.8rem; text-align: center; border-bottom: 1px solid var(--line); }
+        .table-poule th { color: var(--muted); font-size: 0.75rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
+        .table-poule td.nom, .table-poule th.nom { text-align: left; }
+        .table-poule tr.qualifie td:first-child { box-shadow: inset 3px 0 0 var(--win); }
+        .table-poule tr.qualifie td.nom::after { content: 'Qualifiée'; margin-left: 0.5rem; padding: 0.05rem 0.45rem; border-radius: 999px; background: var(--win-fond); color: var(--win); font-size: 0.68rem; font-weight: 600; text-transform: uppercase; }
+        .table-poule td.pts { font-weight: 700; }
+        .poule-tournoi .poule-title::after { content: none; }
+        .matchs-poule { padding: 0.6rem 0.8rem 0.9rem; display: grid; gap: 0.4rem; }
+        .match-ligne { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 0.7rem; padding: 0.45rem 0.6rem; border-radius: 8px; background: var(--bg-2); font-size: 0.92rem; }
+        .match-ligne .e1 { text-align: right; }
+        .match-ligne .g { font-weight: 700; color: var(--text); }
+        .match-ligne .p { color: var(--muted); }
+        .score { min-width: 3.6rem; text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; }
+        .score.attente { color: var(--dim); font-weight: 500; }
+        .saisie { display: inline-flex; align-items: center; gap: 0.25rem; }
+        .saisie input { width: 3rem; padding: 0.3rem; text-align: center; }
+        .saisie button { padding: 0.35rem 0.6rem; }
+
+        /* Bracket */
+        .bracket-wrap { overflow-x: auto; padding-bottom: 0.8rem; }
+        .bracket { display: flex; gap: 2.4rem; min-width: max-content; }
+        .tour { display: flex; flex-direction: column; min-width: 230px; }
+        .tour h4 { margin-bottom: 0.8rem; color: var(--muted); font-size: 0.8rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .tour-corps { flex: 1; display: flex; flex-direction: column; }
+        .paire { position: relative; flex: 1; display: flex; flex-direction: column; }
+        .paire::after { content: ''; position: absolute; right: -1.2rem; top: 25%; bottom: 25%; width: 1.2rem; border: 2px solid var(--line-2); border-left: 0; border-radius: 0 6px 6px 0; }
+        .case { flex: 1; display: flex; align-items: center; padding: 0.4rem 0; position: relative; }
+        .tour:not(:first-child) .case::before { content: ''; position: absolute; left: -1.2rem; top: 50%; width: 1.2rem; border-top: 2px solid var(--line-2); }
+        .bm { width: 100%; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; animation: xhq-apparait 0.45s both; }
+        .bm.finale { border-color: var(--gold); box-shadow: 0 0 24px var(--gold-fond); }
+        .bm-team { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; padding: 0.5rem 0.75rem; font-size: 0.92rem; }
+        .bm-team + .bm-team { border-top: 1px solid var(--line); }
+        .bm-team .n { overflow-wrap: anywhere; }
+        .bm-team.g { font-weight: 700; background: linear-gradient(90deg, var(--accent-dim), transparent); }
+        .bm-team.p { color: var(--muted); }
+        .bm-team.tbd { color: var(--dim); font-style: italic; }
+        .bm-team .s { font-weight: 700; font-variant-numeric: tabular-nums; }
+        .bm-saisie { display: flex; justify-content: center; padding: 0.45rem; border-top: 1px dashed var(--line); background: var(--bg-2); }
+
+        @media (max-width: 560px) {
+            .table-poule tr.qualifie td.nom::after { content: 'Q'; }
+            .table-poule th, .table-poule td { padding: 0.5rem 0.25rem; font-size: 0.9rem; }
+            .match-ligne { font-size: 0.85rem; gap: 0.4rem; }
+        }
+        .admin-box { margin-bottom: 2rem; padding: 1.1rem 1.3rem; border: 1px dashed var(--accent); border-radius: var(--radius); background: var(--accent-dim); }
+        .admin-box h3 { font-size: 1rem; margin-bottom: 0.4rem; color: var(--accent); }
+        .admin-box p { color: var(--text-soft); margin: 0 0 0.8rem; font-size: 0.92rem; }
+        .admin-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+    </style>
+</head>
+<body>
+    {% include '_nav.html' %}
+    <main class="xhq-main">
+    <div class="container">
+        <div class="header-nav">
+            <h1><span class="kicker" id="kicker">Tournoi</span>{{ tournoi_nom }}</h1>
+            <a href="/tournois" id="retour">← Tous les tournois</a>
+        </div>
+        <div class="infos" id="infos"></div>
+        <div class="message" id="page-message"></div>
+        <div id="contenu"><p class="muted">Chargement…</p></div>
+    </div>
+    </main>
+    {% include '_footer.html' %}
+
+    <script>
+        const TOURNOI_ID = {{ tournoi_id | tojson }};
+        let etat = null;
+
+        function showMessage(text, type) {
+            const el = document.getElementById('page-message');
+            el.textContent = text;
+            el.className = 'message show ' + type;
+        }
+
+        function saisie(match) {
+            const v1 = match.score1 ?? '', v2 = match.score2 ?? '';
+            return `<span class="saisie" data-match="${match.id}">
+                <input type="number" min="0" max="99" value="${v1}" aria-label="Score team 1">
+                <span>-</span>
+                <input type="number" min="0" max="99" value="${v2}" aria-label="Score team 2">
+                <button class="btn petit" type="button" onclick="enregistrerScore(${match.id}, this)">OK</button>
+            </span>`;
+        }
+
+        function htmlEtapes(statut) {
+            const ordre = ['inscriptions', 'poules', 'bracket', 'termine'];
+            const noms = ['Inscriptions', 'Poules', 'Phase finale', 'Champion'];
+            const idx = ordre.indexOf(statut);
+            return '<div class="etapes">' + noms.map((n, i) =>
+                `<span class="etape ${i < idx || statut === 'termine' ? 'faite' : ''} ${i === idx && statut !== 'termine' ? 'active' : ''}"><b>${i < idx || statut === 'termine' ? '✓' : i + 1}</b>${n}</span>`
+            ).join('') + '</div>';
+        }
+
+        function htmlInscription(d) {
+            const t = d.tournoi, moi = d.moi;
+            if (t.statut !== 'inscriptions') return '';
+            let texte, bouton = '';
+            if (moi.inscrit) {
+                texte = `✅ <strong>${escapeHtml(moi.team.nom)}</strong> est inscrite.`;
+                if (moi.team.capitaine) bouton = `<button class="btn danger petit" type="button" onclick="desinscrire()">Se désinscrire</button>`;
+            } else if (moi.peut_agir) {
+                texte = `Inscris <strong>${escapeHtml(moi.team.nom)}</strong> : ${t.places - t.inscrits} place${t.places - t.inscrits > 1 ? 's' : ''} restante${t.places - t.inscrits > 1 ? 's' : ''}.`;
+                bouton = `<button class="btn" type="button" onclick="inscrire()">Inscrire ma team</button>`;
+            } else {
+                texte = escapeHtml(moi.raison || '');
+                if (!moi.connecte) bouton = `<a class="btn" href="/login">Connexion</a>`;
+                else if (!moi.team) bouton = `<a class="btn secondaire" href="/teams">Créer ma team</a>`;
+            }
+            return `<div class="inscription"><p>${texte}</p>${bouton}</div>`;
+        }
+
+        function htmlAdmin(d) {
+            if (!d.admin) return '';
+            const t = d.tournoi;
+            let aide, actions = '';
+            if (t.statut === 'inscriptions') {
+                aide = d.actions.lancer_poules
+                    ? `Quand les inscriptions sont finies, lance le tirage : les teams sont réparties au hasard en poules de 4.`
+                    : `Il faut au moins ${d.min_teams} teams inscrites pour lancer les poules (${t.inscrits} pour l'instant).`;
+                actions = `<button class="btn" type="button" onclick="action('poules')" ${d.actions.lancer_poules ? '' : 'disabled'}>Fermer les inscriptions et tirer les poules</button>`;
+            } else if (t.statut === 'poules') {
+                aide = d.actions.lancer_bracket
+                    ? 'Tous les matchs de poule sont joués : tu peux lancer la phase finale.'
+                    : 'Saisis les scores des matchs de poule ci-dessous. La phase finale se lance quand tout est joué.';
+                actions = `<button class="btn" type="button" onclick="action('bracket')" ${d.actions.lancer_bracket ? '' : 'disabled'}>Lancer la phase finale</button>`;
+            } else if (t.statut === 'bracket') {
+                aide = 'Saisis les scores dans le bracket : le gagnant avance tout seul. La finale désigne le champion (badge donné automatiquement).';
+            } else {
+                aide = 'Tournoi terminé. Tu peux encore corriger le score de la finale.';
+            }
+            actions += `<button class="btn danger" type="button" onclick="supprimer()">Supprimer le tournoi</button>`;
+            return `<div class="admin-box"><h3>Gestion (admin)</h3><p>${aide}</p><div class="admin-actions">${actions}</div></div>`;
+        }
+
+        function htmlInscrits(d) {
+            const maTeam = d.moi.team && d.moi.team.id;
+            const retirer = d.admin && d.tournoi.statut === 'inscriptions';
+            const liste = d.inscrits.map((i, n) => `
+                <div class="inscrit ${i.team_id === maTeam ? 'moi' : ''}" style="animation-delay:${Math.min(n, 12) * 0.04}s">
+                    <span>${escapeHtml(i.nom)}</span>
+                    ${retirer ? `<button class="btn-mini rouge" type="button" onclick="retirerTeam(${i.team_id})">Retirer</button>` : ''}
+                </div>`).join('');
+            return `<section class="bloc"><h2 class="section-title">Teams inscrites (${d.inscrits.length}/${d.tournoi.places})</h2>
+                ${d.inscrits.length ? `<div class="inscrits">${liste}</div>` : '<p class="muted">Aucune team inscrite pour le moment.</p>'}</section>`;
+        }
+
+        function ligneMatch(m, editable) {
+            const fait = m.vainqueur_id != null;
+            const c1 = fait ? (m.vainqueur_id === m.team1.id ? 'g' : 'p') : '';
+            const c2 = fait ? (m.vainqueur_id === m.team2.id ? 'g' : 'p') : '';
+            const milieu = editable ? saisie(m)
+                : `<span class="score ${fait ? '' : 'attente'}">${fait ? `${m.score1} - ${m.score2}` : 'à jouer'}</span>`;
+            return `<div class="match-ligne"><span class="e1 ${c1}">${escapeHtml(m.team1.nom)}</span>${milieu}<span class="${c2}">${escapeHtml(m.team2.nom)}</span></div>`;
+        }
+
+        function htmlPoules(d) {
+            if (!d.poules.length) return '';
+            const editable = d.admin && d.tournoi.statut === 'poules';
+            const poules = d.poules.map(p => `
+                <div class="poule poule-tournoi">
+                    <div class="poule-title">Poule ${escapeHtml(p.nom)}</div>
+                    <table class="table-poule">
+                        <thead><tr><th>#</th><th class="nom">Team</th><th>J</th><th>V</th><th>D</th><th>+/-</th><th>Pts</th></tr></thead>
+                        <tbody>${p.classement.map(l => `
+                            <tr class="${l.qualifie ? 'qualifie' : ''}">
+                                <td>${l.rang}</td><td class="nom">${escapeHtml(l.nom)}</td><td>${l.joues}</td><td>${l.victoires}</td>
+                                <td>${l.defaites}</td><td>${l.diff > 0 ? '+' : ''}${l.diff}</td><td class="pts">${l.points}</td>
+                            </tr>`).join('')}</tbody>
+                    </table>
+                    <div class="matchs-poule">${p.matchs.map(m => ligneMatch(m, editable)).join('')}</div>
+                </div>`).join('');
+            const q = d.qualifies_par_poule;
+            return `<section class="bloc"><h2 class="section-title">Phase de poules</h2>
+                <p class="muted" style="margin-top:-0.6rem">Les ${q} premiers de ${d.poules.length > 1 ? 'chaque poule' : 'la poule'} passent en phase finale.</p>
+                <div class="poules-grid">${poules}</div></section>`;
+        }
+
+        function equipeBracket(m, cote) {
+            const e = m[cote], s = cote === 'team1' ? m.score1 : m.score2;
+            if (!e) return `<div class="bm-team tbd"><span class="n">${m.bye ? 'Exempt' : 'À déterminer'}</span></div>`;
+            const etatTeam = m.vainqueur_id == null ? '' : (m.vainqueur_id === e.id ? 'g' : 'p');
+            return `<div class="bm-team ${etatTeam}"><span class="n">${escapeHtml(e.nom)}</span><span class="s">${s ?? ''}</span></div>`;
+        }
+
+        function htmlBracket(d) {
+            if (!d.bracket.length) return '';
+            const dernier = d.bracket.length;
+            const tours = d.bracket.map(t => {
+                const boite = (m, i) => `<div class="case"><div class="bm ${t.tour === dernier ? 'finale' : ''}" style="animation-delay:${(t.tour - 1) * 0.15 + i * 0.04}s">
+                    ${equipeBracket(m, 'team1')}${equipeBracket(m, 'team2')}
+                    ${d.admin && m.modifiable ? `<div class="bm-saisie">${saisie(m)}</div>` : ''}
+                </div></div>`;
+                let corps = '';
+                if (t.matchs.length === 1) corps = boite(t.matchs[0], 0);
+                else for (let i = 0; i < t.matchs.length; i += 2) corps += `<div class="paire">${boite(t.matchs[i], i)}${boite(t.matchs[i + 1], i + 1)}</div>`;
+                return `<div class="tour"><h4>${escapeHtml(t.nom)}</h4><div class="tour-corps">${corps}</div></div>`;
+            }).join('');
+            return `<section class="bloc"><h2 class="section-title">Phase finale</h2><div class="bracket-wrap"><div class="bracket">${tours}</div></div></section>`;
+        }
+
+        function afficher(d) {
+            etat = d;
+            const t = d.tournoi;
+            document.getElementById('kicker').textContent = 'Tournoi · ' + (t.jeu ? t.jeu.nom : '');
+            if (t.jeu) document.getElementById('retour').href = '/tournois?jeu=' + encodeURIComponent(t.jeu.code);
+            document.getElementById('infos').innerHTML =
+                `<span class="statut ${t.statut}">${escapeHtml(t.statut_label)}</span>` +
+                (t.quand ? `<span>📅 ${escapeHtml(t.quand)}</span>` : '') +
+                `<span>${t.inscrits}/${t.places} teams</span>` +
+                (t.jeu ? `<span>${escapeHtml(t.jeu.format)}</span>` : '');
+            let html = '';
+            if (t.statut === 'termine' && t.champion) {
+                html += `<div class="champion-banniere"><small>🏆 Champion du tournoi</small><strong>${escapeHtml(t.champion)}</strong></div>`;
+            }
+            html += htmlEtapes(t.statut);
+            if (t.description) html += `<p class="description">${escapeHtml(t.description)}</p>`;
+            html += htmlAdmin(d) + htmlInscription(d) + htmlBracket(d) + htmlPoules(d) + htmlInscrits(d);
+            document.getElementById('contenu').innerHTML = html;
+        }
+
+        async function charger() {
+            const { ok, data } = await api('/api/tournois/' + TOURNOI_ID, { noRedirect: true });
+            if (!ok) { showMessage(data.error || 'Impossible de charger le tournoi', 'error'); return; }
+            afficher(data);
+        }
+
+        async function poster(url, body, succes) {
+            const { ok, data } = await api(url, { method: 'POST', body: body || {} });
+            if (!ok) { showMessage(data.error || 'Erreur', 'error'); return false; }
+            if (succes) showMessage(succes, 'success');
+            await charger();
+            return data;
+        }
+
+        const inscrire = () => poster(`/api/tournois/${TOURNOI_ID}/inscription`, {}, 'Ta team est inscrite !');
+        const desinscrire = () => confirm('Désinscrire ta team de ce tournoi ?') && poster(`/api/tournois/${TOURNOI_ID}/desinscription`, {}, 'Ta team est désinscrite.');
+        const retirerTeam = id => confirm('Retirer cette team du tournoi ?') && poster(`/api/tournois/${TOURNOI_ID}/desinscription`, { team_id: id }, 'Team retirée.');
+
+        async function action(quoi) {
+            const textes = {
+                poules: ['Fermer les inscriptions et tirer les poules au sort ?', 'Poules tirées au sort !'],
+                bracket: ['Lancer la phase finale avec les qualifiés ?', 'Phase finale lancée !']
+            };
+            if (!confirm(textes[quoi][0])) return;
+            await poster(`/api/admin/tournois/${TOURNOI_ID}/${quoi}`, {}, textes[quoi][1]);
+        }
+
+        async function enregistrerScore(matchId, bouton) {
+            const champs = bouton.parentElement.querySelectorAll('input');
+            bouton.disabled = true;
+            const res = await poster(`/api/admin/tournois/${TOURNOI_ID}/matchs/${matchId}`,
+                { score1: Number(champs[0].value), score2: Number(champs[1].value) }, 'Score enregistré.');
+            if (!res) bouton.disabled = false;
+            if (res && etat && etat.tournoi.statut === 'termine') showMessage('🏆 Le tournoi est terminé : le champion reçoit son badge !', 'success');
+        }
+
+        async function supprimer() {
+            if (!confirm('Supprimer définitivement ce tournoi ? Tous ses matchs seront perdus.')) return;
+            const { ok, data } = await api(`/api/admin/tournois/${TOURNOI_ID}/delete`, { method: 'POST' });
+            if (!ok) { showMessage(data.error || 'Erreur', 'error'); return; }
+            location.href = '/tournois';
+        }
+
+        charger();
+    </script>
+</body>
+</html>

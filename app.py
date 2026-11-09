@@ -81,6 +81,7 @@ SHOP_DEFAUT = [
     ('cadre_or', 'Cadre Or', "Contour or autour de ton avatar : profil, menu et liste des membres de ta team.", 0, 'cadre'),
     ('cadre_carbone', 'Cadre Carbone', "Contour noir mat avec liseré, plus discret que l'or.", 0, 'cadre'),
     ('pack_rare', 'Avatars rares', "Quatre avatars en plus dans le sélecteur du profil, introuvables autrement.", 0, 'avatars'),
+    ('champion_tournoi', 'Badge Champion', "Donné à chaque joueur de la team qui gagne un tournoi XHQ. Impossible à récupérer autrement.", 0, 'badge'),
 ]
 FONDATEURS_MAX = 100
 
@@ -261,6 +262,47 @@ def migrer_multi_jeux(c):
         c.execute('ALTER TABLE saisons_v2 RENAME TO saisons')
 
 
+def creer_tables_tournois(c):
+    c.executescript("""
+        CREATE TABLE IF NOT EXISTS tournois (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            jeu_id INTEGER NOT NULL,
+            nom TEXT NOT NULL,
+            description TEXT DEFAULT '',
+            quand TEXT DEFAULT '',
+            places INTEGER NOT NULL,
+            statut TEXT NOT NULL DEFAULT 'inscriptions',
+            champion_team_id INTEGER,
+            champion_nom TEXT,
+            created_at TEXT,
+            termine_at TEXT
+        );
+        CREATE TABLE IF NOT EXISTS tournoi_inscriptions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            tournoi_id INTEGER NOT NULL,
+            team_id INTEGER NOT NULL,
+            team_nom TEXT,
+            poule TEXT,
+            created_at TEXT,
+            UNIQUE (tournoi_id, team_id)
+        );
+        CREATE TABLE IF NOT EXISTS tournoi_matchs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            tournoi_id INTEGER NOT NULL,
+            phase TEXT NOT NULL,
+            poule TEXT,
+            tour INTEGER NOT NULL DEFAULT 1,
+            position INTEGER NOT NULL DEFAULT 0,
+            team1_id INTEGER,
+            team2_id INTEGER,
+            score1 INTEGER,
+            score2 INTEGER,
+            vainqueur_id INTEGER,
+            bye INTEGER DEFAULT 0
+        );
+    """)
+
+
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
@@ -377,6 +419,7 @@ def init_db():
     ajouter_colonne(c, 'users', 'cadre_equipe', 'TEXT')
     c.execute('CREATE TABLE IF NOT EXISTS parametres (cle TEXT PRIMARY KEY, valeur TEXT)')
     migrer_multi_jeux(c)
+    creer_tables_tournois(c)
     c.execute("UPDATE users SET created_at = datetime('now') WHERE created_at IS NULL")
     c.execute("UPDATE teams SET created_at = datetime('now') WHERE created_at IS NULL")
     tous_avatars = AVATARS + AVATARS_PREMIUM
@@ -491,6 +534,8 @@ def disponibilite(db, user_id, code):
         rang = db.execute('SELECT COUNT(*) FROM users WHERE id <= ?', (user_id,)).fetchone()[0]
         if rang > FONDATEURS_MAX:
             return False, f'Réservé aux {FONDATEURS_MAX} premiers inscrits'
+    if code == 'champion_tournoi':
+        return False, 'Gagne un tournoi XHQ pour le débloquer'
     if code == 'saison1' and saison_actuelle(db, jeu_defaut_id(db)) != 1:
         return False, 'Uniquement pendant la saison 1'
     return True, None
@@ -591,8 +636,10 @@ def chiffres_jeu(db, jeu_id):
 def index():
     db = get_db()
     cartes = [{**j, **chiffres_jeu(db, j['id'])} for j in liste_jeux(db)]
+    tournois = [resume_tournoi(db, t) for t in db.execute(
+        "SELECT * FROM tournois WHERE statut != 'termine' ORDER BY id DESC LIMIT 3")]
     return render_template('index.html', cartes=cartes, nb_ligues=LIGUE_MAX, par_poule=TEAMS_PAR_POULE,
-                           joueurs_total=db.execute('SELECT COUNT(*) FROM users').fetchone()[0])
+                           joueurs_total=db.execute('SELECT COUNT(*) FROM users').fetchone()[0], tournois=tournois)
 
 
 @app.route('/login')
@@ -1685,6 +1732,450 @@ def api_admin_cloturer_saison():
         'penalisees': sum(p['penalite'] > 0 for p in classement),
         'champion': next((p['team_name'] for p in classement if p['mouvement'] == 'champion'), None),
     }), 200
+
+
+# ---------------------------------------------------------------------------
+# Tournois : inscriptions -> poules -> bracket (élimination directe)
+# ---------------------------------------------------------------------------
+TOURNOI_PLACES = (8, 16, 32)         # tailles proposées à la création
+TOURNOI_TAILLE_POULE = 4             # nombre visé de teams par poule
+TOURNOI_MIN_TEAMS = 4                # minimum pour lancer les poules
+STATUTS_TOURNOI = {
+    'inscriptions': 'Inscriptions ouvertes',
+    'poules': 'Phase de poules',
+    'bracket': 'Phase finale',
+    'termine': 'Terminé',
+}
+
+
+def ordre_tetes_de_serie(taille):
+    """Placement classique d'un bracket : 1 contre le dernier, 2 contre l'avant-dernier... (taille = puissance de 2)."""
+    ordre = [1]
+    while len(ordre) < taille:
+        m = len(ordre) * 2
+        ordre = [x for s in ordre for x in (s, m + 1 - s)]
+    return ordre
+
+
+def journees_poule(teams):
+    """Toutes les rencontres d'une poule, rangées par journée (méthode du tourniquet)."""
+    liste = list(teams) + ([None] if len(teams) % 2 else [])
+    n = len(liste)
+    matchs = []
+    for _ in range(n - 1):
+        for i in range(n // 2):
+            a, b = liste[i], liste[n - 1 - i]
+            if a is not None and b is not None:
+                matchs.append((a, b))
+        liste = [liste[0], liste[-1]] + liste[1:-1]
+    return matchs
+
+
+def nom_tour(tour, nb_tours):
+    reste = nb_tours - tour
+    return {0: 'Finale', 1: 'Demi-finales', 2: 'Quarts de finale', 3: 'Huitièmes de finale'}.get(
+        reste, f'1/{2 ** reste}e de finale')
+
+
+def noms_teams_tournoi(db, tournoi_id):
+    """Nom affiché de chaque team : nom actuel, sinon celui gardé à l'inscription (team supprimée depuis)."""
+    return {r['team_id']: r['nom'] for r in db.execute(
+        """SELECT i.team_id, COALESCE(t.nom, i.team_nom) AS nom FROM tournoi_inscriptions i
+           LEFT JOIN teams t ON t.id = i.team_id WHERE i.tournoi_id = ?""", (tournoi_id,))}
+
+
+def classement_poule_tournoi(db, tournoi_id, poule, noms):
+    lignes = {r['team_id']: {'team_id': r['team_id'], 'nom': noms.get(r['team_id'], '?'), 'joues': 0, 'victoires': 0,
+                             'defaites': 0, 'pour': 0, 'contre': 0, 'points': 0}
+              for r in db.execute('SELECT team_id FROM tournoi_inscriptions WHERE tournoi_id = ? AND poule = ?',
+                                  (tournoi_id, poule))}
+    for m in db.execute("""SELECT * FROM tournoi_matchs WHERE tournoi_id = ? AND phase = 'poule' AND poule = ?
+                           AND vainqueur_id IS NOT NULL""", (tournoi_id, poule)):
+        for moi, adv, s_moi, s_adv in ((m['team1_id'], m['team2_id'], m['score1'], m['score2']),
+                                       (m['team2_id'], m['team1_id'], m['score2'], m['score1'])):
+            if moi not in lignes:
+                continue
+            l = lignes[moi]
+            l['joues'] += 1
+            l['pour'] += s_moi
+            l['contre'] += s_adv
+            if m['vainqueur_id'] == moi:
+                l['victoires'] += 1
+                l['points'] += POINTS_VICTOIRE
+            else:
+                l['defaites'] += 1
+                l['points'] += POINTS_DEFAITE
+    classement = sorted(lignes.values(), key=lambda l: (-l['points'], -(l['pour'] - l['contre']), -l['pour'],
+                                                        l['nom'].lower()))
+    for i, l in enumerate(classement, 1):
+        l['rang'] = i
+        l['diff'] = l['pour'] - l['contre']
+    return classement
+
+
+def qualifies_par_poule(nb_poules):
+    # Une seule poule : les 4 premiers vont en demi-finales. Sinon les 2 premiers de chaque poule.
+    return 4 if nb_poules == 1 else 2
+
+
+def donner_badge_champion(c, team_id):
+    item = c.execute("SELECT id FROM shop_items WHERE code = 'champion_tournoi'").fetchone()
+    if not item:
+        return
+    for m in c.execute('SELECT user_id FROM team_members WHERE team_id = ?', (team_id,)).fetchall():
+        deja = c.execute('SELECT 1 FROM inventory WHERE user_id = ? AND item_id = ?', (m['user_id'], item['id'])).fetchone()
+        if not deja:
+            c.execute("INSERT INTO inventory (user_id, item_id, bought_at) VALUES (?, ?, datetime('now'))",
+                      (m['user_id'], item['id']))
+            c.execute("UPDATE users SET badge_equipe = 'champion_tournoi' WHERE id = ?", (m['user_id'],))
+
+
+def faire_avancer(c, match):
+    """Envoie le vainqueur d'un match de bracket dans le match suivant (ou le sacre champion)."""
+    t = c.execute('SELECT id FROM tournois WHERE id = ?', (match['tournoi_id'],)).fetchone()
+    suivant = c.execute("""SELECT * FROM tournoi_matchs WHERE tournoi_id = ? AND phase = 'bracket'
+                           AND tour = ? AND position = ?""",
+                        (match['tournoi_id'], match['tour'] + 1, match['position'] // 2)).fetchone()
+    if suivant:
+        colonne = 'team1_id' if match['position'] % 2 == 0 else 'team2_id'
+        c.execute(f'UPDATE tournoi_matchs SET {colonne} = ? WHERE id = ?', (match['vainqueur_id'], suivant['id']))
+        return
+    nom = c.execute("""SELECT COALESCE(t.nom, i.team_nom) FROM tournoi_inscriptions i LEFT JOIN teams t ON t.id = i.team_id
+                       WHERE i.tournoi_id = ? AND i.team_id = ?""", (t['id'], match['vainqueur_id'])).fetchone()[0]
+    c.execute("""UPDATE tournois SET statut = 'termine', champion_team_id = ?, champion_nom = ?,
+                 termine_at = datetime('now') WHERE id = ?""", (match['vainqueur_id'], nom, t['id']))
+    donner_badge_champion(c, match['vainqueur_id'])
+
+
+def resume_tournoi(db, t):
+    nb = db.execute('SELECT COUNT(*) FROM tournoi_inscriptions WHERE tournoi_id = ?', (t['id'],)).fetchone()[0]
+    jeu = db.execute('SELECT code, nom, format FROM jeux WHERE id = ?', (t['jeu_id'],)).fetchone()
+    return {'id': t['id'], 'nom': t['nom'], 'description': t['description'], 'quand': t['quand'],
+            'places': t['places'], 'inscrits': nb, 'statut': t['statut'], 'statut_label': STATUTS_TOURNOI[t['statut']],
+            'champion': t['champion_nom'], 'jeu': dict(jeu) if jeu else None}
+
+
+def ma_team_dans_jeu(db, jeu_id):
+    user = utilisateur_connecte()
+    if not user:
+        return None
+    row = db.execute("""SELECT t.id, t.nom, t.createur_id FROM team_members m JOIN teams t ON t.id = m.team_id
+                        WHERE m.user_id = ? AND m.jeu_id = ?""", (user['id'], jeu_id)).fetchone()
+    return {'id': row['id'], 'nom': row['nom'], 'capitaine': row['createur_id'] == user['id']} if row else None
+
+
+def tournoi_ou_404(db, tournoi_id):
+    t = db.execute('SELECT * FROM tournois WHERE id = ?', (tournoi_id,)).fetchone()
+    if not t:
+        return None, (jsonify({'success': False, 'error': 'Tournoi introuvable'}), 404)
+    return t, None
+
+
+@app.route('/tournois')
+def tournois_page():
+    if not trouver_jeu(get_db()):
+        abort(404)
+    return render_template('tournois.html')
+
+
+@app.route('/tournois/<int:tournoi_id>')
+def tournoi_page(tournoi_id):
+    t = get_db().execute('SELECT id, nom FROM tournois WHERE id = ?', (tournoi_id,)).fetchone()
+    if not t:
+        abort(404)
+    return render_template('tournoi.html', tournoi_id=t['id'], tournoi_nom=t['nom'])
+
+
+@app.route('/api/tournois', methods=['GET'])
+def api_tournois():
+    db = get_db()
+    jeu, erreur = jeu_ou_erreur(db)
+    if erreur:
+        return erreur
+    lignes = db.execute("""SELECT * FROM tournois WHERE jeu_id = ?
+                           ORDER BY CASE statut WHEN 'termine' THEN 1 ELSE 0 END, id DESC""", (jeu['id'],)).fetchall()
+    return jsonify({'jeu': jeu, 'tournois': [resume_tournoi(db, t) for t in lignes],
+                    'admin': est_admin(), 'places_possibles': TOURNOI_PLACES}), 200
+
+
+@app.route('/api/tournois/<int:tournoi_id>', methods=['GET'])
+def api_tournoi(tournoi_id):
+    db = get_db()
+    t, erreur = tournoi_ou_404(db, tournoi_id)
+    if erreur:
+        return erreur
+    noms = noms_teams_tournoi(db, t['id'])
+    equipe = lambda tid: {'id': tid, 'nom': noms.get(tid, '?')} if tid else None
+
+    inscrits = [{'team_id': r['team_id'], 'nom': noms.get(r['team_id'], '?'), 'poule': r['poule']}
+                for r in db.execute('SELECT team_id, poule FROM tournoi_inscriptions WHERE tournoi_id = ? ORDER BY id',
+                                    (t['id'],))]
+
+    poules = []
+    lettres = sorted({i['poule'] for i in inscrits if i['poule']})
+    nb_q = qualifies_par_poule(len(lettres))
+    for p in lettres:
+        classement = classement_poule_tournoi(db, t['id'], p, noms)
+        for l in classement:
+            l['qualifie'] = l['rang'] <= nb_q
+        matchs = [{'id': m['id'], 'team1': equipe(m['team1_id']), 'team2': equipe(m['team2_id']),
+                   'score1': m['score1'], 'score2': m['score2'], 'vainqueur_id': m['vainqueur_id']}
+                  for m in db.execute("""SELECT * FROM tournoi_matchs WHERE tournoi_id = ? AND phase = 'poule'
+                                         AND poule = ? ORDER BY id""", (t['id'], p))]
+        poules.append({'nom': p, 'classement': classement, 'matchs': matchs})
+
+    bracket = []
+    rows = db.execute("""SELECT * FROM tournoi_matchs WHERE tournoi_id = ? AND phase = 'bracket'
+                         ORDER BY tour, position""", (t['id'],)).fetchall()
+    nb_tours = max((r['tour'] for r in rows), default=0)
+    joues = {(r['tour'], r['position']): r['vainqueur_id'] is not None and not r['bye'] for r in rows}
+    for tour in range(1, nb_tours + 1):
+        matchs = []
+        for r in (r for r in rows if r['tour'] == tour):
+            suivant_joue = joues.get((tour + 1, r['position'] // 2), False)
+            matchs.append({'id': r['id'], 'position': r['position'], 'team1': equipe(r['team1_id']),
+                           'team2': equipe(r['team2_id']), 'score1': r['score1'], 'score2': r['score2'],
+                           'vainqueur_id': r['vainqueur_id'], 'bye': bool(r['bye']),
+                           'modifiable': bool(r['team1_id'] and r['team2_id'] and not r['bye'] and not suivant_joue)})
+        bracket.append({'tour': tour, 'nom': nom_tour(tour, nb_tours), 'matchs': matchs})
+
+    ma_team = ma_team_dans_jeu(db, t['jeu_id'])
+    inscrit = bool(ma_team and any(i['team_id'] == ma_team['id'] for i in inscrits))
+    raison = None
+    if t['statut'] != 'inscriptions':
+        raison = 'Les inscriptions sont fermées'
+    elif not utilisateur_connecte():
+        raison = 'Connecte-toi pour inscrire ta team'
+    elif not ma_team:
+        raison = "Tu n'as pas de team pour ce jeu"
+    elif not ma_team['capitaine']:
+        raison = 'Seul le capitaine peut inscrire la team'
+    elif not inscrit and len(inscrits) >= t['places']:
+        raison = 'Le tournoi est complet'
+
+    poules_jouees = all(m['vainqueur_id'] for p in poules for m in p['matchs'])
+    return jsonify({
+        'tournoi': resume_tournoi(db, t),
+        'inscrits': inscrits,
+        'poules': poules,
+        'qualifies_par_poule': nb_q,
+        'bracket': bracket,
+        'moi': {'connecte': bool(utilisateur_connecte()), 'team': ma_team, 'inscrit': inscrit,
+                'peut_agir': raison is None, 'raison': raison},
+        'admin': est_admin(),
+        'actions': {
+            'lancer_poules': t['statut'] == 'inscriptions' and len(inscrits) >= TOURNOI_MIN_TEAMS,
+            'lancer_bracket': t['statut'] == 'poules' and poules_jouees,
+        },
+        'min_teams': TOURNOI_MIN_TEAMS,
+    }), 200
+
+
+@app.route('/api/tournois/<int:tournoi_id>/inscription', methods=['POST'])
+@api_connectee
+def api_tournoi_inscription(tournoi_id):
+    db = get_db()
+    t, erreur = tournoi_ou_404(db, tournoi_id)
+    if erreur:
+        return erreur
+    if t['statut'] != 'inscriptions':
+        return jsonify({'success': False, 'error': 'Les inscriptions sont fermées'}), 400
+    ma_team = ma_team_dans_jeu(db, t['jeu_id'])
+    if not ma_team:
+        return jsonify({'success': False, 'error': "Tu n'as pas de team pour ce jeu"}), 400
+    if not ma_team['capitaine']:
+        return jsonify({'success': False, 'error': 'Seul le capitaine peut inscrire la team'}), 403
+    if db.execute('SELECT 1 FROM tournoi_inscriptions WHERE tournoi_id = ? AND team_id = ?',
+                  (t['id'], ma_team['id'])).fetchone():
+        return jsonify({'success': False, 'error': 'Ta team est déjà inscrite'}), 400
+    nb = db.execute('SELECT COUNT(*) FROM tournoi_inscriptions WHERE tournoi_id = ?', (t['id'],)).fetchone()[0]
+    if nb >= t['places']:
+        return jsonify({'success': False, 'error': 'Le tournoi est complet'}), 400
+    db.execute("INSERT INTO tournoi_inscriptions (tournoi_id, team_id, team_nom, created_at) VALUES (?, ?, ?, datetime('now'))",
+               (t['id'], ma_team['id'], ma_team['nom']))
+    db.commit()
+    return jsonify({'success': True, 'message': f"{ma_team['nom']} est inscrite à {t['nom']}"}), 200
+
+
+@app.route('/api/tournois/<int:tournoi_id>/desinscription', methods=['POST'])
+@api_connectee
+def api_tournoi_desinscription(tournoi_id):
+    db = get_db()
+    t, erreur = tournoi_ou_404(db, tournoi_id)
+    if erreur:
+        return erreur
+    if t['statut'] != 'inscriptions':
+        return jsonify({'success': False, 'error': 'Le tournoi a commencé : impossible de se désinscrire'}), 400
+    data = donnees_json()
+    team_id = entier(data.get('team_id'))
+    if est_admin() and team_id:
+        cible = team_id                     # l'admin peut retirer n'importe quelle team
+    else:
+        ma_team = ma_team_dans_jeu(db, t['jeu_id'])
+        if not ma_team or not ma_team['capitaine']:
+            return jsonify({'success': False, 'error': 'Seul le capitaine peut désinscrire la team'}), 403
+        cible = ma_team['id']
+    if not db.execute('DELETE FROM tournoi_inscriptions WHERE tournoi_id = ? AND team_id = ?', (t['id'], cible)).rowcount:
+        return jsonify({'success': False, 'error': "Cette team n'est pas inscrite"}), 400
+    db.commit()
+    return jsonify({'success': True}), 200
+
+
+@app.route('/api/admin/tournois', methods=['POST'])
+@api_admin
+def api_admin_creer_tournoi():
+    db = get_db()
+    jeu, erreur = jeu_ou_erreur(db)
+    if erreur:
+        return erreur
+    data = donnees_json()
+    nom = texte(data, 'nom', 60)
+    places = entier(data.get('places'))
+    if len(nom) < 3:
+        return jsonify({'success': False, 'error': 'Le nom doit faire au moins 3 caractères'}), 400
+    if places not in TOURNOI_PLACES:
+        return jsonify({'success': False, 'error': 'Nombre de places : ' + ', '.join(map(str, TOURNOI_PLACES))}), 400
+    c = db.cursor()
+    c.execute("""INSERT INTO tournois (jeu_id, nom, description, quand, places, created_at)
+                 VALUES (?, ?, ?, ?, ?, datetime('now'))""",
+              (jeu['id'], nom, texte(data, 'description', 500), texte(data, 'quand', 80), places))
+    db.commit()
+    return jsonify({'success': True, 'tournoi_id': c.lastrowid}), 201
+
+
+@app.route('/api/admin/tournois/<int:tournoi_id>/poules', methods=['POST'])
+@api_admin
+def api_admin_tournoi_poules(tournoi_id):
+    import random
+    db = get_db()
+    t, erreur = tournoi_ou_404(db, tournoi_id)
+    if erreur:
+        return erreur
+    if t['statut'] != 'inscriptions':
+        return jsonify({'success': False, 'error': 'Les poules sont déjà lancées'}), 400
+    teams = [r['team_id'] for r in db.execute('SELECT team_id FROM tournoi_inscriptions WHERE tournoi_id = ?', (t['id'],))]
+    if len(teams) < TOURNOI_MIN_TEAMS:
+        return jsonify({'success': False, 'error': f'Il faut au moins {TOURNOI_MIN_TEAMS} teams inscrites'}), 400
+    random.shuffle(teams)                                   # tirage au sort
+    nb_poules = max(1, round(len(teams) / TOURNOI_TAILLE_POULE))
+    lettres = 'ABCDEFGHIJKLMNOP'[:nb_poules]
+    repartition = {l: teams[i::nb_poules] for i, l in enumerate(lettres)}
+    c = db.cursor()
+    for lettre, membres in repartition.items():
+        for tid in membres:
+            c.execute('UPDATE tournoi_inscriptions SET poule = ? WHERE tournoi_id = ? AND team_id = ?', (lettre, t['id'], tid))
+        for a, b in journees_poule(membres):
+            c.execute("""INSERT INTO tournoi_matchs (tournoi_id, phase, poule, team1_id, team2_id)
+                         VALUES (?, 'poule', ?, ?, ?)""", (t['id'], lettre, a, b))
+    c.execute("UPDATE tournois SET statut = 'poules' WHERE id = ?", (t['id'],))
+    db.commit()
+    return jsonify({'success': True, 'poules': {l: len(m) for l, m in repartition.items()}}), 200
+
+
+@app.route('/api/admin/tournois/<int:tournoi_id>/bracket', methods=['POST'])
+@api_admin
+def api_admin_tournoi_bracket(tournoi_id):
+    db = get_db()
+    t, erreur = tournoi_ou_404(db, tournoi_id)
+    if erreur:
+        return erreur
+    if t['statut'] != 'poules':
+        return jsonify({'success': False, 'error': "Le tournoi n'est pas en phase de poules"}), 400
+    if db.execute("""SELECT 1 FROM tournoi_matchs WHERE tournoi_id = ? AND phase = 'poule'
+                     AND vainqueur_id IS NULL""", (t['id'],)).fetchone():
+        return jsonify({'success': False, 'error': 'Tous les matchs de poule doivent être joués'}), 400
+
+    noms = noms_teams_tournoi(db, t['id'])
+    lettres = sorted({r['poule'] for r in db.execute(
+        'SELECT DISTINCT poule FROM tournoi_inscriptions WHERE tournoi_id = ? AND poule IS NOT NULL', (t['id'],))})
+    nb_q = qualifies_par_poule(len(lettres))
+    classements = {p: classement_poule_tournoi(db, t['id'], p, noms) for p in lettres}
+    # Têtes de série : tous les 1ers, puis tous les 2es (...), chacun avec sa poule d'origine
+    tetes = [(cl[rang]['team_id'], p) for rang in range(nb_q) for p, cl in classements.items() if rang < len(cl)]
+    taille = 2
+    while taille < len(tetes):
+        taille *= 2
+    ordre = ordre_tetes_de_serie(taille)
+    places = [tetes[s - 1] if s <= len(tetes) else None for s in ordre]
+    # Évite qu'une poule se retrouve contre elle-même dès le premier tour (si possible)
+    if len(lettres) > 1:
+        for i in range(0, taille, 2):
+            a, b = places[i], places[i + 1]
+            if a and b and a[1] == b[1]:
+                for j in range(1, taille, 2):
+                    autre, voisin = places[j], places[j - 1]
+                    if j != i + 1 and autre and voisin and autre[1] != a[1] and b[1] != voisin[1]:
+                        places[i + 1], places[j] = autre, b
+                        break
+
+    c = db.cursor()
+    nb_tours = taille.bit_length() - 1
+    for tour in range(1, nb_tours + 1):
+        for pos in range(taille >> tour):
+            if tour == 1:
+                a, b = places[2 * pos], places[2 * pos + 1]
+                t1, t2 = (a[0] if a else None), (b[0] if b else None)
+                bye = (t1 is None) != (t2 is None)
+                c.execute("""INSERT INTO tournoi_matchs (tournoi_id, phase, tour, position, team1_id, team2_id,
+                             vainqueur_id, bye) VALUES (?, 'bracket', 1, ?, ?, ?, ?, ?)""",
+                          (t['id'], pos, t1, t2, (t1 or t2) if bye else None, int(bye)))
+            else:
+                c.execute("INSERT INTO tournoi_matchs (tournoi_id, phase, tour, position) VALUES (?, 'bracket', ?, ?)",
+                          (t['id'], tour, pos))
+    for m in c.execute("SELECT * FROM tournoi_matchs WHERE tournoi_id = ? AND phase = 'bracket' AND bye = 1",
+                       (t['id'],)).fetchall():
+        faire_avancer(c, m)
+    c.execute("UPDATE tournois SET statut = 'bracket' WHERE id = ?", (t['id'],))
+    db.commit()
+    return jsonify({'success': True, 'qualifies': len(tetes), 'taille': taille}), 200
+
+
+@app.route('/api/admin/tournois/<int:tournoi_id>/matchs/<int:match_id>', methods=['POST'])
+@api_admin
+def api_admin_tournoi_score(tournoi_id, match_id):
+    db = get_db()
+    t, erreur = tournoi_ou_404(db, tournoi_id)
+    if erreur:
+        return erreur
+    m = db.execute('SELECT * FROM tournoi_matchs WHERE id = ? AND tournoi_id = ?', (match_id, t['id'])).fetchone()
+    if not m:
+        return jsonify({'success': False, 'error': 'Match introuvable'}), 404
+    data = donnees_json()
+    s1, s2 = entier(data.get('score1')), entier(data.get('score2'))
+    if s1 is None or s2 is None or not (0 <= s1 <= SCORE_MAX and 0 <= s2 <= SCORE_MAX):
+        return jsonify({'success': False, 'error': f'Les scores doivent être des nombres entre 0 et {SCORE_MAX}'}), 400
+    if s1 == s2:
+        return jsonify({'success': False, 'error': 'Pas de match nul : il faut un gagnant'}), 400
+    if not m['team1_id'] or not m['team2_id'] or m['bye']:
+        return jsonify({'success': False, 'error': "Ce match n'a pas encore ses deux teams"}), 400
+    if m['phase'] == 'poule' and t['statut'] != 'poules':
+        return jsonify({'success': False, 'error': 'La phase de poules est terminée'}), 400
+    if m['phase'] == 'bracket':
+        suivant = db.execute("""SELECT vainqueur_id, bye FROM tournoi_matchs WHERE tournoi_id = ? AND phase = 'bracket'
+                                AND tour = ? AND position = ?""", (t['id'], m['tour'] + 1, m['position'] // 2)).fetchone()
+        if suivant and suivant['vainqueur_id'] and not suivant['bye']:
+            return jsonify({'success': False, 'error': 'Le match suivant est déjà joué : corrige-le d\'abord'}), 400
+    vainqueur = m['team1_id'] if s1 > s2 else m['team2_id']
+    c = db.cursor()
+    c.execute('UPDATE tournoi_matchs SET score1 = ?, score2 = ?, vainqueur_id = ? WHERE id = ?', (s1, s2, vainqueur, m['id']))
+    if m['phase'] == 'bracket':
+        faire_avancer(c, c.execute('SELECT * FROM tournoi_matchs WHERE id = ?', (m['id'],)).fetchone())
+    db.commit()
+    return jsonify({'success': True, 'vainqueur_id': vainqueur}), 200
+
+
+@app.route('/api/admin/tournois/<int:tournoi_id>/delete', methods=['POST'])
+@api_admin
+def api_admin_supprimer_tournoi(tournoi_id):
+    db = get_db()
+    t, erreur = tournoi_ou_404(db, tournoi_id)
+    if erreur:
+        return erreur
+    for table in ('tournoi_matchs', 'tournoi_inscriptions'):
+        db.execute(f'DELETE FROM {table} WHERE tournoi_id = ?', (t['id'],))
+    db.execute('DELETE FROM tournois WHERE id = ?', (t['id'],))
+    db.commit()
+    return jsonify({'success': True}), 200
 
 
 # ---------------------------------------------------------------------------

@@ -63,6 +63,20 @@ Tout est **gratuit** et **purement cosmétique** (aucun avantage en jeu). Tout l
 
 Un badge et un cadre équipés à la fois, à choisir dans *Profil → Mon inventaire*.
 
+## Tournois
+Page **Tournois** (menu) : un tournoi par jeu, à côté des ligues. L'admin le crée depuis `/tournois`
+(nom, date, 8 / 16 / 32 places), puis tout se gère sur la page du tournoi :
+1. **Inscriptions** : le capitaine inscrit sa team en un clic (désinscription possible tant que c'est ouvert).
+2. **Poules** : l'admin ferme les inscriptions, les teams sont tirées au sort en poules de 4
+   (minimum 4 teams). L'admin saisit les scores ; les 2 premiers de chaque poule sont qualifiés
+   (les 4 premiers s'il n'y a qu'une poule).
+3. **Phase finale** : élimination directe, sans rencontre entre deux teams de la même poule au 1er tour
+   quand c'est possible, exempts si le nombre de qualifiés n'est pas une puissance de 2.
+   Le gagnant de chaque match avance tout seul.
+4. **Champion** : titre au palmarès des tournois + **Badge Champion** donné à chaque joueur de la team
+   (introuvable dans le shop). Pas de récompense en argent pour l'instant.
+Réglages en haut de la section Tournois d'`app.py` (`TOURNOI_PLACES`, `TOURNOI_TAILLE_POULE`, `TOURNOI_MIN_TEAMS`).
+
 ## Teams
 - 5 joueurs maximum par team (`MAX_MEMBRES` en haut de `app.py`).
 - Tout membre peut **quitter** sa team ; si le capitaine part, le rôle passe au membre le plus ancien
