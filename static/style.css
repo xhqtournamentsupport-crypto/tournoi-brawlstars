@@ -581,3 +581,36 @@ html[data-theme="neon"] ::selection { background: var(--accent); color: var(--in
 @media (prefers-reduced-motion: reduce) {
     .anim-ok .reveal { opacity: 1; transform: none; transition: none; }
 }
+
+/* ---------------------------------------------------------------------
+   Animations des pages (classements, teams, shop, profil)
+   Jouées à l'affichage des éléments, désactivées si l'appareil réduit les animations.
+   --------------------------------------------------------------------- */
+@keyframes xhq-apparait { from { opacity: 0; transform: translateY(12px); } }
+@keyframes xhq-glisse { from { opacity: 0; transform: translateX(-14px); } }
+@keyframes xhq-brille { 0%, 100% { box-shadow: 0 0 0 0 var(--gold-fond); } 50% { box-shadow: 0 0 0 6px var(--gold-fond); } }
+
+.poule, .resultat, .team-card, .item-card, .inv-item, .membre-ligne, .stat-item { animation: xhq-apparait 0.45s cubic-bezier(.2, .7, .2, 1) both; }
+.leaderboard > li { animation: xhq-glisse 0.4s cubic-bezier(.2, .7, .2, 1) both; }
+
+/* Décalage : les lignes arrivent l'une après l'autre */
+.leaderboard > li:nth-child(2), .team-card:nth-child(2), .item-card:nth-child(2), .resultat:nth-child(3), .membre-ligne:nth-child(2), .inv-item:nth-child(2) { animation-delay: 0.05s; }
+.leaderboard > li:nth-child(3), .team-card:nth-child(3), .item-card:nth-child(3), .resultat:nth-child(4), .membre-ligne:nth-child(3), .inv-item:nth-child(3) { animation-delay: 0.1s; }
+.leaderboard > li:nth-child(4), .team-card:nth-child(4), .item-card:nth-child(4), .resultat:nth-child(5), .membre-ligne:nth-child(4), .inv-item:nth-child(4) { animation-delay: 0.15s; }
+.leaderboard > li:nth-child(5), .team-card:nth-child(5), .item-card:nth-child(5), .resultat:nth-child(6), .membre-ligne:nth-child(5), .inv-item:nth-child(5) { animation-delay: 0.2s; }
+.leaderboard > li:nth-child(6), .team-card:nth-child(6), .item-card:nth-child(6), .resultat:nth-child(7), .inv-item:nth-child(6) { animation-delay: 0.25s; }
+.leaderboard > li:nth-child(7), .team-card:nth-child(7), .item-card:nth-child(7), .resultat:nth-child(8), .inv-item:nth-child(7) { animation-delay: 0.3s; }
+.leaderboard > li:nth-child(8), .team-card:nth-child(n+8), .item-card:nth-child(n+8), .resultat:nth-child(n+9), .inv-item:nth-child(n+8) { animation-delay: 0.35s; }
+.poule:nth-child(2) { animation-delay: 0.12s; }
+
+/* Le premier du classement brille doucement */
+.leaderboard-item:not(.vide) .rank.top1 { animation: xhq-brille 2.4s ease-in-out 0.8s infinite; }
+
+/* Cartes qui réagissent au survol */
+.team-card, .item-card { transition: transform 0.2s, border-color 0.2s; }
+.team-card:hover, .item-card:hover { transform: translateY(-2px); }
+
+@media (prefers-reduced-motion: reduce) {
+    .poule, .resultat, .team-card, .item-card, .inv-item, .membre-ligne, .stat-item, .leaderboard > li, .rank.top1 { animation: none; }
+    .team-card:hover, .item-card:hover { transform: none; }
+}

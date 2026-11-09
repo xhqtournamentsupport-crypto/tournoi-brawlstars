@@ -21,6 +21,12 @@
     --accent-dim: rgba(255, 200, 61, 0.12);
     --bleu: #4b5cff;
     --bleu-clair: #8f9bff;
+    --bleu-hover: #5b6bff;
+    --nav-bg: rgba(10, 20, 48, 0.92);
+    --focus: rgba(75, 92, 255, 0.25);
+    --halo-1: rgba(75, 92, 255, 0.28);
+    --halo-2: rgba(255, 200, 61, 0.10);
+    --points: rgba(143, 155, 255, 0.10);
     --chaud: #ff7a45;
     --ink: #070f26;
     --win: #2fd17c;
@@ -77,7 +83,7 @@ a { color: var(--bleu-clair); }
     flex-wrap: wrap;
     min-height: 70px;
     padding: 0.6rem 2rem;
-    background: rgba(10, 20, 48, 0.92);
+    background: var(--nav-bg);
     border-bottom: 1px solid var(--line);
     backdrop-filter: saturate(140%) blur(6px);
 }
@@ -108,7 +114,7 @@ a { color: var(--bleu-clair); }
 .xhq-nav-btn.outline { color: var(--text); box-shadow: inset 0 0 0 1px var(--line-2); }
 .xhq-nav-btn.outline:hover { box-shadow: inset 0 0 0 1px var(--text-soft); background: transparent; }
 .xhq-nav-btn.primary { background: var(--bleu); color: #fff; }
-.xhq-nav-btn.primary:hover { background: #5b6bff; color: #fff; }
+.xhq-nav-btn.primary:hover { background: var(--bleu-hover); color: #fff; }
 
 /* ---------------------------------------------------------------------
    Avatars et cosmétiques
@@ -222,7 +228,7 @@ input, textarea, select {
 }
 
 input::placeholder, textarea::placeholder { color: var(--dim); }
-input:focus, textarea:focus, select:focus { outline: none; border-color: var(--bleu); box-shadow: 0 0 0 3px rgba(75, 92, 255, 0.25); }
+input:focus, textarea:focus, select:focus { outline: none; border-color: var(--bleu); box-shadow: 0 0 0 3px var(--focus); }
 textarea { resize: vertical; min-height: 120px; }
 select { cursor: pointer; }
 select option { background: var(--panel); }
@@ -248,7 +254,7 @@ select option { background: var(--panel); }
     transition: background 0.15s, transform 0.15s;
 }
 
-.btn:hover, .btn-primary:hover, .create-team-btn:hover, .item-btn:hover, .hero-btn:hover, .selector-btn:hover { background: #5b6bff; transform: translateY(-1px); }
+.btn:hover, .btn-primary:hover, .create-team-btn:hover, .item-btn:hover, .hero-btn:hover, .selector-btn:hover { background: var(--bleu-hover); transform: translateY(-1px); }
 
 .btn:disabled, .item-btn:disabled, .btn-primary:disabled {
     background: var(--panel-2);
@@ -535,3 +541,76 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
 .jeu-onglet.actif { background: var(--bleu); border-color: var(--bleu); color: #fff; }
 .jeu-onglet.actif small { color: rgba(255, 255, 255, 0.75); }
 .jeu-onglet.bientot { border-style: dashed; color: var(--dim); }
+
+/* =====================================================================
+   Thème « Néon » : violet du logo + cyan, boutons ronds du thème classique.
+   Activé avec THEME = 'neon' dans app.py (ou ?theme=neon pour tester).
+   ===================================================================== */
+html[data-theme="neon"] {
+    --bg: #0b0816;
+    --bg-2: #100c20;
+    --panel: #161029;
+    --panel-2: #1d1536;
+    --line: #2a2048;
+    --line-2: #3e2f6b;
+    --trait: #3e2f6b;
+    --text: #f3f0ff;
+    --text-soft: #cfc7ee;
+    --muted: #9a90c2;
+    --dim: #675d91;
+    --vide: #3b3163;
+    --accent: #2ee6d6;
+    --accent-dim: rgba(46, 230, 214, 0.12);
+    --bleu: #8b5cf6;
+    --bleu-clair: #c4b5fd;
+    --bleu-hover: #9d74ff;
+    --chaud: #ff4fb8;
+    --ink: #07050f;
+    --nav-bg: rgba(11, 8, 22, 0.9);
+    --focus: rgba(139, 92, 246, 0.3);
+    --halo-1: rgba(139, 92, 246, 0.30);
+    --halo-2: rgba(46, 230, 214, 0.12);
+    --points: rgba(196, 181, 253, 0.08);
+}
+
+html[data-theme="neon"] ::selection { background: var(--accent); color: var(--ink); }
+
+/* Apparition douce des blocs au défilement (activée par JS seulement) */
+.anim-ok .reveal { opacity: 0; transform: translateY(18px); transition: opacity 0.6s ease, transform 0.6s ease; transition-delay: var(--d, 0s); }
+.anim-ok .reveal.vu { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) {
+    .anim-ok .reveal { opacity: 1; transform: none; transition: none; }
+}
+
+/* ---------------------------------------------------------------------
+   Animations des pages (classements, teams, shop, profil)
+   Jouées à l'affichage des éléments, désactivées si l'appareil réduit les animations.
+   --------------------------------------------------------------------- */
+@keyframes xhq-apparait { from { opacity: 0; transform: translateY(12px); } }
+@keyframes xhq-glisse { from { opacity: 0; transform: translateX(-14px); } }
+@keyframes xhq-brille { 0%, 100% { box-shadow: 0 0 0 0 var(--gold-fond); } 50% { box-shadow: 0 0 0 6px var(--gold-fond); } }
+
+.poule, .resultat, .team-card, .item-card, .inv-item, .membre-ligne, .stat-item { animation: xhq-apparait 0.45s cubic-bezier(.2, .7, .2, 1) both; }
+.leaderboard > li { animation: xhq-glisse 0.4s cubic-bezier(.2, .7, .2, 1) both; }
+
+/* Décalage : les lignes arrivent l'une après l'autre */
+.leaderboard > li:nth-child(2), .team-card:nth-child(2), .item-card:nth-child(2), .resultat:nth-child(3), .membre-ligne:nth-child(2), .inv-item:nth-child(2) { animation-delay: 0.05s; }
+.leaderboard > li:nth-child(3), .team-card:nth-child(3), .item-card:nth-child(3), .resultat:nth-child(4), .membre-ligne:nth-child(3), .inv-item:nth-child(3) { animation-delay: 0.1s; }
+.leaderboard > li:nth-child(4), .team-card:nth-child(4), .item-card:nth-child(4), .resultat:nth-child(5), .membre-ligne:nth-child(4), .inv-item:nth-child(4) { animation-delay: 0.15s; }
+.leaderboard > li:nth-child(5), .team-card:nth-child(5), .item-card:nth-child(5), .resultat:nth-child(6), .membre-ligne:nth-child(5), .inv-item:nth-child(5) { animation-delay: 0.2s; }
+.leaderboard > li:nth-child(6), .team-card:nth-child(6), .item-card:nth-child(6), .resultat:nth-child(7), .inv-item:nth-child(6) { animation-delay: 0.25s; }
+.leaderboard > li:nth-child(7), .team-card:nth-child(7), .item-card:nth-child(7), .resultat:nth-child(8), .inv-item:nth-child(7) { animation-delay: 0.3s; }
+.leaderboard > li:nth-child(8), .team-card:nth-child(n+8), .item-card:nth-child(n+8), .resultat:nth-child(n+9), .inv-item:nth-child(n+8) { animation-delay: 0.35s; }
+.poule:nth-child(2) { animation-delay: 0.12s; }
+
+/* Le premier du classement brille doucement */
+.leaderboard-item:not(.vide) .rank.top1 { animation: xhq-brille 2.4s ease-in-out 0.8s infinite; }
+
+/* Cartes qui réagissent au survol */
+.team-card, .item-card { transition: transform 0.2s, border-color 0.2s; }
+.team-card:hover, .item-card:hover { transform: translateY(-2px); }
+
+@media (prefers-reduced-motion: reduce) {
+    .poule, .resultat, .team-card, .item-card, .inv-item, .membre-ligne, .stat-item, .leaderboard > li, .rank.top1 { animation: none; }
+    .team-card:hover, .item-card:hover { transform: none; }
+}
