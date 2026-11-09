@@ -58,7 +58,7 @@ saison d'avant, plafond −15. Réglages en haut de `app.py` (`PENALITE_PAR_MATC
 Tout est **gratuit** et **purement cosmétique** (aucun avantage en jeu). Tout le monde démarre à 0 €.
 - **Badge Fondateur** : réservé aux 100 premiers inscrits.
 - **Badge Saison 1** : récupérable uniquement pendant la saison 1.
-- **Cadre Or / Cadre Carbone** : contour autour de l'avatar (profil, menu, liste des membres).
+- **Cadre Violet / Cadre Carbone** : contour autour de l'avatar (profil, menu, liste des membres).
 - **Avatars rares** : 4 avatars en plus dans le sélecteur du profil.
 
 Un badge et un cadre équipés à la fois, à choisir dans *Profil → Mon inventaire*.

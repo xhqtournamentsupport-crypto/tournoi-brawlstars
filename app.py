@@ -75,8 +75,8 @@ SOLDE_DEPART = 0
 SHOP_DEFAUT = [
     ('fondateur', 'Badge Fondateur', "Réservé aux 100 premiers inscrits. Une fois les 100 places prises, il ne revient pas.", 0, 'badge'),
     ('saison1', 'Badge Saison 1', "Disponible pendant la saison 1 uniquement. À la fin de la saison, il disparaît du shop.", 0, 'badge'),
-    ('cadre_or', 'Cadre Or', "Contour or autour de ton avatar : profil, menu et liste des membres de ta team.", 0, 'cadre'),
-    ('cadre_carbone', 'Cadre Carbone', "Contour noir mat avec liseré, plus discret que l'or.", 0, 'cadre'),
+    ('cadre_or', 'Cadre Violet', "Contour violet autour de ton avatar : profil, menu et liste des membres de ta team.", 0, 'cadre'),
+    ('cadre_carbone', 'Cadre Carbone', "Contour indigo mat avec liseré, plus discret que le violet.", 0, 'cadre'),
     ('pack_rare', 'Avatars rares', "Quatre avatars en plus dans le sélecteur du profil, introuvables autrement.", 0, 'avatars'),
     ('champion_tournoi', 'Badge Champion', "Donné à chaque joueur de la team qui gagne un tournoi XHQ. Impossible à récupérer autrement.", 0, 'badge'),
 ]
