@@ -65,7 +65,7 @@ Un badge et un cadre équipés à la fois, à choisir dans *Profil → Mon inven
 
 ## Tournois
 Page **Tournois** (menu) : un tournoi par jeu, à côté des ligues. L'admin le crée depuis `/tournois`
-(nom, date, 8 / 16 / 32 places), puis tout se gère sur la page du tournoi :
+(nom, date et heure de début — qui lance un compte à rebours sur l'accueil —, 8 / 16 / 32 places), puis tout se gère sur la page du tournoi :
 1. **Inscriptions** : le capitaine inscrit sa team en un clic (désinscription possible tant que c'est ouvert).
 2. **Poules** : l'admin ferme les inscriptions, les teams sont tirées au sort en poules de 4
    (minimum 4 teams). L'admin saisit les scores ; les 2 premiers de chaque poule sont qualifiés

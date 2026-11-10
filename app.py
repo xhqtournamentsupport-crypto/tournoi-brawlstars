@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 import secrets
 import sys
 import sqlite3
@@ -417,6 +418,7 @@ def init_db():
     c.execute('CREATE TABLE IF NOT EXISTS parametres (cle TEXT PRIMARY KEY, valeur TEXT)')
     migrer_multi_jeux(c)
     creer_tables_tournois(c)
+    ajouter_colonne(c, 'tournois', 'debut', 'TEXT')   # 'AAAA-MM-JJTHH:MM' (heure de France)
     c.execute("UPDATE users SET created_at = datetime('now') WHERE created_at IS NULL")
     c.execute("UPDATE teams SET created_at = datetime('now') WHERE created_at IS NULL")
     tous_avatars = AVATARS + AVATARS_PREMIUM
@@ -629,27 +631,109 @@ def chiffres_jeu(db, jeu_id):
     }
 
 
+JOURS_FR = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche']
+MOIS_FR = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.']
+
+
+def date_fr(iso):
+    """'2026-12-14T18:00' -> 'samedi 14 déc. à 18h00'."""
+    d = datetime.strptime(iso, '%Y-%m-%dT%H:%M')
+    return f"{JOURS_FR[d.weekday()]} {d.day} {MOIS_FR[d.month - 1]} à {d.hour}h{d.minute:02d}"
+
+
+def il_y_a(sqlite_date):
+    """Date SQLite (UTC) -> « il y a 5 min », « il y a 2 h », « il y a 3 j »."""
+    if not sqlite_date:
+        return ''
+    try:
+        d = datetime.strptime(sqlite_date[:19], '%Y-%m-%d %H:%M:%S')
+    except ValueError:
+        return ''
+    s = max(0, int((datetime.utcnow() - d).total_seconds()))
+    if s < 60:
+        return "à l'instant"
+    if s < 3600:
+        return f'il y a {s // 60} min'
+    if s < 86400:
+        return f'il y a {s // 3600} h'
+    return f'il y a {s // 86400} j'
+
+
+def forme_des_teams(db, jeu_id, saison):
+    """{team_id: ['V', 'D', ...]} : résultats de la saison, du plus récent au plus ancien."""
+    forme = {}
+    for m in db.execute('SELECT team1_id, team2_id, score1, score2 FROM matchs WHERE jeu_id = ? AND saison = ? ORDER BY id DESC',
+                        (jeu_id, saison)):
+        forme.setdefault(m['team1_id'], []).append('V' if m['score1'] > m['score2'] else 'D')
+        forme.setdefault(m['team2_id'], []).append('V' if m['score2'] > m['score1'] else 'D')
+    return forme
+
+
+def serie_en_cours(resultats):
+    n = 0
+    for r in resultats:
+        if r != 'V':
+            break
+        n += 1
+    return n
+
+
+def fil_actu(db, jeu_id, limite=8):
+    """Derniers évènements du jeu : résultats, nouvelles teams, inscriptions et vainqueurs de tournois."""
+    ev = []
+    for m in db.execute(REQ_MATCHS + ' WHERE m.jeu_id = ? ORDER BY m.id DESC LIMIT ?', (jeu_id, limite)):
+        g, p = (m['team1_nom'], m['team2_nom']) if m['score1'] > m['score2'] else (m['team2_nom'], m['team1_nom'])
+        ev.append((m['created_at'], 'match', f"{g} bat {p}", f"{max(m['score1'], m['score2'])}-{min(m['score1'], m['score2'])} · Ligue {m['ligue_num']}"))
+    for t in db.execute('SELECT nom, created_at FROM teams WHERE jeu_id = ? ORDER BY id DESC LIMIT ?', (jeu_id, limite)):
+        ev.append((t['created_at'], 'team', f"{t['nom']} rejoint la ligue", f'Départ en Ligue {LIGUE_DEPART}'))
+    for r in db.execute("""SELECT COALESCE(te.nom, i.team_nom) AS team, t.nom AS tournoi, i.created_at FROM tournoi_inscriptions i
+                           JOIN tournois t ON t.id = i.tournoi_id LEFT JOIN teams te ON te.id = i.team_id
+                           WHERE t.jeu_id = ? ORDER BY i.id DESC LIMIT ?""", (jeu_id, limite)):
+        ev.append((r['created_at'], 'inscription', f"{r['team']} s'inscrit à {r['tournoi']}", 'Tournoi'))
+    for t in db.execute("SELECT nom, champion_nom, termine_at FROM tournois WHERE jeu_id = ? AND statut = 'termine' ORDER BY id DESC LIMIT 3",
+                        (jeu_id,)):
+        ev.append((t['termine_at'], 'champion', f"{t['champion_nom']} remporte {t['nom']}", 'Badge Champion débloqué'))
+    ev.sort(key=lambda e: e[0] or '', reverse=True)
+    return [{'quand': il_y_a(d), 'type': ty, 'titre': ti, 'detail': de} for d, ty, ti, de in ev[:limite]]
+
+
 @app.route('/')
 def index():
-    """Accueil = tableau de bord du jeu choisi : classement de Ligue 1, derniers résultats, tournois."""
+    """Accueil : prochain tournoi, teams à la une, classement de Ligue 1 avec la forme, fil d'actu."""
     db = get_db()
     jeu = trouver_jeu(db) or trouver_jeu(db, JEU_DEFAUT)
     chiffres = chiffres_jeu(db, jeu['id'])
+    forme = forme_des_teams(db, jeu['id'], chiffres['saison'])
+
     ligue1 = classement_poule(db, jeu['id'], 1, lettres_poules(1)[0])
-    remplissage = []
-    for n, config in LIGUES.items():
-        nb = db.execute('SELECT COUNT(*) FROM ligue l JOIN teams t ON t.id = l.team_id WHERE t.jeu_id = ? AND l.ligue_num = ?',
-                        (jeu['id'], n)).fetchone()[0]
-        remplissage.append({'num': n, 'teams': nb, 'places': config['poules'] * TEAMS_PAR_POULE, 'poules': config['poules']})
-    derniers = [dict(r) for r in db.execute(REQ_MATCHS + ' WHERE m.jeu_id = ? AND m.saison = ? ORDER BY m.id DESC LIMIT 8',
+    for p in ligue1:
+        p['forme'] = forme.get(p['team_id'], [])[:5]
+
+    # À la une
+    leader = next((p for p in ligue1 if p['team_id'] and p['joues']), None)
+    en_forme = None
+    for r in db.execute('SELECT t.id, t.nom, l.ligue_num FROM teams t JOIN ligue l ON l.team_id = t.id WHERE t.jeu_id = ?', (jeu['id'],)):
+        serie = serie_en_cours(forme.get(r['id'], []))
+        if serie >= 2 and (not en_forme or serie > en_forme['serie']):
+            en_forme = {'nom': r['nom'], 'ligue': r['ligue_num'], 'serie': serie, 'forme': forme[r['id']][:5]}
+    dernier_champion = db.execute("""SELECT nom, champion_nom FROM tournois WHERE jeu_id = ? AND statut = 'termine'
+                                     ORDER BY termine_at DESC LIMIT 1""", (jeu['id'],)).fetchone()
+
+    # Prochain tournoi : d'abord ceux en cours, puis les inscriptions ouvertes (date la plus proche)
+    actifs = [resume_tournoi(db, t) for t in db.execute(
+        "SELECT * FROM tournois WHERE jeu_id = ? AND statut != 'termine'", (jeu['id'],))]
+    ordre = {'bracket': 0, 'poules': 1, 'inscriptions': 2}
+    actifs.sort(key=lambda t: (ordre[t['statut']], t['debut'] or '9999', -t['id']))
+    prochain = actifs[0] if actifs else None
+
+    derniers = [dict(r) for r in db.execute(REQ_MATCHS + ' WHERE m.jeu_id = ? AND m.saison = ? ORDER BY m.id DESC LIMIT 6',
                                              (jeu['id'], chiffres['saison']))]
-    tournois = [resume_tournoi(db, t) for t in db.execute(
-        """SELECT * FROM tournois WHERE jeu_id = ? ORDER BY CASE statut WHEN 'termine' THEN 1 ELSE 0 END, id DESC LIMIT 4""",
-        (jeu['id'],))]
-    return render_template('index.html', jeu_actuel=jeu, chiffres=chiffres, ligue1=ligue1, remplissage=remplissage,
-                           derniers=derniers, tournois=tournois, palmares=palmares(db, jeu['id'], 3),
-                           nb_ligues=LIGUE_MAX, par_poule=TEAMS_PAR_POULE, ligue_depart=LIGUE_DEPART,
-                           joueurs_total=db.execute('SELECT COUNT(*) FROM users').fetchone()[0])
+    nb_tournois = db.execute('SELECT COUNT(*) FROM tournois WHERE jeu_id = ?', (jeu['id'],)).fetchone()[0]
+    return render_template('index.html', jeu_actuel=jeu, chiffres=chiffres, ligue1=ligue1, leader=leader,
+                           en_forme=en_forme, dernier_champion=dernier_champion, prochain=prochain,
+                           autres_tournois=actifs[1:3], derniers=derniers, fil=fil_actu(db, jeu['id']),
+                           nb_tournois=nb_tournois, nb_ligues=LIGUE_MAX, par_poule=TEAMS_PAR_POULE,
+                           ligue_depart=LIGUE_DEPART, palmares=palmares(db, jeu['id'], 1))
 
 
 @app.route('/login')
@@ -1862,7 +1946,7 @@ def resume_tournoi(db, t):
     jeu = db.execute('SELECT code, nom, format FROM jeux WHERE id = ?', (t['jeu_id'],)).fetchone()
     return {'id': t['id'], 'nom': t['nom'], 'description': t['description'], 'quand': t['quand'],
             'places': t['places'], 'inscrits': nb, 'statut': t['statut'], 'statut_label': STATUTS_TOURNOI[t['statut']],
-            'champion': t['champion_nom'], 'jeu': dict(jeu) if jeu else None}
+            'champion': t['champion_nom'], 'jeu': dict(jeu) if jeu else None, 'debut': t['debut']}
 
 
 def ma_team_dans_jeu(db, jeu_id):
@@ -2045,10 +2129,17 @@ def api_admin_creer_tournoi():
         return jsonify({'success': False, 'error': 'Le nom doit faire au moins 3 caractères'}), 400
     if places not in TOURNOI_PLACES:
         return jsonify({'success': False, 'error': 'Nombre de places : ' + ', '.join(map(str, TOURNOI_PLACES))}), 400
+    debut = texte(data, 'debut', 16) or None
+    if debut:
+        try:
+            debut = datetime.strptime(debut, '%Y-%m-%dT%H:%M').strftime('%Y-%m-%dT%H:%M')
+        except ValueError:
+            return jsonify({'success': False, 'error': 'Date de début invalide'}), 400
+    quand = texte(data, 'quand', 80) or (date_fr(debut) if debut else '')
     c = db.cursor()
-    c.execute("""INSERT INTO tournois (jeu_id, nom, description, quand, places, created_at)
-                 VALUES (?, ?, ?, ?, ?, datetime('now'))""",
-              (jeu['id'], nom, texte(data, 'description', 500), texte(data, 'quand', 80), places))
+    c.execute("""INSERT INTO tournois (jeu_id, nom, description, quand, places, created_at, debut)
+                 VALUES (?, ?, ?, ?, ?, datetime('now'), ?)""",
+              (jeu['id'], nom, texte(data, 'description', 500), quand, places, debut))
     db.commit()
     return jsonify({'success': True, 'tournoi_id': c.lastrowid}), 201
 

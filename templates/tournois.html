@@ -62,11 +62,11 @@
             <h2>Créer un tournoi</h2>
             <div class="creer-grille">
                 <div><label for="t-nom">Nom</label><input type="text" id="t-nom" maxlength="60" placeholder="XHQ Cup #1"></div>
-                <div><label for="t-quand">Quand</label><input type="text" id="t-quand" maxlength="80" placeholder="Samedi 14 déc. à 18h"></div>
+                <div><label for="t-debut">Début (date et heure)</label><input type="datetime-local" id="t-debut"></div>
                 <div><label for="t-places">Places</label><select id="t-places"></select></div>
                 <div class="large"><label for="t-desc">Description (facultatif)</label><textarea id="t-desc" maxlength="500" placeholder="Format, règles, lien Discord…"></textarea></div>
             </div>
-            <p class="hint muted" style="margin:0.8rem 0">Format : poules de 4 tirées au sort, les 2 premiers de chaque poule passent en phase finale (élimination directe). Le champion gagne le badge exclusif « Champion ».</p>
+            <p class="hint muted" style="margin:0.8rem 0">La date lance un compte à rebours sur l'accueil. Format : poules de 4 tirées au sort, les 2 premiers de chaque poule passent en phase finale (élimination directe). Le champion gagne le badge exclusif « Champion ».</p>
             <button class="btn" type="button" id="t-creer" onclick="creerTournoi()">Créer le tournoi</button>
         </section>
 
@@ -130,7 +130,7 @@
                 method: 'POST',
                 body: {
                     nom: document.getElementById('t-nom').value,
-                    quand: document.getElementById('t-quand').value,
+                    debut: document.getElementById('t-debut').value,
                     description: document.getElementById('t-desc').value,
                     places: Number(document.getElementById('t-places').value)
                 }
