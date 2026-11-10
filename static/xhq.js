@@ -121,6 +121,12 @@ document.addEventListener('DOMContentLoaded', () => {
         menu.addEventListener('click', e => e.stopPropagation());
     }
 
+    // Changer de compte (comptes déjà connectés sur ce navigateur)
+    document.querySelectorAll('.compte-autre[data-compte]').forEach(b => b.addEventListener('click', async () => {
+        const { ok } = await api('/api/comptes/basculer', { method: 'POST', body: { user_id: Number(b.dataset.compte) } });
+        if (ok) location.reload();
+    }));
+
     const burger = document.getElementById('burger');
     if (burger) burger.addEventListener('click', e => {
         e.stopPropagation();
@@ -132,3 +138,74 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('click', () => { fermerCompte(); nav.classList.remove('ouvert'); });
     document.addEventListener('keydown', e => { if (e.key === 'Escape') { fermerCompte(); nav.classList.remove('ouvert'); } });
 });
+
+// ---------------------------------------------------------------------------
+// Envoi d'une image (photo, logo, bannière) en multipart
+// ---------------------------------------------------------------------------
+async function envoyerFichier(url, fichier) {
+    const form = new FormData();
+    form.append('fichier', fichier);
+    let res, data = {};
+    try {
+        res = await fetch(url, { method: 'POST', body: form });
+        data = await res.json().catch(() => ({}));
+    } catch (e) { return { ok: false, data: { error: 'Erreur réseau' } }; }
+    if (res.status === 413) data.error = 'Image trop lourde (8 Mo maximum)';
+    return { ok: res.ok && !!data.success, data };
+}
+
+// ---------------------------------------------------------------------------
+// Éditeur de bannière réutilisable : glisser pour cadrer + curseur de taille.
+// racine : élément qui contient img.eb-img, .eb-vide, input.eb-fichier, .eb-suppr, input.eb-zoom, .eb-reglages
+// ---------------------------------------------------------------------------
+function editeurBanniere(racine, { url, pos = 50, zoom = 100, routes, message }) {
+    const img = racine.querySelector('.eb-img');
+    const etat = { pos, zoom, minuteur: null };
+    const appliquer = () => {
+        img.style.objectPosition = `50% ${etat.pos}%`;
+        img.style.transformOrigin = `50% ${etat.pos}%`;
+        img.style.transform = `scale(${etat.zoom / 100})`;
+    };
+    const afficher = u => {
+        img.hidden = !u;
+        if (u) img.src = u;
+        racine.querySelector('.eb-vide').hidden = !!u;
+        racine.querySelectorAll('.eb-avec').forEach(el => { el.hidden = !u; });
+        racine.querySelector('.eb-zoom').value = etat.zoom;
+        appliquer();
+    };
+    const sauver = () => {
+        clearTimeout(etat.minuteur);
+        etat.minuteur = setTimeout(() => api(routes.cadrage, { method: 'POST', body: { pos: Math.round(etat.pos), zoom: Math.round(etat.zoom) } }), 400);
+    };
+    afficher(url);
+
+    racine.querySelector('.eb-fichier').addEventListener('change', async e => {
+        const f = e.target.files[0]; e.target.value = '';
+        if (!f) return;
+        const { ok, data } = await envoyerFichier(routes.envoi, f);
+        if (ok) { etat.pos = 50; etat.zoom = 100; afficher(data.url); message && message('Bannière mise à jour. Glisse-la pour la cadrer.', 'success'); }
+        else message && message(data.error || 'Erreur', 'error');
+    });
+    racine.querySelector('.eb-suppr').addEventListener('click', async () => {
+        const { ok } = await api(routes.suppression, { method: 'POST' });
+        if (ok) afficher(null);
+    });
+    racine.querySelector('.eb-zoom').addEventListener('input', e => { etat.zoom = Number(e.target.value); appliquer(); sauver(); });
+
+    let depart = null;
+    const debut = y => { depart = { y, pos: etat.pos }; img.classList.add('glisse'); };
+    const bouge = y => {
+        if (!depart) return;
+        const h = img.getBoundingClientRect().height || 1;
+        etat.pos = Math.max(0, Math.min(100, depart.pos - (y - depart.y) / h * 100));
+        appliquer();
+    };
+    const fin = () => { if (!depart) return; depart = null; img.classList.remove('glisse'); sauver(); };
+    img.addEventListener('mousedown', e => { e.preventDefault(); debut(e.clientY); });
+    window.addEventListener('mousemove', e => bouge(e.clientY));
+    window.addEventListener('mouseup', fin);
+    img.addEventListener('touchstart', e => debut(e.touches[0].clientY), { passive: true });
+    img.addEventListener('touchmove', e => { e.preventDefault(); bouge(e.touches[0].clientY); }, { passive: false });
+    img.addEventListener('touchend', fin);
+}

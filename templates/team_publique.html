@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ team.nom }} · Team {{ team.jeu }} · XHQ League</title>
+    {% include '_head.html' %}
+    <style>
+        .tp { max-width: 960px; margin: 0 auto; }
+        .tp-banniere { position: relative; aspect-ratio: 3 / 1; border-radius: 20px; overflow: hidden; background: linear-gradient(120deg, #1d1a3a, #2a2370 55%, #4a3fb8); border: 1px solid var(--line); }
+        .tp-banniere img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .tp-tete { position: relative; z-index: 1; display: flex; justify-content: space-between; align-items: flex-end; gap: 1rem; flex-wrap: wrap; margin-top: -58px; padding: 0 1.4rem; }
+        .tp-logo { position: relative; z-index: 1; width: 124px; height: 124px; display: grid; place-items: center; border-radius: 50%; border: 5px solid var(--bg); background: var(--panel-2); font-size: 3.4rem; overflow: hidden; }
+        .tp-logo img { width: 100%; height: 100%; object-fit: cover; }
+        .tp-nom { margin: 0.9rem 1.4rem 0; }
+        .tp-nom h1 { font-size: clamp(1.8rem, 4.4vw, 2.5rem); }
+        .tp-sous { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.6rem; }
+        .tp-sous span { padding: 0.2rem 0.7rem; border-radius: 999px; background: rgba(255, 255, 255, 0.06); color: var(--text-soft); font-size: 0.85rem; font-weight: 600; }
+        .tp-sous span.fort { background: var(--accent-dim); color: var(--bleu-clair); }
+        .tp-bio { margin: 1rem 1.4rem 0; color: var(--text-soft); white-space: pre-line; max-width: 680px; }
+        .tp-grille { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; margin-top: 2.2rem; }
+        .tp-bloc { padding: 1.2rem 1.3rem; background: var(--panel); border: 1px solid var(--line); border-radius: 18px; }
+        .tp-bloc h2 { font-size: 1.15rem; margin-bottom: 0.9rem; display: flex; justify-content: space-between; align-items: baseline; }
+        .tp-bloc h2 small { color: var(--muted); font-family: var(--body); font-size: 0.85rem; font-weight: 600; }
+        .membre { display: flex; align-items: center; gap: 0.8rem; padding: 0.5rem 0.4rem; border-radius: 12px; color: var(--text); text-decoration: none; transition: background 0.2s; }
+        .membre:hover { background: rgba(255, 255, 255, 0.04); }
+        .membre-av { width: 42px; height: 42px; flex-shrink: 0; display: grid; place-items: center; border-radius: 50%; background: var(--panel-2); border: 1px solid var(--line-2); font-size: 1.25rem; overflow: hidden; }
+        .membre-av img { width: 100%; height: 100%; object-fit: cover; }
+        .membre b { display: block; }
+        .membre small { color: var(--muted); }
+        .role { margin-left: auto; padding: 0.1rem 0.55rem; border-radius: 999px; background: var(--accent-dim); color: var(--bleu-clair); font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; }
+        .match { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 0.8rem; padding: 0.55rem 0.2rem; border-bottom: 1px solid var(--line); }
+        .match:last-child { border-bottom: 0; }
+        .res { width: 1.7rem; height: 1.7rem; display: grid; place-items: center; border-radius: 50%; font-size: 0.75rem; font-weight: 800; background: rgba(255, 255, 255, 0.06); color: var(--muted); }
+        .res.v { background: var(--violet); color: #fff; }
+        .match .sc { font-family: var(--display); font-weight: 800; }
+        .aucun { color: var(--muted); margin: 0; }
+        .titres { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+        .titres span { padding: 0.4rem 0.85rem; border-radius: 999px; background: var(--accent-dim); color: var(--bleu-clair); font-weight: 700; font-size: 0.9rem; }
+        @media (max-width: 760px) {
+            .tp-grille { grid-template-columns: 1fr; }
+            .tp-tete { margin-top: -44px; padding: 0 0.8rem; }
+            .tp-logo { width: 92px; height: 92px; font-size: 2.5rem; border-width: 4px; }
+            .tp-nom, .tp-bio { margin-left: 0.8rem; margin-right: 0.8rem; }
+        }
+    </style>
+</head>
+<body>
+    {% include '_nav.html' %}
+    <main class="xhq-main">
+    <div class="tp">
+        <div class="tp-banniere">
+            {% if team.banniere %}
+            <img src="{{ team.banniere }}" alt="" style="object-position: 50% {{ team.banniere_pos }}%; transform: scale({{ team.banniere_zoom / 100 }}); transform-origin: 50% {{ team.banniere_pos }}%;">
+            {% endif %}
+        </div>
+        <div class="tp-tete">
+            <div class="tp-logo">{% if team.logo %}<img src="{{ team.logo }}" alt="Logo de {{ team.nom }}">{% else %}{{ team.embleme or team.nom[:2] | upper }}{% endif %}</div>
+            <div>{% if team.c_est_moi %}<a href="/teams" class="btn secondaire">Gérer la team</a>{% endif %}</div>
+        </div>
+        <div class="tp-nom">
+            <h1>{{ team.nom }}</h1>
+            <div class="tp-sous">
+                <span>{{ team.jeu }} · {{ team.format }}</span>
+                {% if team.hors_classement %}<span>Hors classement</span>
+                {% elif team.ligue_num %}<span class="fort">Ligue {{ team.ligue_num }}{% if team.ligue_num >= 4 %} · Poule {{ team.poule }}{% endif %}</span>
+                {% if team.place %}<span>{{ team.place.rang }}{{ 'er' if team.place.rang == 1 else 'e' }} · {{ team.place.points }} pts</span>{% endif %}{% endif %}
+                {% if team.titres %}<span class="fort">{{ team.titres | length }} tournoi{{ 's' if team.titres | length > 1 }} gagné{{ 's' if team.titres | length > 1 }}</span>{% endif %}
+            </div>
+        </div>
+        {% if team.bio %}<p class="tp-bio">{{ team.bio }}</p>{% endif %}
+
+        <div class="tp-grille">
+            <section class="tp-bloc">
+                <h2>Effectif <small>{{ team.membres | length }}/{{ team.max_membres }}</small></h2>
+                {% for m in team.membres %}
+                <a class="membre" href="/u/{{ m.handle }}">
+                    <span class="membre-av{% if m.cadre %} cadre-{{ m.cadre | replace('cadre_', '') }}{% endif %}">{% if m.photo %}<img src="{{ m.photo }}" alt="">{% else %}{{ m.logo }}{% endif %}</span>
+                    <span><b>{{ m.username }}</b><small>@{{ m.handle }}</small></span>
+                    {% if m.capitaine %}<span class="role">Capitaine</span>{% endif %}
+                </a>
+                {% endfor %}
+            </section>
+            <section class="tp-bloc">
+                <h2>Derniers matchs</h2>
+                {% for m in team.matchs %}
+                <div class="match">
+                    <span class="res{{ ' v' if m.victoire }}">{{ 'V' if m.victoire else 'D' }}</span>
+                    <span>contre <b>{{ m.adversaire }}</b></span>
+                    <span class="sc">{{ m.score_pour }} - {{ m.score_contre }}</span>
+                </div>
+                {% else %}
+                <p class="aucun">Aucun match cette saison pour l'instant.</p>
+                {% endfor %}
+            </section>
+        </div>
+
+        {% if team.titres %}
+        <section class="tp-bloc" style="margin-top:1.2rem">
+            <h2>Tournois gagnés</h2>
+            <div class="titres">{% for t in team.titres %}<span>{{ t }}</span>{% endfor %}</div>
+        </section>
+        {% endif %}
+    </div>
+    </main>
+    {% include '_footer.html' %}
+</body>
+</html>

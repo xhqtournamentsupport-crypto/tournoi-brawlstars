@@ -53,6 +53,8 @@ AVATARS = ['👤', '🎮', '🏆', '⚡', '🔥', '💎', '👑', '🚀', '⭐',
 # Avatars exclusifs débloqués par le Skin Premium
 AVATARS_PREMIUM = ['🐉', '🦄', '🤖', '👽']
 AVATAR_DEFAUT = '👤'
+# Emblèmes des teams (affichés quand la team n'a pas de logo)
+EMBLEMES = ['🛡️', '⚔️', '🐺', '🦅', '🐉', '🔥', '⚡', '👑', '🎯', '💀', '🦁', '🌪️', '🚀', '💎', '🌙', '🐍']
 
 # ---------------------------------------------------------------------------
 # Ligues : nombre de poules, rangs qui montent / descendent (dans chaque poule)
@@ -161,6 +163,13 @@ def choisir_poule(c, jeu_id, ligue_num):
 
 
 def supprimer_team(c, team_id):
+    try:
+        f = c.execute('SELECT logo, banniere FROM teams WHERE id = ?', (team_id,)).fetchone()
+        if f:
+            supprimer_media('logos', f['logo'])
+            supprimer_media('bannieres', f['banniere'])
+    except sqlite3.OperationalError:
+        pass
     c.execute('DELETE FROM ligue WHERE team_id = ?', (team_id,))
     c.execute('DELETE FROM team_members WHERE team_id = ?', (team_id,))
     c.execute('UPDATE users SET team_id = NULL WHERE team_id = ?', (team_id,))
@@ -493,6 +502,9 @@ def init_db():
     ajouter_colonne(c, 'users', 'handle', 'TEXT')
     ajouter_colonne(c, 'users', 'handle_changements', 'INTEGER DEFAULT 0')
     ajouter_colonne(c, 'users', 'handle_modifie_at', 'TEXT')
+    for col, definition in (('logo', 'TEXT'), ('embleme', 'TEXT'), ('banniere', 'TEXT'),
+                            ('banniere_pos', 'INTEGER DEFAULT 50'), ('banniere_zoom', 'INTEGER DEFAULT 100')):
+        ajouter_colonne(c, 'teams', col, definition)
     for r in c.execute('SELECT id, username FROM users WHERE handle IS NULL').fetchall():
         attribuer_handle(c, r['id'], r['username'])
     c.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_handle ON users(handle)')
@@ -593,7 +605,7 @@ def injecter_utilisateur():
     if user:
         current_user = {'username': user['username'], 'email': user['email'], 'logo': logo_valide(user['profile_pic']),
                         'is_admin': bool(user['is_admin']), 'photo': url_media('avatars', user['photo']),
-                        'handle': user['handle'],
+                        'handle': user['handle'], 'autres_comptes': autres_comptes(get_db(), user['id']),
                         **apparence(get_db(), user['id'])}
     db = get_db()
     jeux = liste_jeux(db)
@@ -790,14 +802,14 @@ def index():
 
 @app.route('/login')
 def login_page():
-    if utilisateur_connecte():
+    if utilisateur_connecte() and not request.args.get('ajout'):
         return redirect('/')
     return render_template('login.html')
 
 
 @app.route('/signup')
 def signup_page():
-    if utilisateur_connecte():
+    if utilisateur_connecte() and not request.args.get('ajout'):
         return redirect('/')
     return render_template('signup.html')
 
@@ -844,9 +856,47 @@ def contact_page():
     return render_template('contact.html', sujet=request.args.get('sujet', '')[:120])
 
 
+COMPTES_MAX = 5   # comptes mémorisés sur un même navigateur
+
+
+def connecter(user_id):
+    """Ouvre la session sur ce compte en gardant les autres comptes déjà connectés sur ce navigateur."""
+    comptes = [c for c in session.get('comptes', []) if isinstance(c, int) and c != user_id]
+    session.clear()
+    session['user_id'] = user_id
+    session['comptes'] = [user_id] + comptes[:COMPTES_MAX - 1]
+
+
+def autres_comptes(db, user_id):
+    ids = [c for c in session.get('comptes', []) if isinstance(c, int) and c != user_id]
+    if not ids:
+        return []
+    rows = {r['id']: r for r in db.execute('SELECT id, username, handle, photo, profile_pic FROM users WHERE id IN (%s)'
+                                            % ','.join('?' * len(ids)), ids)}
+    return [{'id': i, 'username': rows[i]['username'], 'handle': rows[i]['handle'],
+             'photo': url_media('avatars', rows[i]['photo']), 'logo': logo_valide(rows[i]['profile_pic'])}
+            for i in ids if i in rows]
+
+
+@app.route('/api/comptes/basculer', methods=['POST'])
+@api_connectee
+def api_basculer_compte():
+    cible = entier(donnees_json().get('user_id'))
+    if cible not in session.get('comptes', []) or not get_db().execute('SELECT 1 FROM users WHERE id = ?', (cible,)).fetchone():
+        return jsonify({'success': False, 'error': 'Ce compte n\'est pas connecté sur cet appareil'}), 403
+    connecter(cible)
+    return jsonify({'success': True}), 200
+
+
 @app.route('/logout')
 def logout():
+    """Déconnecte le compte actuel ; s'il en reste un autre sur ce navigateur, on bascule dessus."""
+    restants = [c for c in session.get('comptes', []) if isinstance(c, int) and c != session.get('user_id')]
     session.clear()
+    if restants:
+        connecter(restants[0])
+        session['comptes'] = restants
+        return redirect('/')
     return redirect('/login')
 
 
@@ -884,8 +934,7 @@ def api_signup():
     except sqlite3.IntegrityError:
         return jsonify({'success': False, 'error': 'Email ou nom d\'utilisateur déjà pris'}), 400
 
-    session.clear()
-    session['user_id'] = cur.lastrowid
+    connecter(cur.lastrowid)
     return jsonify({'success': True}), 201
 
 
@@ -897,8 +946,7 @@ def api_login():
 
     user = get_db().execute('SELECT id, password FROM users WHERE lower(email) = ?', (email,)).fetchone()
     if user and password and check_password_hash(user['password'], password):
-        session.clear()
-        session['user_id'] = user['id']
+        connecter(user['id'])
         return jsonify({'success': True}), 200
     return jsonify({'success': False, 'error': 'Email ou mot de passe incorrect'}), 401
 
@@ -1019,7 +1067,11 @@ def api_profil_delete():
     c.execute('UPDATE contact_messages SET user_id = NULL WHERE user_id = ?', (uid,))
     c.execute('DELETE FROM users WHERE id = ?', (uid,))
     db.commit()
+    restants = [x for x in session.get('comptes', []) if x != uid]
     session.clear()
+    if restants:
+        connecter(restants[0])
+        session['comptes'] = restants
     return jsonify({'success': True}), 200
 
 
@@ -1077,31 +1129,42 @@ def enregistrer_image(fichier, dossier, mode):
 
 @app.route('/media/<dossier>/<nom>')
 def media(dossier, nom):
-    if dossier not in ('avatars', 'bannieres') or not NOM_MEDIA.match(nom):
+    if dossier not in ('avatars', 'bannieres', 'logos') or not NOM_MEDIA.match(nom):
         abort(404)
     return send_from_directory(os.path.join(UPLOAD_DIR, dossier), nom, max_age=31536000)
 
 
-def remplacer_image(colonne, dossier, mode):
+def remplacer_image(colonne, dossier, mode, table='users', ligne_id=None):
+    """Enregistre l'image envoyée dans la colonne voulue (profil ou team) et supprime l'ancienne."""
+    ligne_id = ligne_id or session['user_id']
     nom, erreur = enregistrer_image(request.files.get('fichier'), dossier, mode)
     if erreur:
         return jsonify({'success': False, 'error': erreur}), 400
     db = get_db()
-    ancien = db.execute(f'SELECT {colonne} FROM users WHERE id = ?', (session['user_id'],)).fetchone()[0]
+    ancien = db.execute(f'SELECT {colonne} FROM {table} WHERE id = ?', (ligne_id,)).fetchone()[0]
     extra = ', banniere_pos = 50, banniere_zoom = 100' if colonne == 'banniere' else ''
-    db.execute(f'UPDATE users SET {colonne} = ?{extra} WHERE id = ?', (nom, session['user_id']))
+    db.execute(f'UPDATE {table} SET {colonne} = ?{extra} WHERE id = ?', (nom, ligne_id))
     db.commit()
     supprimer_media(dossier, ancien)
     return jsonify({'success': True, 'url': url_media(dossier, nom)}), 200
 
 
-def retirer_image(colonne, dossier):
+def retirer_image(colonne, dossier, table='users', ligne_id=None):
+    ligne_id = ligne_id or session['user_id']
     db = get_db()
-    ancien = db.execute(f'SELECT {colonne} FROM users WHERE id = ?', (session['user_id'],)).fetchone()[0]
-    db.execute(f'UPDATE users SET {colonne} = NULL WHERE id = ?', (session['user_id'],))
+    ancien = db.execute(f'SELECT {colonne} FROM {table} WHERE id = ?', (ligne_id,)).fetchone()[0]
+    db.execute(f'UPDATE {table} SET {colonne} = NULL WHERE id = ?', (ligne_id,))
     db.commit()
     supprimer_media(dossier, ancien)
     return jsonify({'success': True}), 200
+
+
+def cadrage_valide():
+    data = donnees_json()
+    pos, zoom = entier(data.get('pos')), entier(data.get('zoom'))
+    if pos is None or zoom is None or not (0 <= pos <= 100 and 100 <= zoom <= 250):
+        return None, None
+    return pos, zoom
 
 
 @app.route('/api/profil/photo', methods=['POST'])
@@ -1131,9 +1194,8 @@ def api_profil_banniere_supprimer():
 @app.route('/api/profil/banniere/cadrage', methods=['POST'])
 @api_connectee
 def api_profil_banniere_cadrage():
-    data = donnees_json()
-    pos, zoom = entier(data.get('pos')), entier(data.get('zoom'))
-    if pos is None or zoom is None or not (0 <= pos <= 100 and 100 <= zoom <= 250):
+    pos, zoom = cadrage_valide()
+    if pos is None:
         return jsonify({'success': False, 'error': 'Cadrage invalide'}), 400
     db = get_db()
     db.execute('UPDATE users SET banniere_pos = ?, banniere_zoom = ? WHERE id = ?', (pos, zoom, session['user_id']))
@@ -1214,7 +1276,8 @@ def api_teams():
     if erreur:
         return erreur
     rows = db.execute("""
-        SELECT t.id, t.nom, t.bio, t.createur_id, t.created_at, u.username AS createur,
+        SELECT t.id, t.nom, t.bio, t.createur_id, t.created_at, u.username AS createur, t.logo, t.embleme,
+               t.banniere, t.banniere_pos, t.banniere_zoom,
                l.ligue_num, l.poule, l.points,
                (SELECT COUNT(*) FROM team_members tm WHERE tm.team_id = t.id) AS nb_membres
         FROM teams t
@@ -1227,6 +1290,11 @@ def api_teams():
         team = dict(r)
         team['bio'] = team['bio'] or ''
         team['createur'] = team['createur'] or '—'
+        team['logo'] = url_media('logos', team['logo'])
+        team['banniere'] = url_media('bannieres', team['banniere'])
+        team['banniere_pos'] = team['banniere_pos'] if team['banniere_pos'] is not None else 50
+        team['banniere_zoom'] = team['banniere_zoom'] or 100
+        team['embleme'] = team['embleme'] if team['embleme'] in EMBLEMES else None
         team['is_creator'] = team['createur_id'] == uid
         team['max_membres'] = MAX_MEMBRES
         team['pleine'] = team['nb_membres'] >= MAX_MEMBRES
@@ -1239,10 +1307,11 @@ def api_teams():
     if user_team_id:
         createur_id = db.execute('SELECT createur_id FROM teams WHERE id = ?', (user_team_id,)).fetchone()['createur_id']
         membres = [dict(m) for m in db.execute("""
-            SELECT u.id, u.username, u.profile_pic AS logo FROM team_members tm JOIN users u ON u.id = tm.user_id
+            SELECT u.id, u.username, u.profile_pic AS logo, u.photo, u.handle FROM team_members tm JOIN users u ON u.id = tm.user_id
             WHERE tm.team_id = ? ORDER BY tm.joined_at, tm.id""", (user_team_id,))]
         for m in membres:
             m['logo'] = logo_valide(m['logo'])
+            m['photo'] = url_media('avatars', m['photo'])
             m['is_capitaine'] = m['id'] == createur_id
             m['is_me'] = m['id'] == uid
             m.update(apparence(db, m['id']))
@@ -1261,7 +1330,7 @@ def api_teams():
                         (user_team_id, saison - 1)).fetchone()
         derniere_penalite = dict(dp) if dp else None
     return jsonify({'jeu': jeu, 'ligue_depart': LIGUE_DEPART,
-                    'teams': teams_list, 'user_team_id': user_team_id, 'user_id': uid, 'membres': membres,
+                    'teams': teams_list, 'user_team_id': user_team_id, 'emblemes': EMBLEMES, 'user_id': uid, 'membres': membres,
                     'matchs': matchs, 'max_membres': MAX_MEMBRES, 'participation': participation,
                     'derniere_penalite': derniere_penalite,
                     'regle_penalite': {'par_match': PENALITE_PAR_MATCH, 'recidive': MULTIPLICATEUR_RECIDIVE,
@@ -1429,6 +1498,97 @@ def api_update_team(team_id):
     db.execute('UPDATE teams SET nom = ?, bio = ? WHERE id = ?', (nom, bio, team_id))
     db.commit()
     return jsonify({'success': True, 'nom': nom, 'bio': bio}), 200
+
+
+# ---------------------------------------------------------------------------
+# Teams : logo, emblème, bannière, page publique
+# ---------------------------------------------------------------------------
+def capitaine_ou_erreur(team_id):
+    team, erreur = team_du_capitaine(get_db(), team_id)
+    return erreur
+
+
+@app.route('/api/teams/<int:team_id>/logo', methods=['POST'])
+@api_connectee
+def api_team_logo(team_id):
+    return capitaine_ou_erreur(team_id) or remplacer_image('logo', 'logos', 'avatar', 'teams', team_id)
+
+
+@app.route('/api/teams/<int:team_id>/logo/supprimer', methods=['POST'])
+@api_connectee
+def api_team_logo_supprimer(team_id):
+    return capitaine_ou_erreur(team_id) or retirer_image('logo', 'logos', 'teams', team_id)
+
+
+@app.route('/api/teams/<int:team_id>/banniere', methods=['POST'])
+@api_connectee
+def api_team_banniere(team_id):
+    return capitaine_ou_erreur(team_id) or remplacer_image('banniere', 'bannieres', 'banniere', 'teams', team_id)
+
+
+@app.route('/api/teams/<int:team_id>/banniere/supprimer', methods=['POST'])
+@api_connectee
+def api_team_banniere_supprimer(team_id):
+    return capitaine_ou_erreur(team_id) or retirer_image('banniere', 'bannieres', 'teams', team_id)
+
+
+@app.route('/api/teams/<int:team_id>/banniere/cadrage', methods=['POST'])
+@api_connectee
+def api_team_banniere_cadrage(team_id):
+    erreur = capitaine_ou_erreur(team_id)
+    if erreur:
+        return erreur
+    pos, zoom = cadrage_valide()
+    if pos is None:
+        return jsonify({'success': False, 'error': 'Cadrage invalide'}), 400
+    db = get_db()
+    db.execute('UPDATE teams SET banniere_pos = ?, banniere_zoom = ? WHERE id = ?', (pos, zoom, team_id))
+    db.commit()
+    return jsonify({'success': True}), 200
+
+
+@app.route('/api/teams/<int:team_id>/embleme', methods=['POST'])
+@api_connectee
+def api_team_embleme(team_id):
+    erreur = capitaine_ou_erreur(team_id)
+    if erreur:
+        return erreur
+    embleme = donnees_json().get('embleme')
+    if embleme is not None and embleme not in EMBLEMES:
+        return jsonify({'success': False, 'error': 'Emblème inconnu'}), 400
+    db = get_db()
+    db.execute('UPDATE teams SET embleme = ? WHERE id = ?', (embleme, team_id))
+    db.commit()
+    return jsonify({'success': True, 'embleme': embleme}), 200
+
+
+@app.route('/team/<int:team_id>')
+def team_publique(team_id):
+    db = get_db()
+    t = db.execute("""SELECT t.*, j.nom AS jeu_nom, j.format, l.ligue_num, l.poule, l.points
+                      FROM teams t JOIN jeux j ON j.id = t.jeu_id LEFT JOIN ligue l ON l.team_id = t.id
+                      WHERE t.id = ?""", (team_id,)).fetchone()
+    if not t:
+        abort(404)
+    membres = []
+    for m in db.execute("""SELECT u.id, u.username, u.handle, u.photo, u.profile_pic FROM team_members tm
+                           JOIN users u ON u.id = tm.user_id WHERE tm.team_id = ? ORDER BY tm.joined_at, tm.id""", (team_id,)):
+        membres.append({'username': m['username'], 'handle': m['handle'], 'photo': url_media('avatars', m['photo']),
+                        'logo': logo_valide(m['profile_pic']), 'capitaine': m['id'] == t['createur_id'],
+                        **apparence(db, m['id'])})
+    place = None
+    if t['ligue_num']:
+        place = next((p for p in classement_poule(db, t['jeu_id'], t['ligue_num'], t['poule']) if p['team_id'] == team_id), None)
+    titres = [r['nom'] for r in db.execute("SELECT nom FROM tournois WHERE champion_team_id = ? AND statut = 'termine' ORDER BY termine_at DESC", (team_id,))]
+    moi = utilisateur_connecte()
+    return render_template('team_publique.html', team={
+        'id': t['id'], 'nom': t['nom'], 'bio': t['bio'] or '', 'jeu': t['jeu_nom'], 'format': t['format'],
+        'logo': url_media('logos', t['logo']), 'embleme': t['embleme'] if t['embleme'] in EMBLEMES else None,
+        'banniere': url_media('bannieres', t['banniere']), 'banniere_pos': t['banniere_pos'] if t['banniere_pos'] is not None else 50,
+        'banniere_zoom': t['banniere_zoom'] or 100, 'ligue_num': t['ligue_num'], 'poule': t['poule'],
+        'hors_classement': bool(t['hors_classement']), 'place': place, 'membres': membres, 'max_membres': MAX_MEMBRES,
+        'matchs': matchs_de_team(db, team_id, limite=6), 'titres': titres,
+        'cree_le': (t['created_at'] or '')[:10], 'c_est_moi': bool(moi and moi['id'] == t['createur_id'])})
 
 
 # ---------------------------------------------------------------------------

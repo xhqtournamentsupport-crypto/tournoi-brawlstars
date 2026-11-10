@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Connexion - XHQ Tournament</title>
+    <title>Connexion · XHQ League</title>
     {% include '_head.html' %}
     <style>
         .container { max-width: 420px; width: 100%; }
@@ -30,8 +30,13 @@
                 <img src="{{ url_for('static', filename='logo-xhq-clair.png') }}" alt="XHQ League">
             </div>
             
+            {% if request.args.get('ajout') and current_user %}
+            <h2>Ajouter un compte</h2>
+            <p class="subtitle">Connecte un autre compte : tu passeras de l'un à l'autre depuis le menu, sans retaper ton mot de passe.</p>
+            {% else %}
             <h2>Connexion</h2>
             <p class="subtitle">Content de te revoir.</p>
+            {% endif %}
             
             <div class="error-message" id="error-message"></div>
             
@@ -52,7 +57,7 @@
             </form>
             
             <div class="footer-text">
-                Pas encore de compte ? <a href="/signup">S'inscrire</a>
+                Pas encore de compte ? <a href="/signup{{ '?ajout=1' if request.args.get('ajout') }}">S'inscrire</a>
             </div>
         </div>
     </div>

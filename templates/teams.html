@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Teams - XHQ Tournament</title>
+    <title>Teams · XHQ League</title>
     {% include '_head.html' %}
     <style>
         .my-team-section { border-left: 3px solid var(--win); padding-left: 1.4rem; }
@@ -64,7 +64,7 @@
             font-size: 1.1rem;
             background: var(--panel-2);
             border: 1px solid var(--line);
-            border-radius: var(--radius);
+            border-radius: 50%;
         }
 
         .membre-nom { flex: 1; min-width: 120px; font-weight: 600; overflow-wrap: anywhere; }
@@ -116,6 +116,16 @@
             .team-card { flex-direction: column; }
             .team-actions.col { width: 100%; }
         }
+        .ma-team-tete { display: flex; align-items: center; gap: 0.9rem; margin-bottom: 0.6rem; }
+        .ma-team-tete h3 { margin: 0; }
+        .lien-page { color: var(--bleu-clair); font-size: 0.88rem; font-weight: 600; text-decoration: none; }
+        .lien-page:hover, .lien-team:hover, .lien-membre:hover { text-decoration: underline; }
+        .lien-team, .lien-membre { color: inherit; text-decoration: none; }
+        .member-chip.a-photo { overflow: hidden; padding: 0; }
+        .member-chip img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block; }
+        .sous-titre-edit { margin-top: 1.6rem; }
+        .logo-edit { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; }
+        .logo-edit .hint { margin: 0.4rem 0 0; }
     </style>
 </head>
 <body>
@@ -176,6 +186,14 @@
         let ligueDepart = 5;
         let participation = null, dernierePenalite = null;
         let reglePenalite = { par_match: 1, recidive: 2, max: 15 };
+        let emblemes = [];
+        let editionOuverte = false;
+
+        // Logo d'une team : image si elle en a une, sinon son emblème, sinon ses initiales
+        function logoTeam(t, classe = '') {
+            const contenu = t.logo ? `<img src="${escapeHtml(t.logo)}" alt="">` : escapeHtml(t.embleme || t.nom.slice(0, 2).toUpperCase());
+            return `<span class="logo-rond ${classe}">${contenu}</span>`;
+        }
 
         function showMessage(text, type) {
             const el = document.getElementById('page-message');
@@ -200,6 +218,7 @@
             participation = data.participation;
             dernierePenalite = data.derniere_penalite;
             reglePenalite = data.regle_penalite || reglePenalite;
+            emblemes = data.emblemes || [];
             document.getElementById('create-team-section').style.display = userTeamId ? 'none' : 'block';
             renderMyTeam();
             renderTeams();
@@ -220,7 +239,10 @@
             document.getElementById('my-team-card').innerHTML = `
                 <div class="team-card my-team">
                     <div class="team-info">
-                        <h3>${escapeHtml(myTeam.nom)}</h3>
+                        <div class="ma-team-tete">
+                            ${logoTeam(myTeam)}
+                            <div><h3>${escapeHtml(myTeam.nom)}</h3><a class="lien-page" href="/team/${myTeam.id}">Page publique de la team →</a></div>
+                        </div>
                         <p>${escapeHtml(myTeam.bio || 'Pas de description')}</p>
                         <div class="team-creator">Capitaine : ${escapeHtml(myTeam.createur)}</div>
                         <div class="team-meta">${ligue}</div>
@@ -229,8 +251,8 @@
                             <h4>Membres <span class="places ${membres.length >= maxMembres ? 'pleine' : ''}">${membres.length}/${maxMembres}</span></h4>
                             ${membres.map(m => `
                                 <div class="membre-ligne">
-                                    <span class="member-chip${m.cadre ? ' cadre-' + m.cadre.replace('cadre_', '') : ''}">${escapeHtml(m.logo)}</span>
-                                    <span class="membre-nom">${escapeHtml(m.username)}${m.badge ? ' <span class="badge-joueur">' + escapeHtml(m.badge) + '</span>' : ''}${m.is_me ? ' <span class="muted">(toi)</span>' : ''}</span>
+                                    <span class="member-chip${m.photo ? ' a-photo' : ''}${m.cadre ? ' cadre-' + m.cadre.replace('cadre_', '') : ''}">${m.photo ? `<img src="${escapeHtml(m.photo)}" alt="">` : escapeHtml(m.logo)}</span>
+                                    <span class="membre-nom"><a class="lien-membre" href="/u/${encodeURIComponent(m.handle || '')}">${escapeHtml(m.username)}</a>${m.badge ? ' <span class="badge-joueur">' + escapeHtml(m.badge) + '</span>' : ''}${m.is_me ? ' <span class="muted">(toi)</span>' : ''}</span>
                                     ${m.is_capitaine ? '<span class="membre-role">Capitaine</span>' : ''}
                                     ${myTeam.is_creator && !m.is_me ? `
                                         <span class="membre-actions">
@@ -240,7 +262,7 @@
                                 </div>`).join('')}
                         </div>
                         ${myTeam.is_creator ? `
-                        <div class="team-edit" id="team-edit">
+                        <div class="team-edit${editionOuverte ? ' open' : ''}" id="team-edit">
                             <h4>Modifier la team</h4>
                             <div class="form-group">
                                 <label for="edit-nom">Nom</label>
@@ -250,7 +272,36 @@
                                 <label for="edit-bio">Bio</label>
                                 <textarea id="edit-bio" maxlength="300">${escapeHtml(myTeam.bio)}</textarea>
                             </div>
-                            <button class="btn btn-primary" type="button" onclick="modifierTeam(${myTeam.id})">Enregistrer</button>
+                            <button class="btn btn-primary btn-enregistrer" type="button" onclick="modifierTeam(${myTeam.id})">Enregistrer</button>
+
+                            <h4 class="sous-titre-edit">Bannière</h4>
+                            <div id="eb-team">
+                            <div class="eb">
+                                <img class="eb-img" alt="" draggable="false" hidden>
+                                <div class="eb-vide">Pas encore de bannière</div>
+                                <span class="eb-astuce eb-avec" hidden>Glisse pour déplacer</span>
+                                <div class="eb-actions">
+                                    <label class="btn petit secondaire">Changer la bannière<input type="file" class="eb-fichier" accept="image/png,image/jpeg,image/webp,image/gif" hidden></label>
+                                    <button class="btn petit danger eb-suppr eb-avec" type="button" hidden>Retirer</button>
+                                </div>
+                            </div>
+                            <div class="eb-reglages eb-avec" hidden><label>Taille</label><input type="range" class="eb-zoom" min="100" max="250" value="100"></div>
+                            </div>
+                            <p class="hint">Format paysage conseillé (1500 × 500).</p>
+
+                            <h4 class="sous-titre-edit">Logo</h4>
+                            <div class="logo-edit">
+                                ${logoTeam(myTeam)}
+                                <div>
+                                    <label class="btn secondaire petit">Ajouter un logo<input type="file" id="logo-fichier" accept="image/png,image/jpeg,image/webp,image/gif" hidden></label>
+                                    ${myTeam.logo ? `<button class="btn-mini" type="button" onclick="retirerLogo(${myTeam.id})">Retirer le logo</button>` : ''}
+                                    <p class="hint">Sans logo, c'est l'emblème choisi ci-dessous qui s'affiche.</p>
+                                </div>
+                            </div>
+                            <label>Emblème</label>
+                            <div class="grille-choix">
+                                ${emblemes.map(e => `<button type="button" class="${e === myTeam.embleme ? 'actif' : ''}" onclick="choisirEmbleme(${myTeam.id}, '${e}')" aria-label="Emblème ${e}">${e}</button>`).join('')}
+                            </div>
                         </div>` : ''}
                         <div class="team-matchs">
                             <h4>Derniers matchs</h4>
@@ -265,12 +316,44 @@
                     </div>
                     <div class="team-actions col">
                         ${myTeam.is_creator ? `
-                            <button class="btn btn-primary" type="button" onclick="document.getElementById('team-edit').classList.toggle('open')">Modifier</button>
+                            <button class="btn btn-primary" type="button" onclick="basculerEdition()">Modifier</button>
                             <button class="btn btn-danger" type="button" onclick="deleteTeam(${myTeam.id})">Supprimer</button>` : ''}
                         <button class="btn btn-ghost" type="button" onclick="quitterTeam(${myTeam.id})">Quitter la team</button>
                     </div>
                 </div>
             `;
+            if (myTeam.is_creator) brancherEdition(myTeam);
+        }
+
+        function basculerEdition() {
+            editionOuverte = !editionOuverte;
+            document.getElementById('team-edit').classList.toggle('open', editionOuverte);
+        }
+
+        function brancherEdition(team) {
+            const eb = document.getElementById('eb-team');
+            if (!eb) return;
+            editeurBanniere(eb, {
+                url: team.banniere, pos: team.banniere_pos, zoom: team.banniere_zoom, message: showMessage,
+                routes: { envoi: `/api/teams/${team.id}/banniere`, suppression: `/api/teams/${team.id}/banniere/supprimer`, cadrage: `/api/teams/${team.id}/banniere/cadrage` }
+            });
+            document.getElementById('logo-fichier').addEventListener('change', async e => {
+                const f = e.target.files[0]; e.target.value = '';
+                if (!f) return;
+                const { ok, data } = await envoyerFichier(`/api/teams/${team.id}/logo`, f);
+                showMessage(ok ? 'Logo mis à jour.' : (data.error || 'Erreur'), ok ? 'success' : 'error');
+                if (ok) loadTeams();
+            });
+        }
+
+        async function retirerLogo(teamId) {
+            const { ok } = await api(`/api/teams/${teamId}/logo/supprimer`, { method: 'POST' });
+            if (ok) loadTeams();
+        }
+
+        async function choisirEmbleme(teamId, embleme) {
+            const { ok, data } = await api(`/api/teams/${teamId}/embleme`, { method: 'POST', body: { embleme } });
+            if (ok) loadTeams(); else showMessage(data.error || 'Erreur', 'error');
         }
 
         function renderParticipation() {
@@ -315,7 +398,7 @@
             container.innerHTML = teams.map(team => `
                 <div class="team-card">
                     <div class="team-info">
-                        <h3>${escapeHtml(team.nom)}</h3>
+                        <div class="ma-team-tete">${logoTeam(team, 'petit')}<h3><a class="lien-team" href="/team/${team.id}">${escapeHtml(team.nom)}</a></h3></div>
                         <p>${escapeHtml(team.bio || 'Pas de description')}</p>
                         <div class="team-creator">Capitaine : ${escapeHtml(team.createur)}</div>
                         <div class="team-meta">${Number(team.nb_membres) || 0}/${Number(team.max_membres) || maxMembres} joueurs${team.ligue_num ? ' · Ligue ' + team.ligue_num : ''}</div>

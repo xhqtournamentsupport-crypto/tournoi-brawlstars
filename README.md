@@ -85,6 +85,14 @@ Il la modifie depuis *Profil* :
 - **bio** (500 caractères).
 Les images sont vérifiées et réencodées avec Pillow, stockées dans `uploads/` (non versionné) et servies par `/media/...`.
 
+## Pages de team
+Chaque team a sa page publique `/team/<id>` : bannière, logo (ou emblème), ligue et place, bio, effectif
+(avec liens vers les profils), derniers matchs, tournois gagnés. Le capitaine modifie tout depuis *Teams → Modifier*.
+
+## Plusieurs comptes sur un même appareil
+Menu du compte → *Ajouter un compte* : on passe ensuite de l'un à l'autre sans retaper le mot de passe
+(5 comptes max par navigateur). *Se déconnecter* ferme le compte actuel et bascule sur le suivant.
+
 ## Teams
 - 5 joueurs maximum par team (`MAX_MEMBRES` en haut de `app.py`).
 - Tout membre peut **quitter** sa team ; si le capitaine part, le rôle passe au membre le plus ancien

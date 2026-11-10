@@ -35,7 +35,17 @@
                     </a>
                     <a href="/u/{{ current_user.handle }}">Voir mon profil</a>
                     <a href="/profil">Modifier le profil</a>
-                    <a href="/logout" class="sortie">Se déconnecter</a>
+                    <div class="comptes">
+                        <span class="comptes-titre">Changer de compte</span>
+                        {% for c in current_user.autres_comptes %}
+                        <button type="button" class="compte-autre" data-compte="{{ c.id }}">
+                            <span class="xhq-avatar{% if c.photo %} a-photo{% endif %}">{% if c.photo %}<img src="{{ c.photo }}" alt="">{% else %}{{ c.logo }}{% endif %}</span>
+                            <span><b>{{ c.username }}</b><small>@{{ c.handle }}</small></span>
+                        </button>
+                        {% endfor %}
+                        <a href="/login?ajout=1" class="ajout-compte">+ Ajouter un compte</a>
+                    </div>
+                    <a href="/logout" class="sortie">Se déconnecter{% if current_user.autres_comptes %} de {{ current_user.username }}{% endif %}</a>
                 </div>
             </div>
             {% else %}

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Profil - XHQ Tournament</title>
+    <title>Modifier mon profil · XHQ League</title>
     {% include '_head.html' %}
     <style>
         .header-nav { align-items: flex-end; }
@@ -152,6 +152,7 @@
                 <div>
                     <div class="ed-photo-boutons">
                         <label class="btn secondaire">Ajouter une photo<input type="file" id="photo-fichier" accept="image/png,image/jpeg,image/webp,image/gif" hidden></label>
+                        <button class="btn secondaire" type="button" onclick="openLogoSelector()">Choisir un avatar</button>
                         <button class="btn-mini" type="button" id="photo-suppr" hidden onclick="retirerPhoto()">Retirer la photo</button>
                     </div>
                     <p class="hint">Une photo carrée et nette rend ton profil plus reconnaissable. Sans photo, c'est ton avatar qui s'affiche : clique dessus pour en choisir un.</p>
@@ -159,7 +160,7 @@
             </div>
 
             <div id="logo-selector" style="display: none;">
-                <label>Choisir un avatar</label>
+                <label>Avatar (affiché quand tu n'as pas de photo)</label>
                 <div class="logo-selector">
                     {% for avatar in avatars %}
                     <div class="logo-option{% if avatar == current_user.logo %} active{% endif %}" data-logo="{{ avatar }}" onclick="selectLogo(this.dataset.logo)">{{ avatar }}</div>

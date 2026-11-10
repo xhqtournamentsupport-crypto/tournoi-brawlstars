@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ profil.username }} (@{{ profil.handle }}) - XHQ</title>
+    <title>{{ profil.username }} (@{{ profil.handle }}) · XHQ League</title>
     {% include '_head.html' %}
     <style>
         .pp { max-width: 900px; margin: 0 auto; }
         .pp-banniere { position: relative; aspect-ratio: 3 / 1; border-radius: 20px; overflow: hidden; background: linear-gradient(120deg, #1d1a3a, #2a2370 55%, #4a3fb8); border: 1px solid var(--line); }
         .pp-banniere img { width: 100%; height: 100%; object-fit: cover; display: block; }
-        .pp-tete { display: flex; justify-content: space-between; align-items: flex-end; gap: 1rem; flex-wrap: wrap; margin-top: -58px; padding: 0 1.4rem; }
+        .pp-tete { position: relative; z-index: 1; display: flex; justify-content: space-between; align-items: flex-end; gap: 1rem; flex-wrap: wrap; margin-top: -58px; padding: 0 1.4rem; }
         .pp-photo { position: relative; width: 124px; height: 124px; display: grid; place-items: center; border-radius: 50%; border: 5px solid var(--bg); background: var(--panel-2); font-size: 3.4rem; }
         .pp-photo.cadre-or, .pp-photo.cadre-carbone { border-width: 4px; }
         .pp-actions { padding-bottom: 0.4rem; }
@@ -21,7 +21,7 @@
         .pp-bloc { margin-top: 2.4rem; }
         .pp-bloc h2 { font-size: 1.2rem; margin-bottom: 0.9rem; }
         .pp-teams { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr)); gap: 0.8rem; }
-        .pp-team { padding: 1rem 1.2rem; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; }
+        .pp-team { display: block; color: var(--text); text-decoration: none; transition: border-color 0.2s; padding: 1rem 1.2rem; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; }
         .pp-team small { color: var(--muted); font-size: 0.8rem; font-weight: 600; }
         .pp-team strong { display: block; margin: 0.15rem 0 0.35rem; font-family: var(--display); font-size: 1.25rem; }
         .pp-team span { color: var(--text-soft); font-size: 0.9rem; }
@@ -69,11 +69,11 @@
             {% if profil.teams %}
             <div class="pp-teams">
                 {% for t in profil.teams %}
-                <div class="pp-team">
+                <a class="pp-team" href="/team/{{ t.id }}">
                     <small>{{ t.jeu }}</small>
                     <strong>{{ t.nom }}</strong>
                     <span>{% if t.ligue_num %}Ligue {{ t.ligue_num }}{% if t.ligue_num >= 4 %} · Poule {{ t.poule }}{% endif %} · {{ t.points or 0 }} pts{% else %}Hors classement{% endif %}</span>
-                </div>
+                </a>
                 {% endfor %}
             </div>
             {% else %}
