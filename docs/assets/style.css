@@ -209,24 +209,23 @@ a { color: var(--bleu-clair); }
 
 .compte-menu {
     position: absolute;
-    top: calc(100% + 10px);
+    top: calc(100% + 8px);
     right: 0;
-    min-width: 240px;
-    padding: 0.45rem;
-    background: rgba(27, 27, 38, 0.96);
+    min-width: 220px;
+    padding: 0.35rem 0;
+    background: #17171f;
     border: 1px solid var(--line-2);
-    border-radius: 18px;
-    box-shadow: var(--ombre);
-    backdrop-filter: blur(16px);
-    animation: menu 0.25s var(--courbe);
-    transform-origin: top right;
+    border-radius: 14px;
+    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.5);
+    animation: menu 0.18s ease-out;
 }
-@keyframes menu { from { opacity: 0; transform: translateY(-6px) scale(0.96); } }
-.compte-tete { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; padding: 0.6rem 0.75rem 0.75rem; margin-bottom: 0.3rem; border-bottom: 1px solid var(--line); }
-.compte-tete strong { font-family: var(--display); font-size: 1.05rem; overflow: hidden; text-overflow: ellipsis; }
-.compte-menu a { display: block; padding: 0.6rem 0.75rem; border-radius: 12px; color: var(--text-soft); font-weight: 600; text-decoration: none; transition: background 0.2s, color 0.2s, padding 0.2s; }
-.compte-menu a:hover { background: rgba(255, 255, 255, 0.06); color: #fff; padding-left: 1rem; }
-.compte-menu a.sortie { margin-top: 0.3rem; border-top: 1px solid var(--line); border-radius: 0 0 12px 12px; color: var(--muted); }
+@keyframes menu { from { opacity: 0; transform: translateY(-4px); } }
+.compte-menu a { display: block; padding: 0.55rem 1rem; color: var(--text-soft); font-size: 0.93rem; font-weight: 600; text-decoration: none; }
+.compte-menu a:hover { background: rgba(255, 255, 255, 0.05); color: #fff; }
+.compte-menu a.compte-tete { display: flex; flex-direction: column; gap: 0.05rem; padding: 0.65rem 1rem 0.75rem; margin-bottom: 0.35rem; border-bottom: 1px solid var(--line); }
+.compte-tete strong { color: #fff; font-size: 0.98rem; overflow: hidden; text-overflow: ellipsis; }
+.compte-tete span { color: var(--muted); font-size: 0.84rem; font-weight: 500; }
+.compte-menu a.sortie { margin-top: 0.35rem; padding-top: 0.7rem; border-top: 1px solid var(--line); color: var(--muted); }
 
 /* Bouton burger (mobile) */
 .burger { display: none; width: 42px; height: 42px; padding: 0; place-content: center; gap: 5px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 50%; cursor: pointer; }
@@ -279,6 +278,8 @@ a { color: var(--bleu-clair); }
 }
 
 .xhq-avatar:hover { transform: scale(1.08); border-color: var(--violet); }
+.xhq-avatar.a-photo, .profil-photo.a-photo { overflow: hidden; padding: 0; }
+.xhq-avatar img, .a-photo img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
 
 .cadre-or { border: 2px solid var(--violet) !important; box-shadow: 0 0 0 3px rgba(124, 108, 255, 0.2); }
 .cadre-carbone {
@@ -382,6 +383,7 @@ textarea { resize: vertical; min-height: 110px; }
 select { cursor: pointer; }
 select option { background: var(--panel); }
 input[type="datetime-local"] { color-scheme: dark; }
+input[type="range"] { padding: 0; height: 6px; border: 0; border-radius: 999px; background: var(--line-2); accent-color: var(--violet); box-shadow: none !important; cursor: pointer; }
 
 /* ---------------------------------------------------------------------
    Boutons (pilules)

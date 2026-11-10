@@ -8,55 +8,47 @@
     <style>
         .header-nav { align-items: flex-end; }
 
-        .profil-main {
-            display: grid;
-            grid-template-columns: 340px 1fr;
-            gap: 1.5rem;
-            margin-bottom: 1.5rem;
-        }
-
-        .profil-main > div { margin-bottom: 0; }
-
-        .profil-card { text-align: left; }
-        .profil-pic-wrapper { margin-bottom: 1.4rem; }
+        /* Éditeur du profil public */
+        .ed-titre { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; }
+        .ed-titre a { color: var(--bleu-clair); font-weight: 700; text-decoration: none; }
+        .ed-banniere { position: relative; aspect-ratio: 3 / 1; border-radius: 16px; overflow: hidden; background: linear-gradient(120deg, #1d1a3a, #2a2370 55%, #4a3fb8); border: 1px solid var(--line); user-select: none; }
+        .ed-banniere img { width: 100%; height: 100%; object-fit: cover; display: block; cursor: grab; }
+        .ed-banniere img.glisse { cursor: grabbing; }
+        .ed-ban-vide { position: absolute; inset: 0; display: grid; place-items: center; color: rgba(255, 255, 255, 0.55); font-weight: 600; }
+        .ed-ban-actions { position: absolute; right: 0.8rem; bottom: 0.8rem; display: flex; gap: 0.4rem; }
+        .ed-ban-actions .btn { background: rgba(10, 10, 15, 0.7); backdrop-filter: blur(8px); }
+        .ed-ban-astuce { position: absolute; left: 0.8rem; top: 0.8rem; padding: 0.2rem 0.6rem; border-radius: 999px; background: rgba(10, 10, 15, 0.7); color: var(--text-soft); font-size: 0.78rem; pointer-events: none; }
+        .ed-hint { margin: 0.6rem 0 0.4rem; }
+        .ed-zoom { display: flex; align-items: center; gap: 0.8rem; max-width: 360px; margin-bottom: 0.6rem; }
+        .ed-zoom label { margin: 0; }
+        .ed-zoom input { padding: 0; accent-color: var(--violet); }
+        .ed-photo { display: flex; align-items: center; gap: 1.3rem; margin: 1.4rem 0; }
+        .ed-photo .hint { margin: 0.5rem 0 0; }
+        .ed-photo-boutons { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+        .champ-at { display: flex; align-items: center; background: var(--bg-2); border: 1px solid var(--line-2); border-radius: var(--radius-petit); }
+        .champ-at:focus-within { border-color: var(--violet); box-shadow: 0 0 0 4px var(--focus); }
+        .champ-at span { padding-left: 0.9rem; color: var(--muted); font-weight: 700; }
+        .champ-at input { border: 0; background: transparent; box-shadow: none !important; padding-left: 0.3rem; }
+        .ed-note { margin: 0.4rem 0 0; color: var(--muted); font-size: 0.85rem; }
+        .compte-resume { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem 1.5rem; }
+        .compte-resume div { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
+        .compte-resume strong { overflow-wrap: anywhere; }
 
         .profil-pic {
             position: relative;
-            width: 128px;
-            height: 128px;
+            flex-shrink: 0;
+            width: 112px;
+            height: 112px;
             display: grid;
             place-items: center;
-            font-size: 4.2rem;
+            font-size: 3.4rem;
             background: var(--panel-2);
-            border: 1px solid var(--line);
-            border-radius: var(--radius);
+            border: 1px solid var(--line-2);
+            border-radius: 50%;
             cursor: pointer;
-            transition: border-color 0.15s;
+            transition: border-color 0.2s;
         }
-
-        .profil-pic:hover { border-color: var(--text); }
-        .profil-pic::after {
-            content: 'Changer';
-            position: absolute;
-            left: 0;
-            right: 0;
-            bottom: -1px;
-            padding: 0.2rem 0;
-            background: var(--ink);
-            color: var(--accent);
-            
-            font-size: 0.75rem;
-            letter-spacing: 0.15em;
-            text-transform: uppercase;
-            text-align: center;
-            opacity: 0;
-            transition: opacity 0.15s;
-        }
-
-        .profil-pic:hover::after { opacity: 1; }
-
-        .username { font-size: 2.2rem; font-weight: 700; line-height: 1; overflow-wrap: anywhere; }
-        .email { color: var(--muted); font-size: 0.92rem; margin: 0.4rem 0 1.6rem; overflow-wrap: anywhere; }
+        .profil-pic:hover { border-color: var(--text-soft); }
 
         .stats-grid { display: grid; gap: 0; border-top: 1px solid var(--line); }
         .stat-item { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; padding: 0.8rem 0; background: none; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; box-shadow: none; }
@@ -117,6 +109,9 @@
 
         @media (max-width: 480px) {
             .logo-selector { grid-template-columns: repeat(4, 1fr); }
+            .ed-photo { flex-direction: column; align-items: flex-start; }
+            .ed-ban-actions { right: 0.5rem; bottom: 0.5rem; }
+            .ed-ban-astuce { display: none; }
         }
     </style>
 </head>
@@ -129,56 +124,79 @@
             <a href="/">← Retour</a>
         </div>
 
-        <div class="profil-main">
-            <div class="profil-card">
-                <div class="profil-pic-wrapper">
-                    <div class="profil-pic{% if current_user.cadre %} cadre-{{ current_user.cadre | replace('cadre_', '') }}{% endif %}" id="profil-pic-display" onclick="openLogoSelector()" title="Changer d'avatar">{{ current_user.logo }}</div>
-                </div>
-                <div class="username"><span id="username-display">{{ current_user.username }}</span> <span class="badge-joueur" id="badge-display"{% if not current_user.badge %} hidden{% endif %}>{{ current_user.badge or '' }}</span></div>
-                <div class="email" id="email-display">{{ current_user.email }}</div>
+        <div class="section editeur">
+            <div class="ed-titre">
+                <h2 class="section-title">Mon profil public</h2>
+                <a href="/u/{{ current_user.handle }}" id="lien-public">Voir mon profil →</a>
+            </div>
 
-                <div class="stats-grid">
-                    <div class="stat-item">
-                        <div class="stat-label">Team</div>
-                        <div class="stat-value" id="team-display">…</div>
+            <!-- Bannière -->
+            <div class="ed-banniere" id="ed-banniere">
+                <img id="ban-img" alt="" draggable="false" hidden>
+                <div class="ed-ban-vide" id="ban-vide">Pas encore de bannière</div>
+                <div class="ed-ban-actions">
+                    <label class="btn petit secondaire">Changer la bannière<input type="file" id="ban-fichier" accept="image/png,image/jpeg,image/webp,image/gif" hidden></label>
+                    <button class="btn petit danger" type="button" id="ban-suppr" hidden onclick="retirerBanniere()">Retirer</button>
+                </div>
+                <span class="ed-ban-astuce" id="ban-astuce" hidden>Glisse pour déplacer</span>
+            </div>
+            <p class="hint ed-hint">Format paysage conseillé (par exemple 1500 × 500). Tu peux ensuite la déplacer et ajuster sa taille.</p>
+            <div class="ed-zoom" id="ban-reglages" hidden>
+                <label for="ban-zoom">Taille</label>
+                <input type="range" id="ban-zoom" min="100" max="250" value="100">
+            </div>
+
+            <!-- Photo de profil -->
+            <div class="ed-photo">
+                <div class="profil-pic{% if current_user.cadre %} cadre-{{ current_user.cadre | replace('cadre_', '') }}{% endif %}" id="profil-pic-display" onclick="openLogoSelector()" title="Choisir un avatar">{{ current_user.logo }}</div>
+                <div>
+                    <div class="ed-photo-boutons">
+                        <label class="btn secondaire">Ajouter une photo<input type="file" id="photo-fichier" accept="image/png,image/jpeg,image/webp,image/gif" hidden></label>
+                        <button class="btn-mini" type="button" id="photo-suppr" hidden onclick="retirerPhoto()">Retirer la photo</button>
                     </div>
-                    <div class="stat-item">
-                        <div class="stat-label">Points ligue</div>
-                        <div class="stat-value" id="points-display">…</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-label">Solde</div>
-                        <div class="stat-value" id="solde-display">…</div>
-                    </div>
+                    <p class="hint">Une photo carrée et nette rend ton profil plus reconnaissable. Sans photo, c'est ton avatar qui s'affiche : clique dessus pour en choisir un.</p>
                 </div>
             </div>
 
-            <div class="info-section">
-                <h2 class="section-title">Avatar et bio</h2>
-                <div id="logo-selector" style="display: none;">
-                    <label>Choisir un logo</label>
-                    <div class="logo-selector">
-                        {% for avatar in avatars %}
-                        <div class="logo-option{% if avatar == current_user.logo %} active{% endif %}" data-logo="{{ avatar }}" onclick="selectLogo(this.dataset.logo)">{{ avatar }}</div>
-                        {% endfor %}
-                    </div>
-                    <label class="logo-premium-titre">Avatars rares{% if not avatars_rares %} · à récupérer gratuitement dans le shop{% endif %}</label>
-                    <div class="logo-selector">
-                        {% for avatar in avatars_premium %}
-                        <div class="logo-option premium-opt{% if not avatars_rares %} verrou{% endif %}{% if avatar == current_user.logo %} active{% endif %}" data-logo="{{ avatar }}" onclick="selectLogo(this.dataset.logo)">{{ avatar }}</div>
-                        {% endfor %}
-                    </div>
+            <div id="logo-selector" style="display: none;">
+                <label>Choisir un avatar</label>
+                <div class="logo-selector">
+                    {% for avatar in avatars %}
+                    <div class="logo-option{% if avatar == current_user.logo %} active{% endif %}" data-logo="{{ avatar }}" onclick="selectLogo(this.dataset.logo)">{{ avatar }}</div>
+                    {% endfor %}
                 </div>
-
-                <div class="form-group">
-                    <label for="bio-input">Bio</label>
-                    <textarea id="bio-input" maxlength="500" placeholder="Ton main, ton rang, tes dispos pour jouer…"></textarea>
+                <label class="logo-premium-titre">Avatars rares{% if not avatars_rares %} · à récupérer gratuitement dans le shop{% endif %}</label>
+                <div class="logo-selector">
+                    {% for avatar in avatars_premium %}
+                    <div class="logo-option premium-opt{% if not avatars_rares %} verrou{% endif %}{% if avatar == current_user.logo %} active{% endif %}" data-logo="{{ avatar }}" onclick="selectLogo(this.dataset.logo)">{{ avatar }}</div>
+                    {% endfor %}
                 </div>
+            </div>
 
-                <div class="success-message" id="success-message">Profil enregistré.</div>
-                <div class="error-message" id="error-message"></div>
+            <div class="form-group">
+                <label for="handle-input">Identifiant</label>
+                <div class="champ-at"><span>@</span><input type="text" id="handle-input" maxlength="20" autocomplete="off" spellcheck="false"></div>
+                <p class="ed-note" id="handle-note"></p>
+            </div>
 
-                <button class="btn" type="button" onclick="updateProfil()">Sauvegarder les modifications</button>
+            <div class="form-group">
+                <label for="bio-input">Bio <span class="muted">(facultatif)</span></label>
+                <textarea id="bio-input" maxlength="500" placeholder="Ton main, ton rang, tes dispos pour jouer…"></textarea>
+            </div>
+
+            <div class="success-message" id="success-message">Profil enregistré.</div>
+            <div class="error-message" id="error-message"></div>
+            <button class="btn" type="button" onclick="updateProfil()">Enregistrer</button>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">Mon compte</h2>
+            <div class="compte-resume">
+                <div><span class="muted">Pseudo</span><strong id="username-display">{{ current_user.username }}</strong> <span class="badge-joueur" id="badge-display"{% if not current_user.badge %} hidden{% endif %}>{{ current_user.badge or '' }}</span></div>
+                <div><span class="muted">Email</span><strong id="email-display">{{ current_user.email }}</strong></div>
+                <div><span class="muted">Team</span><strong id="team-display">…</strong></div>
+                <div><span class="muted">Points ligue</span><strong id="points-display">…</strong></div>
+                <div><span class="muted">Solde</span><strong id="solde-display">…</strong></div>
             </div>
         </div>
 
@@ -236,9 +254,16 @@
             el._timer = setTimeout(() => el.classList.remove('show'), 3000);
         }
 
+        let profil = null;
+
         async function loadProfil() {
             const { ok, data } = await api('/api/profil');
             if (!ok) return;  // 401 -> redirection vers /login gérée par api()
+            profil = data;
+            document.getElementById('handle-input').value = data.handle || '';
+            noteHandle(data.handle_info);
+            afficherPhoto(data.photo);
+            afficherBanniere(data.banniere, data.banniere_pos, data.banniere_zoom);
             document.getElementById('username-display').textContent = data.username;
             document.getElementById('email-display').textContent = data.email;
             document.getElementById('team-display').textContent = data.team_name || 'Aucune team';
@@ -248,7 +273,7 @@
             renderInventaire(data);
             if (AVATARS.includes(data.logo) || AVATARS_PREMIUM.includes(data.logo)) {
                 currentLogo = data.logo;
-                document.getElementById('profil-pic-display').textContent = currentLogo;
+                if (!data.photo) document.getElementById('profil-pic-display').textContent = currentLogo;
                 updateLogoSelector();
             }
         }
@@ -319,21 +344,140 @@
             }
             if (!AVATARS.includes(logo) && !AVATARS_PREMIUM.includes(logo)) return;
             currentLogo = logo;
-            document.getElementById('profil-pic-display').textContent = logo;
+            if (!profil || !profil.photo) document.getElementById('profil-pic-display').textContent = logo;
             updateLogoSelector();
         }
 
         async function updateProfil() {
+            // 1. Identifiant (seulement s'il a changé)
+            const handle = document.getElementById('handle-input').value.trim().toLowerCase().replace(/^@/, '');
+            if (profil && handle !== profil.handle) {
+                const r = await api('/api/profil/identifiant', { method: 'POST', body: { handle } });
+                if (!r.ok || !r.data.success) { flash('error-message', r.data.error || 'Identifiant refusé'); return; }
+                profil.handle = r.data.handle;
+                noteHandle(r.data.handle_info);
+                document.getElementById('lien-public').href = '/u/' + encodeURIComponent(r.data.handle);
+            }
+            // 2. Bio et avatar
             const bio = document.getElementById('bio-input').value;
             const { ok, data } = await api('/api/profil/update', { method: 'POST', body: { bio, logo: currentLogo } });
             if (ok && data.success) {
                 document.getElementById('logo-selector').style.display = 'none';
                 const navAvatar = document.getElementById('nav-avatar');
-                if (navAvatar) navAvatar.textContent = data.logo;
-                flash('success-message');
+                if (navAvatar && !(profil && profil.photo)) navAvatar.textContent = data.logo;
+                flash('success-message', 'Profil enregistré.');
             } else {
                 flash('error-message', data.error || 'Erreur lors de la sauvegarde');
             }
+        }
+
+        // ---------- Identifiant ----------
+        function noteHandle(info) {
+            const note = document.getElementById('handle-note');
+            const champ = document.getElementById('handle-input');
+            if (!info) return;
+            const reste = info.restants + ' changement' + (info.restants > 1 ? 's' : '') + ' possible' + (info.restants > 1 ? 's' : '');
+            if (!info.restants) { note.textContent = 'Tu as utilisé tous tes changements d\'identifiant.'; champ.disabled = true; }
+            else if (info.prochain) { note.textContent = `Tu pourras le modifier à partir du ${info.prochain} (encore ${reste}).`; champ.disabled = true; }
+            else { note.textContent = `3 à 20 caractères : lettres, chiffres, _ et point. Encore ${reste}, puis 30 jours d'attente entre deux changements.`; champ.disabled = false; }
+        }
+
+        // ---------- Envoi d'images ----------
+        async function envoyerImage(url, fichier) {
+            const form = new FormData();
+            form.append('fichier', fichier);
+            let res, data = {};
+            try {
+                res = await fetch(url, { method: 'POST', body: form });
+                data = await res.json().catch(() => ({}));
+            } catch (e) { return { ok: false, data: { error: 'Erreur réseau' } }; }
+            if (res.status === 413) data.error = 'Image trop lourde (8 Mo maximum)';
+            return { ok: res.ok && data.success, data };
+        }
+
+        function afficherPhoto(url) {
+            const el = document.getElementById('profil-pic-display');
+            const nav = document.getElementById('nav-avatar');
+            if (profil) profil.photo = url;
+            document.getElementById('photo-suppr').hidden = !url;
+            for (const cible of [el, nav]) {
+                if (!cible) continue;
+                cible.classList.toggle('a-photo', !!url);
+                if (url) { cible.innerHTML = ''; const img = document.createElement('img'); img.src = url; img.alt = ''; cible.appendChild(img); }
+                else cible.textContent = currentLogo;
+            }
+        }
+
+        document.getElementById('photo-fichier').addEventListener('change', async e => {
+            const f = e.target.files[0]; e.target.value = '';
+            if (!f) return;
+            const { ok, data } = await envoyerImage('/api/profil/photo', f);
+            if (ok) { afficherPhoto(data.url); flash('success-message', 'Photo de profil mise à jour.'); }
+            else flash('error-message', data.error || 'Erreur');
+        });
+
+        async function retirerPhoto() {
+            const { ok } = await api('/api/profil/photo/supprimer', { method: 'POST' });
+            if (ok) afficherPhoto(null);
+        }
+
+        // ---------- Bannière : envoi, glisser pour cadrer, taille ----------
+        const ban = { img: document.getElementById('ban-img'), pos: 50, zoom: 100, minuteur: null };
+
+        function appliquerCadrage() {
+            ban.img.style.objectPosition = `50% ${ban.pos}%`;
+            ban.img.style.transformOrigin = `50% ${ban.pos}%`;
+            ban.img.style.transform = `scale(${ban.zoom / 100})`;
+        }
+
+        function afficherBanniere(url, pos, zoom) {
+            ban.pos = pos ?? 50; ban.zoom = zoom || 100;
+            ban.img.hidden = !url;
+            if (url) ban.img.src = url;
+            document.getElementById('ban-vide').hidden = !!url;
+            document.getElementById('ban-suppr').hidden = !url;
+            document.getElementById('ban-astuce').hidden = !url;
+            document.getElementById('ban-reglages').hidden = !url;
+            document.getElementById('ban-zoom').value = ban.zoom;
+            appliquerCadrage();
+        }
+
+        function sauverCadrage() {
+            clearTimeout(ban.minuteur);
+            ban.minuteur = setTimeout(() => api('/api/profil/banniere/cadrage', { method: 'POST', body: { pos: Math.round(ban.pos), zoom: Math.round(ban.zoom) } }), 400);
+        }
+
+        document.getElementById('ban-fichier').addEventListener('change', async e => {
+            const f = e.target.files[0]; e.target.value = '';
+            if (!f) return;
+            const { ok, data } = await envoyerImage('/api/profil/banniere', f);
+            if (ok) { afficherBanniere(data.url, 50, 100); flash('success-message', 'Bannière mise à jour. Glisse-la pour la cadrer.'); }
+            else flash('error-message', data.error || 'Erreur');
+        });
+
+        document.getElementById('ban-zoom').addEventListener('input', e => { ban.zoom = Number(e.target.value); appliquerCadrage(); sauverCadrage(); });
+
+        (function () {
+            let depart = null;
+            const debut = y => { depart = { y, pos: ban.pos }; ban.img.classList.add('glisse'); };
+            const bouge = y => {
+                if (!depart) return;
+                const hauteur = ban.img.getBoundingClientRect().height || 1;
+                ban.pos = Math.max(0, Math.min(100, depart.pos - (y - depart.y) / hauteur * 100));
+                appliquerCadrage();
+            };
+            const fin = () => { if (!depart) return; depart = null; ban.img.classList.remove('glisse'); sauverCadrage(); };
+            ban.img.addEventListener('mousedown', e => { e.preventDefault(); debut(e.clientY); });
+            window.addEventListener('mousemove', e => bouge(e.clientY));
+            window.addEventListener('mouseup', fin);
+            ban.img.addEventListener('touchstart', e => debut(e.touches[0].clientY), { passive: true });
+            ban.img.addEventListener('touchmove', e => { e.preventDefault(); bouge(e.touches[0].clientY); }, { passive: false });
+            ban.img.addEventListener('touchend', fin);
+        })();
+
+        async function retirerBanniere() {
+            const { ok } = await api('/api/profil/banniere/supprimer', { method: 'POST' });
+            if (ok) afficherBanniere(null);
         }
 
         async function changePassword() {

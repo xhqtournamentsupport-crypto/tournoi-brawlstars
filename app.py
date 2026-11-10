@@ -1,11 +1,13 @@
+import io
 import os
-from datetime import datetime
+import re
+from datetime import datetime, timedelta
 import secrets
 import sys
 import sqlite3
 from functools import wraps
 
-from flask import Flask, render_template, request, jsonify, session, redirect, g, abort, has_request_context
+from flask import Flask, render_template, request, jsonify, session, redirect, g, abort, has_request_context, send_from_directory
 from werkzeug.security import generate_password_hash, check_password_hash
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -33,6 +35,19 @@ def charger_secret_key():
 
 app = Flask(__name__)
 app.secret_key = charger_secret_key()
+app.config['MAX_CONTENT_LENGTH'] = 9 * 1024 * 1024   # taille max d'une requête (images comprises)
+
+# Photos de profil et bannières : stockées dans uploads/ (ignoré par Git), servies par /media/...
+UPLOAD_DIR = os.path.join(BASE_DIR, 'uploads')
+IMAGE_MAX_OCTETS = 8 * 1024 * 1024
+AVATAR_TAILLE = 400            # photo de profil carrée 400 x 400
+BANNIERE_LARGEUR = 1500        # bannière redimensionnée à 1500 px de large max
+
+# Identifiant @ : 3 à 20 caractères, modifiable 3 fois, avec 30 jours d'attente entre deux changements
+HANDLE_REGEX = re.compile(r'^[a-z0-9_.]{3,20}$')
+HANDLE_DELAI_JOURS = 30
+HANDLE_MAX_CHANGEMENTS = 3
+HANDLES_RESERVES = {'admin', 'xhq', 'xhqleague', 'support', 'staff', 'moderateur', 'modo', 'officiel', 'root', 'system'}
 
 AVATARS = ['👤', '🎮', '🏆', '⚡', '🔥', '💎', '👑', '🚀', '⭐', '🎯', '💪', '🌟']
 # Avatars exclusifs débloqués par le Skin Premium
@@ -301,6 +316,25 @@ def creer_tables_tournois(c):
     """)
 
 
+def handle_depuis(texte):
+    """Pseudo -> identifiant valide : minuscules, sans accents ni espaces."""
+    import unicodedata
+    t = unicodedata.normalize('NFKD', texte or '').encode('ascii', 'ignore').decode().lower()
+    t = re.sub(r'[^a-z0-9_.]', '', t.replace(' ', '_')).strip('.')[:20]
+    return t if len(t) >= 3 else (t + 'joueur')[:20]
+
+
+def attribuer_handle(c, user_id, pseudo):
+    """Donne un identifiant libre (pseudo, sinon pseudo2, pseudo3...) à un compte qui n'en a pas."""
+    base = handle_depuis(pseudo)
+    essai, n = base, 1
+    while c.execute('SELECT 1 FROM users WHERE handle = ? AND id != ?', (essai, user_id)).fetchone() or essai in HANDLES_RESERVES:
+        n += 1
+        essai = base[:20 - len(str(n))] + str(n)
+    c.execute('UPDATE users SET handle = ? WHERE id = ?', (essai, user_id))
+    return essai
+
+
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
@@ -451,6 +485,18 @@ def init_db():
         c.execute('UPDATE users SET solde = ?', (SOLDE_DEPART,))
         c.execute("INSERT INTO parametres (cle, valeur) VALUES ('shop_v2', datetime('now'))")
 
+    # Profils : photo, bannière, identifiant @
+    ajouter_colonne(c, 'users', 'photo', 'TEXT')
+    ajouter_colonne(c, 'users', 'banniere', 'TEXT')
+    ajouter_colonne(c, 'users', 'banniere_pos', 'INTEGER DEFAULT 50')
+    ajouter_colonne(c, 'users', 'banniere_zoom', 'INTEGER DEFAULT 100')
+    ajouter_colonne(c, 'users', 'handle', 'TEXT')
+    ajouter_colonne(c, 'users', 'handle_changements', 'INTEGER DEFAULT 0')
+    ajouter_colonne(c, 'users', 'handle_modifie_at', 'TEXT')
+    for r in c.execute('SELECT id, username FROM users WHERE handle IS NULL').fetchall():
+        attribuer_handle(c, r['id'], r['username'])
+    c.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_handle ON users(handle)')
+
     reparer_coherence(c)
     conn.commit()
     conn.close()
@@ -467,7 +513,7 @@ def utilisateur_connecte():
     if uid is None:
         return None
     if 'user' not in g:
-        g.user = get_db().execute('SELECT id, username, email, profile_pic, is_admin FROM users WHERE id = ?', (uid,)).fetchone()
+        g.user = get_db().execute('SELECT id, username, email, profile_pic, is_admin, photo, handle FROM users WHERE id = ?', (uid,)).fetchone()
         if g.user is None:  # compte supprimé entre-temps
             session.clear()
     return g.user
@@ -546,7 +592,8 @@ def injecter_utilisateur():
     current_user = None
     if user:
         current_user = {'username': user['username'], 'email': user['email'], 'logo': logo_valide(user['profile_pic']),
-                        'is_admin': bool(user['is_admin']),
+                        'is_admin': bool(user['is_admin']), 'photo': url_media('avatars', user['photo']),
+                        'handle': user['handle'],
                         **apparence(get_db(), user['id'])}
     db = get_db()
     jeux = liste_jeux(db)
@@ -832,6 +879,7 @@ def api_signup():
             "INSERT INTO users (email, username, password, bio, profile_pic, solde, created_at) "
             "VALUES (?, ?, ?, '', ?, ?, datetime('now'))",
             (email, username, generate_password_hash(password), AVATAR_DEFAUT, SOLDE_DEPART))
+        attribuer_handle(db, cur.lastrowid, username)
         db.commit()
     except sqlite3.IntegrityError:
         return jsonify({'success': False, 'error': 'Email ou nom d\'utilisateur déjà pris'}), 400
@@ -859,8 +907,8 @@ def api_login():
 @api_connectee
 def api_profil():
     db = get_db()
-    user = db.execute('SELECT id, email, username, bio, profile_pic, solde, created_at FROM users WHERE id = ?',
-                      (session['user_id'],)).fetchone()
+    user = db.execute("""SELECT id, email, username, bio, profile_pic, solde, created_at, photo, banniere, banniere_pos,
+                             banniere_zoom, handle FROM users WHERE id = ?""", (session['user_id'],)).fetchone()
     mes_teams = [dict(r) for r in db.execute("""
         SELECT j.code AS jeu, j.nom AS jeu_nom, t.nom AS team_name, l.points, l.ligue_num
         FROM team_members tm JOIN teams t ON t.id = tm.team_id JOIN jeux j ON j.id = tm.jeu_id
@@ -879,6 +927,12 @@ def api_profil():
         'ligue_num': principale.get('ligue_num'),
         'teams': mes_teams,
         'created_at': user['created_at'],
+        'photo': url_media('avatars', user['photo']),
+        'banniere': url_media('bannieres', user['banniere']),
+        'banniere_pos': user['banniere_pos'] if user['banniere_pos'] is not None else 50,
+        'banniere_zoom': user['banniere_zoom'] or 100,
+        'handle': user['handle'],
+        'handle_info': info_handle(db, user['id']),
         **inventaire(get_db(), user['id']),
     }), 200
 
@@ -958,11 +1012,194 @@ def api_profil_delete():
     for j in liste_jeux(db):
         retirer_membre(c, uid, j['id'])
     c.execute('DELETE FROM inventory WHERE user_id = ?', (uid,))
+    fichiers = c.execute('SELECT photo, banniere FROM users WHERE id = ?', (uid,)).fetchone()
+    if fichiers:
+        supprimer_media('avatars', fichiers['photo'])
+        supprimer_media('bannieres', fichiers['banniere'])
     c.execute('UPDATE contact_messages SET user_id = NULL WHERE user_id = ?', (uid,))
     c.execute('DELETE FROM users WHERE id = ?', (uid,))
     db.commit()
     session.clear()
     return jsonify({'success': True}), 200
+
+
+# ---------------------------------------------------------------------------
+# Profils : photo, bannière, identifiant @, page publique
+# ---------------------------------------------------------------------------
+NOM_MEDIA = re.compile(r'^[a-f0-9]{32}\.(webp|jpg)$')
+
+
+def url_media(dossier, nom):
+    return f'/media/{dossier}/{nom}' if nom else None
+
+
+def supprimer_media(dossier, nom):
+    if nom and NOM_MEDIA.match(nom):
+        try:
+            os.remove(os.path.join(UPLOAD_DIR, dossier, nom))
+        except OSError:
+            pass
+
+
+def enregistrer_image(fichier, dossier, mode):
+    """Vérifie, recadre et enregistre une image envoyée. Renvoie (nom_du_fichier, erreur)."""
+    from PIL import Image, ImageOps
+    Image.MAX_IMAGE_PIXELS = 40_000_000
+    if not fichier or not fichier.filename:
+        return None, 'Aucune image reçue'
+    contenu = fichier.read(IMAGE_MAX_OCTETS + 1)
+    if len(contenu) > IMAGE_MAX_OCTETS:
+        return None, 'Image trop lourde (8 Mo maximum)'
+    try:
+        Image.open(io.BytesIO(contenu)).verify()
+        image = ImageOps.exif_transpose(Image.open(io.BytesIO(contenu))).convert('RGB')
+    except Exception:
+        return None, 'Image illisible : utilise un fichier JPG, PNG, WEBP ou GIF'
+    if mode == 'avatar':
+        if min(image.size) < 64:
+            return None, 'Image trop petite (64 px minimum)'
+        image = ImageOps.fit(image, (AVATAR_TAILLE, AVATAR_TAILLE), Image.LANCZOS)
+    else:
+        if image.width < 600:
+            return None, 'Bannière trop petite : 600 px de large minimum (1500 x 500 conseillé)'
+        if image.width > BANNIERE_LARGEUR:
+            image = image.resize((BANNIERE_LARGEUR, round(image.height * BANNIERE_LARGEUR / image.width)), Image.LANCZOS)
+    os.makedirs(os.path.join(UPLOAD_DIR, dossier), exist_ok=True)
+    base = secrets.token_hex(16)
+    try:
+        nom = base + '.webp'
+        image.save(os.path.join(UPLOAD_DIR, dossier, nom), 'WEBP', quality=86, method=4)
+    except (OSError, KeyError, ValueError):
+        nom = base + '.jpg'
+        image.save(os.path.join(UPLOAD_DIR, dossier, nom), 'JPEG', quality=88, optimize=True)
+    return nom, None
+
+
+@app.route('/media/<dossier>/<nom>')
+def media(dossier, nom):
+    if dossier not in ('avatars', 'bannieres') or not NOM_MEDIA.match(nom):
+        abort(404)
+    return send_from_directory(os.path.join(UPLOAD_DIR, dossier), nom, max_age=31536000)
+
+
+def remplacer_image(colonne, dossier, mode):
+    nom, erreur = enregistrer_image(request.files.get('fichier'), dossier, mode)
+    if erreur:
+        return jsonify({'success': False, 'error': erreur}), 400
+    db = get_db()
+    ancien = db.execute(f'SELECT {colonne} FROM users WHERE id = ?', (session['user_id'],)).fetchone()[0]
+    extra = ', banniere_pos = 50, banniere_zoom = 100' if colonne == 'banniere' else ''
+    db.execute(f'UPDATE users SET {colonne} = ?{extra} WHERE id = ?', (nom, session['user_id']))
+    db.commit()
+    supprimer_media(dossier, ancien)
+    return jsonify({'success': True, 'url': url_media(dossier, nom)}), 200
+
+
+def retirer_image(colonne, dossier):
+    db = get_db()
+    ancien = db.execute(f'SELECT {colonne} FROM users WHERE id = ?', (session['user_id'],)).fetchone()[0]
+    db.execute(f'UPDATE users SET {colonne} = NULL WHERE id = ?', (session['user_id'],))
+    db.commit()
+    supprimer_media(dossier, ancien)
+    return jsonify({'success': True}), 200
+
+
+@app.route('/api/profil/photo', methods=['POST'])
+@api_connectee
+def api_profil_photo():
+    return remplacer_image('photo', 'avatars', 'avatar')
+
+
+@app.route('/api/profil/photo/supprimer', methods=['POST'])
+@api_connectee
+def api_profil_photo_supprimer():
+    return retirer_image('photo', 'avatars')
+
+
+@app.route('/api/profil/banniere', methods=['POST'])
+@api_connectee
+def api_profil_banniere():
+    return remplacer_image('banniere', 'bannieres', 'banniere')
+
+
+@app.route('/api/profil/banniere/supprimer', methods=['POST'])
+@api_connectee
+def api_profil_banniere_supprimer():
+    return retirer_image('banniere', 'bannieres')
+
+
+@app.route('/api/profil/banniere/cadrage', methods=['POST'])
+@api_connectee
+def api_profil_banniere_cadrage():
+    data = donnees_json()
+    pos, zoom = entier(data.get('pos')), entier(data.get('zoom'))
+    if pos is None or zoom is None or not (0 <= pos <= 100 and 100 <= zoom <= 250):
+        return jsonify({'success': False, 'error': 'Cadrage invalide'}), 400
+    db = get_db()
+    db.execute('UPDATE users SET banniere_pos = ?, banniere_zoom = ? WHERE id = ?', (pos, zoom, session['user_id']))
+    db.commit()
+    return jsonify({'success': True}), 200
+
+
+def info_handle(db, user_id):
+    """Peut-on changer d'identifiant maintenant ? Sinon, à partir de quand."""
+    u = db.execute('SELECT handle_changements, handle_modifie_at FROM users WHERE id = ?', (user_id,)).fetchone()
+    restants = max(0, HANDLE_MAX_CHANGEMENTS - (u['handle_changements'] or 0))
+    prochain = None
+    if u['handle_modifie_at']:
+        date = datetime.strptime(u['handle_modifie_at'][:19], '%Y-%m-%d %H:%M:%S') + timedelta(days=HANDLE_DELAI_JOURS)
+        if date > datetime.utcnow():
+            prochain = date.strftime('%d/%m/%Y')
+    return {'restants': restants, 'prochain': prochain, 'possible': restants > 0 and not prochain}
+
+
+@app.route('/api/profil/identifiant', methods=['POST'])
+@api_connectee
+def api_profil_identifiant():
+    db = get_db()
+    handle = texte(donnees_json(), 'handle', 40).lower().lstrip('@')
+    actuel = db.execute('SELECT handle FROM users WHERE id = ?', (session['user_id'],)).fetchone()['handle']
+    if handle == actuel:
+        return jsonify({'success': True, 'handle': handle, 'handle_info': info_handle(db, session['user_id'])}), 200
+    if not HANDLE_REGEX.match(handle) or handle.startswith('.') or handle.endswith('.') or '..' in handle:
+        return jsonify({'success': False, 'error': '3 à 20 caractères : lettres minuscules, chiffres, _ et . (pas au début ni à la fin)'}), 400
+    if handle in HANDLES_RESERVES:
+        return jsonify({'success': False, 'error': 'Cet identifiant est réservé'}), 400
+    info = info_handle(db, session['user_id'])
+    if not info['restants']:
+        return jsonify({'success': False, 'error': 'Tu as déjà utilisé tous tes changements d\'identifiant'}), 400
+    if info['prochain']:
+        return jsonify({'success': False, 'error': f"Tu pourras le modifier à partir du {info['prochain']}"}), 400
+    if db.execute('SELECT 1 FROM users WHERE handle = ? AND id != ?', (handle, session['user_id'])).fetchone():
+        return jsonify({'success': False, 'error': 'Cet identifiant est déjà pris'}), 400
+    db.execute("""UPDATE users SET handle = ?, handle_changements = COALESCE(handle_changements, 0) + 1,
+                  handle_modifie_at = datetime('now') WHERE id = ?""", (handle, session['user_id']))
+    db.commit()
+    return jsonify({'success': True, 'handle': handle, 'handle_info': info_handle(db, session['user_id'])}), 200
+
+
+@app.route('/u/<handle>')
+def profil_public(handle):
+    db = get_db()
+    u = db.execute("""SELECT id, username, bio, profile_pic, photo, banniere, banniere_pos, banniere_zoom, handle, created_at
+                      FROM users WHERE handle = ?""", (handle.lower().lstrip('@'),)).fetchone()
+    if not u:
+        abort(404)
+    teams = [dict(r) for r in db.execute("""
+        SELECT j.nom AS jeu, t.id, t.nom, t.createur_id, l.ligue_num, l.poule, l.points
+        FROM team_members tm JOIN teams t ON t.id = tm.team_id JOIN jeux j ON j.id = tm.jeu_id
+        LEFT JOIN ligue l ON l.team_id = t.id WHERE tm.user_id = ? ORDER BY j.ordre""", (u['id'],))]
+    titres = [dict(r) for r in db.execute("""SELECT t.nom, t.termine_at FROM tournois t
+        JOIN team_members tm ON tm.team_id = t.champion_team_id WHERE tm.user_id = ? AND t.statut = 'termine'
+        ORDER BY t.termine_at DESC""", (u['id'],))]
+    look = apparence(db, u['id'])
+    moi = utilisateur_connecte()
+    return render_template('profil_public.html', profil={
+        'username': u['username'], 'handle': u['handle'], 'bio': u['bio'] or '', 'logo': logo_valide(u['profile_pic']),
+        'photo': url_media('avatars', u['photo']), 'banniere': url_media('bannieres', u['banniere']),
+        'banniere_pos': u['banniere_pos'] if u['banniere_pos'] is not None else 50, 'banniere_zoom': u['banniere_zoom'] or 100,
+        'membre_depuis': (u['created_at'] or '')[:10], 'teams': teams, 'titres': titres, **look,
+        'c_est_moi': bool(moi and moi['id'] == u['id'])})
 
 
 # ---------------------------------------------------------------------------

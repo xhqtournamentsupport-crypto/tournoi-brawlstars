@@ -77,6 +77,14 @@ Page **Tournois** (menu) : un tournoi par jeu, à côté des ligues. L'admin le 
    (introuvable dans le shop). Pas de récompense en argent pour l'instant.
 Réglages en haut de la section Tournois d'`app.py` (`TOURNOI_PLACES`, `TOURNOI_TAILLE_POULE`, `TOURNOI_MIN_TEAMS`).
 
+## Profils
+Chaque joueur a une page publique `/u/<identifiant>` : bannière, photo, @identifiant, bio, teams et tournois gagnés.
+Il la modifie depuis *Profil* :
+- **photo de profil** (recadrée en carré 400 × 400) et **bannière** (1500 px de large max, déplaçable à la souris, taille réglable) ;
+- **@identifiant** : 3 à 20 caractères (minuscules, chiffres, `_`, `.`), unique, modifiable 3 fois avec 30 jours entre deux changements ;
+- **bio** (500 caractères).
+Les images sont vérifiées et réencodées avec Pillow, stockées dans `uploads/` (non versionné) et servies par `/media/...`.
+
 ## Teams
 - 5 joueurs maximum par team (`MAX_MEMBRES` en haut de `app.py`).
 - Tout membre peut **quitter** sa team ; si le capitaine part, le rôle passe au membre le plus ancien
