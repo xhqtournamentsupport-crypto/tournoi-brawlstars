@@ -729,9 +729,14 @@ def index():
     derniers = [dict(r) for r in db.execute(REQ_MATCHS + ' WHERE m.jeu_id = ? AND m.saison = ? ORDER BY m.id DESC LIMIT 6',
                                              (jeu['id'], chiffres['saison']))]
     nb_tournois = db.execute('SELECT COUNT(*) FROM tournois WHERE jeu_id = ?', (jeu['id'],)).fetchone()[0]
+    # Les meilleures teams, toutes ligues confondues (la ligue la plus haute d'abord)
+    top = [dict(r) for r in db.execute("""SELECT t.id, t.nom, l.ligue_num, l.points FROM ligue l JOIN teams t ON t.id = l.team_id
+                                          WHERE t.jeu_id = ? ORDER BY l.ligue_num, l.points DESC, l.id LIMIT 5""", (jeu['id'],))]
+    for t in top:
+        t['forme'] = forme.get(t['id'], [])[:5]
     return render_template('index.html', jeu_actuel=jeu, chiffres=chiffres, ligue1=ligue1, leader=leader,
                            en_forme=en_forme, dernier_champion=dernier_champion, prochain=prochain,
-                           autres_tournois=actifs[1:3], derniers=derniers, fil=fil_actu(db, jeu['id']),
+                           autres_tournois=actifs[1:3], derniers=derniers, top=top, fil=fil_actu(db, jeu['id']),
                            nb_tournois=nb_tournois, nb_ligues=LIGUE_MAX, par_poule=TEAMS_PAR_POULE,
                            ligue_depart=LIGUE_DEPART, palmares=palmares(db, jeu['id'], 1))
 

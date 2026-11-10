@@ -43,7 +43,7 @@ async function api(url, options = {}) {
     document.documentElement.classList.add('anim');
 
     const CIBLES = '.reveal-auto, .section, .poule, .resultat, .team-card, .item-card, .inv-item, .stat, .carte-tournoi, '
-        + '.bm, .inscrit, .vedette, .boite, .carte-match, .etape, .chiffres > div, .prochain, .discord, .profil-card, .info-section';
+        + '.bm, .inscrit, .vedette, .boite, .carte-match, .etape, .chiffres > div, .tuile, .discord, .profil-card, .info-section';
 
     const vus = new IntersectionObserver(entrees => {
         entrees.forEach(e => {

@@ -6,270 +6,315 @@
     <title>XHQ League — la ligue {{ jeu_actuel.nom }} où chaque match compte</title>
     {% include '_head.html' %}
     <style>
-        .accueil { display: grid; gap: 3.2rem; }
-        .accueil > .jeux-switch { margin: 0 0 -2.2rem; justify-self: start; }
+        /* =========================================================
+           BANDEAU PLEIN ÉCRAN
+           ========================================================= */
+        .scene { position: relative; overflow: hidden; margin-top: -1px; padding: 4.5rem 1.6rem 5rem; isolation: isolate; }
+        /* Dégradé « mesh » animé : trois nappes de violet qui se déplacent */
+        .scene .nappe { position: absolute; z-index: -2; border-radius: 50%; filter: blur(70px); opacity: 0.55; animation: derive 16s ease-in-out infinite alternate; }
+        .scene .n1 { width: 46vw; height: 46vw; top: -18vw; left: -10vw; background: #7c6cff; }
+        .scene .n2 { width: 34vw; height: 34vw; top: 4vw; right: -8vw; background: #4c3bd9; animation-duration: 21s; animation-delay: -6s; }
+        .scene .n3 { width: 28vw; height: 28vw; bottom: -16vw; left: 34vw; background: #a99fff; opacity: 0.25; animation-duration: 25s; }
+        @keyframes derive { to { transform: translate(6vw, 4vw) scale(1.12); } }
+        /* Grain photo par-dessus, pour casser l'aspect « numérique » */
+        .scene::after { content: ''; position: absolute; inset: 0; z-index: -1; opacity: 0.16; mix-blend-mode: overlay; pointer-events: none;
+            background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"); }
+        .scene::before { content: ''; position: absolute; inset: auto 0 0 0; height: 40%; z-index: -1; background: linear-gradient(transparent, var(--bg)); }
 
-        /* ---------- Bandeau du haut ---------- */
-        .une { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 3rem; align-items: center; padding-top: 1rem; }
-        .une h1 { font-size: clamp(2.7rem, 6.2vw, 4.7rem); line-height: 1.02; letter-spacing: -0.04em; }
-        .une h1 .mot { display: inline-block; animation: entree 0.8s var(--courbe) both; }
-        .une h1 .mot:nth-child(2) { animation-delay: 0.08s; }
-        .une h1 .mot:nth-child(3) { animation-delay: 0.16s; }
-        .une h1 .violet { background: linear-gradient(90deg, #fff, var(--violet) 70%); -webkit-background-clip: text; background-clip: text; color: transparent; }
-        .une-texte > p { max-width: 520px; margin: 1.3rem 0 1.8rem; color: var(--text-soft); font-size: 1.12rem; line-height: 1.6; animation: entree 0.8s var(--courbe) 0.3s both; }
-        .une-actions { display: flex; flex-wrap: wrap; gap: 0.7rem; animation: entree 0.8s var(--courbe) 0.4s both; }
-        .une-actions .btn { padding: 0.85rem 1.6rem; font-size: 1.02rem; }
-        .une-texte > .preuve { display: flex; align-items: center; gap: 0.7rem; margin: 1.6rem 0 0; color: var(--muted); font-size: 0.95rem; animation: entree 0.8s var(--courbe) 0.5s both; }
+        .scene-grille { max-width: 1180px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 3rem; align-items: center; }
+        .scene .jeux-switch { margin: 0 0 2rem; background: rgba(10, 10, 15, 0.45); backdrop-filter: blur(10px); }
+        .titre-geant { font-size: clamp(2.8rem, 6.1vw, 5.3rem); line-height: 0.98; letter-spacing: -0.045em; }
+        .titre-geant span { display: block; animation: entree 0.9s var(--courbe) both; }
+        .titre-geant span:nth-child(2) { animation-delay: 0.1s; }
+        .titre-geant span:nth-child(3) { animation-delay: 0.2s; }
+        .brille { background: linear-gradient(100deg, #fff 0%, #cfc8ff 30%, var(--violet) 50%, #cfc8ff 70%, #fff 100%); background-size: 220% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: entree 0.9s var(--courbe) 0.1s both, brille 6s linear 1s infinite !important; }
+        @keyframes brille { to { background-position: -220% 0; } }
+        @keyframes entree { from { opacity: 0; transform: translateY(26px); filter: blur(6px); } }
+        .scene-texte > p { max-width: 500px; margin: 1.5rem 0 2rem; color: var(--text-soft); font-size: 1.15rem; line-height: 1.6; animation: entree 0.9s var(--courbe) 0.3s both; }
+        .scene-actions { display: flex; flex-wrap: wrap; gap: 0.8rem; animation: entree 0.9s var(--courbe) 0.4s both; }
+        .scene-actions .btn { padding: 0.95rem 1.8rem; font-size: 1.05rem; }
+        .btn-fleche::after { content: '→'; transition: transform 0.25s var(--courbe); }
+        .btn-fleche:hover::after { transform: translateX(4px); }
+        .preuve { display: flex; align-items: center; gap: 0.9rem; margin-top: 2.2rem; color: var(--text-soft); animation: entree 0.9s var(--courbe) 0.5s both; }
+        .pastilles { display: flex; }
+        .pastilles i { display: grid; place-items: center; width: 34px; height: 34px; margin-left: -9px; border-radius: 50%; border: 2px solid var(--bg); background: var(--panel-2); font-style: normal; font-size: 0.75rem; font-weight: 800; color: var(--bleu-clair); }
+        .pastilles i:first-child { margin-left: 0; }
         .preuve strong { color: #fff; }
-        .direct { display: inline-block; width: 8px; height: 8px; flex-shrink: 0; border-radius: 50%; background: var(--violet); animation: pulse 1.8s infinite; }
-        @keyframes entree { from { opacity: 0; transform: translateY(18px); } }
 
-        /* Prochain tournoi */
-        .prochain { position: relative; padding: 1.6rem; background: linear-gradient(160deg, rgba(124, 108, 255, 0.16), rgba(255, 255, 255, 0.02) 60%), var(--panel); border: 1px solid rgba(124, 108, 255, 0.35); border-radius: 22px; box-shadow: 0 30px 60px rgba(0, 0, 0, 0.45); overflow: hidden; }
-        .prochain::after { content: ''; position: absolute; top: -40%; right: -30%; width: 70%; height: 80%; background: radial-gradient(closest-side, rgba(124, 108, 255, 0.35), transparent); animation: flotte 7s ease-in-out infinite alternate; pointer-events: none; }
-        @keyframes flotte { to { transform: translate(-20%, 25%); } }
-        .etiquette { display: inline-flex; align-items: center; gap: 0.5rem; color: var(--bleu-clair); font-size: 0.8rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
-        .prochain h2 { margin: 0.6rem 0 0.2rem; font-size: 2rem; }
-        .prochain .quand { color: var(--text-soft); }
-        .compte { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.6rem; margin: 1.3rem 0; }
-        .compte div { padding: 0.75rem 0 0.6rem; background: rgba(0, 0, 0, 0.35); border: 1px solid var(--line); border-radius: 14px; text-align: center; overflow: hidden; }
-        .compte b { display: block; font-family: var(--display); font-size: 2.1rem; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
-        .compte b.tic { animation: tic 0.35s var(--courbe); }
-        @keyframes tic { from { transform: translateY(-35%); opacity: 0.2; } }
-        .compte span { color: var(--muted); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
-        .en-cours { position: relative; z-index: 1; margin: 1.2rem 0; padding: 0.8rem 1rem; background: rgba(0, 0, 0, 0.3); border-radius: 12px; color: var(--text-soft); }
-        .places { position: relative; z-index: 1; display: flex; justify-content: space-between; margin-bottom: 0.45rem; color: var(--muted); font-size: 0.9rem; }
-        .places strong { color: #fff; }
-        .jauge { position: relative; z-index: 1; height: 8px; background: rgba(255, 255, 255, 0.07); border-radius: 999px; overflow: hidden; }
-        .jauge i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--violet), var(--bleu-clair)); transform-origin: left; animation: remplit 1.4s var(--courbe) 0.4s both; }
-        @keyframes remplit { from { transform: scaleX(0); } }
-        .prochain .btn { position: relative; z-index: 1; width: 100%; margin-top: 1.3rem; padding: 0.8rem; }
-        .autres { position: relative; z-index: 1; margin-top: 1rem; color: var(--muted); font-size: 0.9rem; }
-        .autres a { color: var(--text-soft); }
+        /* Composition 3D à droite */
+        .compo { position: relative; height: 470px; perspective: 1400px; animation: entree 1.1s var(--courbe) 0.35s both; }
+        .compo-plateau { position: absolute; inset: 0; transform-style: preserve-3d; transform: rotateY(-14deg) rotateX(8deg); transition: transform 0.4s var(--courbe); }
+        .verre { background: rgba(20, 20, 28, 0.72); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 20px; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); box-shadow: 0 40px 80px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.08); }
+        .carte-top { position: absolute; top: 78px; left: 6%; width: 78%; padding: 1.2rem 1.2rem 0.8rem; transform: translateZ(0); }
+        .carte-top header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.7rem; }
+        .carte-top h3 { font-size: 1.1rem; }
+        .live { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.15rem 0.6rem; border-radius: 999px; background: var(--accent-dim); color: var(--bleu-clair); font-size: 0.72rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
+        .live::before, .direct { content: ''; display: inline-block; width: 7px; height: 7px; flex-shrink: 0; border-radius: 50%; background: var(--violet); animation: pulse 1.8s infinite; }
+        .ligne-top { display: grid; grid-template-columns: 1.8rem 1fr auto auto; align-items: center; gap: 0.7rem; padding: 0.55rem 0.4rem; border-top: 1px solid rgba(255, 255, 255, 0.06); animation: glisse 0.6s var(--courbe) both; }
+        .ligne-top:nth-child(2) { animation-delay: 0.55s; } .ligne-top:nth-child(3) { animation-delay: 0.65s; } .ligne-top:nth-child(4) { animation-delay: 0.75s; } .ligne-top:nth-child(5) { animation-delay: 0.85s; } .ligne-top:nth-child(6) { animation-delay: 0.95s; }
+        @keyframes glisse { from { opacity: 0; transform: translateX(-16px); } }
+        .ligne-top .r { display: grid; place-items: center; width: 1.7rem; height: 1.7rem; border-radius: 50%; background: rgba(255, 255, 255, 0.06); font-size: 0.78rem; font-weight: 800; }
+        .ligne-top:first-of-type .r { background: var(--violet); box-shadow: 0 0 16px rgba(124, 108, 255, 0.7); }
+        .ligne-top b { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .ligne-top small { color: var(--muted); font-size: 0.78rem; }
+        .ligne-top .p { font-family: var(--display); font-weight: 800; }
+        .carte-vide { padding: 1.5rem 0.4rem 1rem; color: var(--muted); }
 
-        /* ---------- Bandeau de résultats qui défile ---------- */
-        .defile { position: relative; overflow: hidden; padding: 0.85rem 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
-        .defile-piste { display: flex; gap: 2.6rem; width: max-content; animation: defile 38s linear infinite; }
+        .flottant { position: absolute; padding: 0.85rem 1rem; transform: translateZ(70px); animation: flotte 6s ease-in-out infinite; }
+        @keyframes flotte { 50% { translate: 0 -12px; } }
+        .f-score { right: -2%; top: 0; min-width: 210px; animation-delay: -2s; }
+        .f-score small, .f-feu small, .f-compte small { display: block; margin-bottom: 0.35rem; color: var(--bleu-clair); font-size: 0.7rem; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; }
+        .f-score div { display: flex; justify-content: space-between; gap: 1rem; font-weight: 700; }
+        .f-score div + div { color: var(--muted); font-weight: 600; }
+        .f-score b { font-family: var(--display); }
+        .f-feu { left: -2%; bottom: 10px; animation-delay: -4s; }
+        .f-feu strong { font-family: var(--display); font-size: 1.25rem; }
+        .f-compte { right: -4%; bottom: -24px; animation-delay: -1s; text-align: center; }
+        .f-compte strong { display: block; font-family: var(--display); font-size: 1.7rem; font-variant-numeric: tabular-nums; }
+        .f-compte span { color: var(--muted); font-size: 0.8rem; }
+
+        /* =========================================================
+           BANDEAU QUI DÉFILE
+           ========================================================= */
+        .defile { position: relative; overflow: hidden; padding: 1rem 0; border-block: 1px solid var(--line); background: rgba(255, 255, 255, 0.015); mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent); -webkit-mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent); }
+        .defile-piste { display: flex; gap: 3rem; width: max-content; animation: defile 40s linear infinite; }
         .defile:hover .defile-piste { animation-play-state: paused; }
-        .defile-piste span { display: inline-flex; align-items: center; gap: 0.6rem; white-space: nowrap; color: var(--muted); font-weight: 600; }
+        .defile-piste span { display: inline-flex; align-items: center; gap: 0.65rem; white-space: nowrap; color: var(--muted); font-weight: 600; }
         .defile-piste b { color: #fff; }
-        .defile-piste em { font-style: normal; padding: 0.05rem 0.6rem; border-radius: 999px; background: var(--accent-dim); color: var(--bleu-clair); font-family: var(--display); font-weight: 700; }
+        .defile-piste em { font-style: normal; padding: 0.1rem 0.65rem; border-radius: 999px; background: var(--accent-dim); color: var(--bleu-clair); font-family: var(--display); font-weight: 800; }
+        .defile-piste span::before { content: '✦'; color: var(--violet); margin-right: 0.4rem; }
         @keyframes defile { to { transform: translateX(-50%); } }
 
-        /* ---------- Chiffres ---------- */
-        .chiffres { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
-        .chiffres > div { padding: 1.3rem 1.4rem; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
-        .chiffres b { display: block; font-family: var(--display); font-size: 2.8rem; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
-        .chiffres span { display: block; margin-top: 0.35rem; color: var(--muted); font-size: 0.9rem; font-weight: 600; }
-
-        /* ---------- Titres de section ---------- */
-        .titre-sec { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; margin-bottom: 1.1rem; }
-        .titre-sec h2 { font-size: 1.75rem; }
-        .titre-sec a { color: var(--bleu-clair); font-size: 0.92rem; font-weight: 600; text-decoration: none; white-space: nowrap; }
+        /* =========================================================
+           GRILLE « BENTO »
+           ========================================================= */
+        .page { display: grid; gap: 4rem; padding-top: 3.5rem; }
+        .titre-sec { display: flex; justify-content: space-between; align-items: end; gap: 1rem; margin-bottom: 1.4rem; }
+        .titre-sec h2 { font-size: clamp(1.8rem, 3.6vw, 2.6rem); letter-spacing: -0.035em; }
+        .titre-sec p { margin: 0.3rem 0 0; color: var(--muted); }
+        .titre-sec a { color: var(--bleu-clair); font-weight: 700; text-decoration: none; white-space: nowrap; }
         .titre-sec a:hover { text-decoration: underline; }
 
-        /* ---------- À la une ---------- */
-        .a-la-une { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
-        .vedette { position: relative; display: flex; flex-direction: column; gap: 0.35rem; padding: 1.4rem; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
-        .vedette:hover { border-color: rgba(124, 108, 255, 0.45); }
-        .vedette::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 3px; background: linear-gradient(90deg, var(--violet), transparent); }
-        .vedette small { color: var(--bleu-clair); font-weight: 800; font-size: 0.76rem; letter-spacing: 0.08em; text-transform: uppercase; }
-        .vedette strong { font-family: var(--display); font-size: 1.85rem; line-height: 1.1; overflow-wrap: anywhere; }
-        .vedette p { margin: 0; color: var(--muted); font-size: 0.93rem; }
-        .vedette.libre strong { color: var(--dim); }
+        .bento { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); grid-auto-rows: minmax(150px, auto); gap: 1rem;
+            grid-template-areas:
+                "cl cl cl cl tn tn"
+                "cl cl cl cl tn tn"
+                "cl cl cl cl fe ld"
+                "fi fi fi ch ch ch"
+                "fi fi fi vq dc dc"; }
+        .tuile { position: relative; padding: 1.4rem; background: var(--panel); border: 1px solid var(--line); border-radius: 22px; overflow: hidden; transition: border-color 0.3s, transform 0.3s var(--courbe); }
+        /* Projecteur qui suit la souris */
+        .tuile::before { content: ''; position: absolute; inset: 0; border-radius: inherit; opacity: 0; transition: opacity 0.3s; pointer-events: none;
+            background: radial-gradient(420px circle at var(--mx, 50%) var(--my, 50%), rgba(124, 108, 255, 0.16), transparent 45%); }
+        .tuile:hover::before { opacity: 1; }
+        .tuile:hover { border-color: rgba(124, 108, 255, 0.4); }
+        .tuile > * { position: relative; }
+        .etiq { display: inline-flex; align-items: center; gap: 0.45rem; margin-bottom: 0.7rem; color: var(--bleu-clair); font-size: 0.75rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+        .t-cl { grid-area: cl; padding: 0; }
+        .t-tn { grid-area: tn; background: linear-gradient(160deg, rgba(124, 108, 255, 0.22), rgba(124, 108, 255, 0.03) 65%), var(--panel); border-color: rgba(124, 108, 255, 0.35); display: flex; flex-direction: column; }
+        .t-fe { grid-area: fe; } .t-ld { grid-area: ld; } .t-fi { grid-area: fi; padding: 0; }
+        .t-ch { grid-area: ch; display: grid; grid-template-columns: repeat(4, 1fr); padding: 0; }
+        .t-vq { grid-area: vq; } .t-dc { grid-area: dc; background: linear-gradient(120deg, var(--violet), #5a4bd8); border-color: transparent; display: flex; flex-direction: column; justify-content: space-between; }
 
-        .forme { display: inline-flex; gap: 4px; vertical-align: middle; }
-        .forme i { display: inline-grid; place-items: center; width: 1.35rem; height: 1.35rem; border-radius: 50%; font-style: normal; font-size: 0.68rem; font-weight: 800; background: rgba(255, 255, 255, 0.06); color: var(--muted); }
-        .forme i.v { background: var(--violet); color: #fff; }
-
-        /* ---------- Classement + fil ---------- */
-        .duo { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 1.3rem; align-items: start; }
-        .boite { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
-        .classement { min-width: 0; font-variant-numeric: tabular-nums; background: transparent; }
-        .classement th, .classement td { padding: 0.6rem 0.7rem; }
-        .classement .c { text-align: center; width: 2.8rem; }
+        /* Classement */
+        .t-cl header, .t-fi header { display: flex; justify-content: space-between; align-items: center; padding: 1.2rem 1.4rem 0.6rem; }
+        .t-cl h3, .t-fi h3 { font-size: 1.35rem; }
+        .t-cl header a { color: var(--bleu-clair); font-size: 0.88rem; font-weight: 700; text-decoration: none; }
+        .classement { min-width: 0; background: transparent; font-variant-numeric: tabular-nums; }
+        .classement th, .classement td { padding: 0.62rem 0.8rem; }
+        .classement th:first-child, .classement td:first-child { padding-left: 1.4rem; }
+        .classement th:last-child, .classement td:last-child { padding-right: 1.4rem; }
+        .classement .c { text-align: center; width: 2.6rem; white-space: nowrap; }
         .classement td.nom { font-weight: 700; }
-        .classement td.pts { font-family: var(--display); font-size: 1.1rem; font-weight: 800; }
-        .rg { display: inline-grid; place-items: center; width: 1.8rem; height: 1.8rem; border-radius: 50%; background: rgba(255, 255, 255, 0.05); font-size: 0.82rem; font-weight: 800; }
+        .classement td.pts { font-family: var(--display); font-size: 1.1rem; font-weight: 800; text-align: right; }
+        .rg { display: inline-grid; place-items: center; width: 1.8rem; height: 1.8rem; border-radius: 50%; background: rgba(255, 255, 255, 0.05); font-size: 0.8rem; font-weight: 800; }
         .classement tr.champion .rg { background: var(--violet); box-shadow: 0 0 14px rgba(124, 108, 255, 0.6); }
         .classement tr.champion td { background: var(--win-fond); }
         .classement tr.descend td { opacity: 0.6; }
         .classement tr.libre td { color: var(--dim); font-weight: 500; }
-        .classement-pied { padding: 0.7rem 0.9rem; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.85rem; }
+        .forme { display: inline-flex; gap: 4px; vertical-align: middle; }
+        .forme i { display: inline-grid; place-items: center; width: 1.3rem; height: 1.3rem; border-radius: 50%; font-style: normal; font-size: 0.66rem; font-weight: 800; background: rgba(255, 255, 255, 0.06); color: var(--muted); }
+        .forme i.v { background: var(--violet); color: #fff; }
 
-        .fil { list-style: none; margin: 0; padding: 0.4rem; }
-        .fil li { display: grid; grid-template-columns: 0.6rem 1fr auto; gap: 0.8rem; align-items: start; padding: 0.7rem; border-radius: 12px; transition: background 0.2s; }
+        /* Prochain tournoi */
+        .t-tn h3 { font-size: 1.9rem; letter-spacing: -0.03em; }
+        .t-tn .quand { color: var(--text-soft); margin-top: 0.2rem; }
+        .compte { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; margin: 1.3rem 0 1.1rem; }
+        .compte div { padding: 0.75rem 0 0.6rem; background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 255, 255, 0.07); border-radius: 14px; text-align: center; overflow: hidden; }
+        .compte b { display: block; font-family: var(--display); font-size: 2rem; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+        .compte b.tic { animation: tic 0.4s var(--courbe); }
+        @keyframes tic { from { transform: translateY(-40%); opacity: 0.1; } }
+        .compte span { color: var(--muted); font-size: 0.68rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+        .en-cours { margin: 1.2rem 0; padding: 0.85rem 1rem; background: rgba(0, 0, 0, 0.3); border-radius: 14px; color: var(--text-soft); }
+        .places { display: flex; justify-content: space-between; margin-bottom: 0.45rem; color: var(--muted); font-size: 0.9rem; }
+        .places strong { color: #fff; }
+        .jauge { height: 8px; background: rgba(255, 255, 255, 0.07); border-radius: 999px; overflow: hidden; }
+        .jauge i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--violet), var(--bleu-clair)); transform-origin: left; animation: remplit 1.6s var(--courbe) 0.3s both; }
+        @keyframes remplit { from { transform: scaleX(0); } }
+        .t-tn .btn { width: 100%; margin-top: auto; }
+        .t-tn .jauge { margin-bottom: 1.3rem; }
+        .autres { margin-top: 0.8rem; color: var(--muted); font-size: 0.88rem; }
+        .autres a { color: var(--text-soft); }
+
+        /* Petites tuiles */
+        .t-fe strong, .t-ld strong, .t-vq strong { display: block; font-family: var(--display); font-size: 1.6rem; line-height: 1.1; letter-spacing: -0.02em; overflow-wrap: anywhere; }
+        .t-fe p, .t-ld p, .t-vq p { margin: 0.35rem 0 0.6rem; color: var(--muted); font-size: 0.9rem; }
+        .libre strong { color: var(--dim); }
+        .grand-chiffre { position: absolute; right: -0.4rem; bottom: -1.6rem; font-family: var(--display); font-size: 6.5rem; font-weight: 800; line-height: 1; color: rgba(124, 108, 255, 0.1); pointer-events: none; }
+
+        /* Chiffres */
+        .t-ch > div { padding: 1.4rem; border-right: 1px solid var(--line); }
+        .t-ch > div:last-child { border-right: 0; }
+        .t-ch b { display: block; font-family: var(--display); font-size: 2.6rem; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+        .t-ch span { display: block; margin-top: 0.4rem; color: var(--muted); font-size: 0.85rem; font-weight: 600; }
+
+        /* Fil d'actu */
+        .fil { list-style: none; margin: 0; padding: 0 0.6rem 0.6rem; }
+        .fil li { display: grid; grid-template-columns: 0.6rem 1fr auto; gap: 0.8rem; align-items: start; padding: 0.7rem 0.8rem; border-radius: 14px; transition: background 0.2s; }
         .fil li:hover { background: rgba(255, 255, 255, 0.03); }
         .fil .point { width: 0.6rem; height: 0.6rem; margin-top: 0.42rem; border-radius: 50%; background: var(--line-2); }
         .fil .match .point, .fil .champion .point { background: var(--violet); }
         .fil li:first-child .point { animation: pulse 1.8s infinite; }
         .fil strong { display: block; font-weight: 700; line-height: 1.3; overflow-wrap: anywhere; }
         .fil span { color: var(--muted); font-size: 0.85rem; }
-        .fil time { color: var(--dim); font-size: 0.8rem; white-space: nowrap; }
-        .vide-boite { padding: 1.3rem 1rem; color: var(--muted); }
+        .fil time { color: var(--dim); font-size: 0.78rem; white-space: nowrap; }
+        .vide-boite { padding: 0 1.4rem 1.4rem; color: var(--muted); }
 
-        /* ---------- Résultats ---------- */
+        /* Discord */
+        .t-dc h3 { font-size: 1.5rem; }
+        .t-dc p { margin: 0.3rem 0 1rem; color: rgba(255, 255, 255, 0.88); font-size: 0.93rem; }
+        .t-dc .btn { align-self: flex-start; background: #fff; border-color: #fff; color: var(--noir); box-shadow: none; }
+        .t-dc .btn:hover { background: #fff; transform: translateY(-2px) scale(1.03); }
+        .t-dc::after { content: ''; position: absolute; top: -50%; bottom: -50%; left: -40%; width: 30%; background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.2), transparent); transform: skewX(-20deg); animation: reflet 5s ease-in-out infinite; pointer-events: none; }
+        @keyframes reflet { 0% { left: -40%; } 45%, 100% { left: 130%; } }
+
+        /* =========================================================
+           RÉSULTATS + ÉTAPES
+           ========================================================= */
         .resultats-grille { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
-        .carte-match { padding: 0.9rem 1.1rem; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
-        .carte-match:hover { border-color: rgba(124, 108, 255, 0.45); }
-        .carte-match header { display: flex; justify-content: space-between; margin-bottom: 0.5rem; color: var(--muted); font-size: 0.78rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
+        .carte-match { position: relative; padding: 1.1rem 1.2rem; background: var(--panel); border: 1px solid var(--line); border-radius: 20px; overflow: hidden; transition: transform 0.3s var(--courbe), border-color 0.3s; }
+        .carte-match:hover { transform: translateY(-4px); border-color: rgba(124, 108, 255, 0.4); }
+        .carte-match header { display: flex; justify-content: space-between; margin-bottom: 0.6rem; color: var(--muted); font-size: 0.75rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
         .carte-match .ligne { display: flex; justify-content: space-between; align-items: center; gap: 0.8rem; padding: 0.3rem 0; color: var(--muted); }
-        .carte-match .ligne b { font-family: var(--display); font-size: 1.45rem; line-height: 1; }
+        .carte-match .ligne b { font-family: var(--display); font-size: 1.5rem; line-height: 1; }
         .carte-match .ligne.g { color: #fff; font-weight: 800; }
         .carte-match .ligne.g b { color: var(--bleu-clair); }
 
-        /* ---------- Comment ça marche ---------- */
         .etapes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; counter-reset: e; }
-        .etape { position: relative; padding: 1.4rem 1.4rem 1.5rem; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
-        .etape::before { counter-increment: e; content: counter(e); display: grid; place-items: center; width: 2.2rem; height: 2.2rem; margin-bottom: 0.9rem; border-radius: 50%; background: var(--accent-dim); color: var(--bleu-clair); font-family: var(--display); font-weight: 800; }
-        .etape h3 { font-size: 1.25rem; margin-bottom: 0.35rem; }
-        .etape p { margin: 0; color: var(--text-soft); font-size: 0.95rem; }
+        .etape { position: relative; padding: 1.8rem 1.6rem; background: var(--panel); border: 1px solid var(--line); border-radius: 22px; overflow: hidden; }
+        .etape::before { counter-increment: e; content: '0' counter(e); position: absolute; right: 1.2rem; top: 0.6rem; font-family: var(--display); font-size: 4.2rem; font-weight: 800; color: rgba(124, 108, 255, 0.12); }
+        .etape h3 { font-size: 1.35rem; margin-bottom: 0.5rem; }
+        .etape p { margin: 0; color: var(--text-soft); }
 
-        .discord { position: relative; display: flex; justify-content: space-between; align-items: center; gap: 1.2rem; flex-wrap: wrap; padding: 2rem 2.2rem; background: linear-gradient(120deg, var(--violet), #5a4bd8); border-radius: 22px; overflow: hidden; }
-        .discord::after { content: ''; position: absolute; top: -50%; bottom: -50%; left: -40%; width: 30%; background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.18), transparent); transform: skewX(-20deg); animation: reflet 5s ease-in-out infinite; pointer-events: none; }
-        @keyframes reflet { 0% { left: -40%; } 45%, 100% { left: 130%; } }
-        .discord h2 { font-size: 1.9rem; }
-        .discord p { margin: 0.3rem 0 0; color: #fff; opacity: 0.9; }
-        .discord .btn { position: relative; z-index: 1; background: #fff; border-color: #fff; color: var(--noir); box-shadow: none; padding: 0.8rem 1.5rem; }
-        .discord .btn:hover { background: #fff; transform: translateY(-2px) scale(1.03); }
-
-        @media (max-width: 960px) {
-            .une, .duo { grid-template-columns: 1fr; }
-            .a-la-une, .resultats-grille { grid-template-columns: 1fr 1fr; }
-            .chiffres { grid-template-columns: 1fr 1fr; }
+        @media (max-width: 1020px) {
+            .scene-grille { grid-template-columns: 1fr; }
+            .compo { height: 420px; max-width: 560px; }
+            .bento { grid-template-columns: repeat(2, minmax(0, 1fr));
+                grid-template-areas: "tn tn" "cl cl" "fe ld" "ch ch" "fi fi" "vq dc"; }
+            .resultats-grille { grid-template-columns: 1fr 1fr; }
         }
         @media (max-width: 620px) {
-            .accueil { gap: 2.4rem; }
-            .a-la-une, .resultats-grille, .etapes { grid-template-columns: 1fr; }
-            .cache-mobile { display: none; }
-            .compte b { font-size: 1.7rem; }
+            .scene { padding: 2.5rem 0.9rem 3rem; }
+            .compo { display: none; }
+            .bento { grid-template-columns: 1fr; grid-template-areas: "tn" "cl" "fe" "ld" "ch" "fi" "vq" "dc"; }
+            .t-ch { grid-template-columns: 1fr 1fr; }
+            .t-ch > div:nth-child(2) { border-right: 0; }
+            .t-ch > div:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+            .resultats-grille, .etapes { grid-template-columns: 1fr; }
             .carte-match:nth-child(n+4) { display: none; }
-            .chiffres b { font-size: 2.2rem; }
-            .discord { padding: 1.5rem; }
+            .cache-mobile { display: none; }
+            .page { gap: 3rem; }
         }
     </style>
 </head>
 <body>
     {% include '_nav.html' %}
 
-    <main class="xhq-main">
-    <div class="container accueil">
-        {% include '_jeux.html' %}
-
-        <!-- ================= Bandeau ================= -->
-        <section class="une">
-            <div class="une-texte">
+    <!-- ===================== BANDEAU PLEIN ÉCRAN ===================== -->
+    <section class="scene une">
+        <i class="nappe n1"></i><i class="nappe n2"></i><i class="nappe n3"></i>
+        <div class="scene-grille">
+            <div class="scene-texte">
+                {% include '_jeux.html' %}
                 <span class="kicker"><i class="direct"></i>{{ jeu_actuel.nom }} · Saison {{ chiffres.saison }} en cours</span>
-                <h1><span class="mot">La ligue où</span> <span class="mot violet">chaque match</span> <span class="mot">compte.</span></h1>
+                <h1 class="titre-geant"><span>La ligue où</span><span class="brille">chaque match</span><span>compte.</span></h1>
                 <p>Monte ta team, joue ta poule et grimpe de la Ligue {{ ligue_depart }} à la Ligue 1. Des tournois réguliers, des résultats vérifiés par l'orga, et un palmarès qui reste.</p>
-                <div class="une-actions">
+                <div class="scene-actions">
                     {% if current_user %}
-                    <a href="/teams?jeu={{ jeu_actuel.code }}" class="btn">Ma team</a>
+                    <a href="/teams?jeu={{ jeu_actuel.code }}" class="btn btn-fleche">Ma team</a>
                     {% else %}
-                    <a href="/signup" class="btn">Inscrire ma team</a>
+                    <a href="/signup" class="btn btn-fleche">Inscrire ma team</a>
                     {% endif %}
                     <a href="/ligue?jeu={{ jeu_actuel.code }}" class="btn secondaire">Voir les classements</a>
                 </div>
-                <p class="preuve"><i class="direct"></i><span><strong>{{ chiffres.teams }}</strong> teams et <strong>{{ chiffres.joueurs }}</strong> joueurs en lice · {{ chiffres.places - chiffres.teams }} places encore libres</span></p>
+                <div class="preuve">
+                    {% if top %}<span class="pastilles">{% for t in top[:4] %}<i>{{ t.nom[:2] | upper }}</i>{% endfor %}</span>{% endif %}
+                    <span><strong>{{ chiffres.teams }}</strong> teams et <strong>{{ chiffres.joueurs }}</strong> joueurs en lice<br>{{ chiffres.places - chiffres.teams }} places encore libres cette saison</span>
+                </div>
             </div>
 
-            <aside class="prochain">
-                {% if prochain %}
-                <span class="etiquette">{% if prochain.statut != 'inscriptions' %}<i class="direct"></i>Tournoi en cours{% else %}Prochain tournoi{% endif %}</span>
-                <h2>{{ prochain.nom }}</h2>
-                {% if prochain.quand %}<div class="quand">{{ prochain.quand }}</div>{% endif %}
-                {% if prochain.statut == 'inscriptions' and prochain.debut %}
-                <div class="compte" data-debut="{{ prochain.debut }}">
-                    <div><b data-u="j">–</b><span>jours</span></div>
-                    <div><b data-u="h">–</b><span>heures</span></div>
-                    <div><b data-u="m">–</b><span>min</span></div>
-                    <div><b data-u="s">–</b><span>sec</span></div>
+            <div class="compo" aria-hidden="true">
+                <div class="compo-plateau" id="plateau">
+                    <div class="verre carte-top">
+                        <header><h3>Top teams</h3><span class="live">Saison {{ chiffres.saison }}</span></header>
+                        {% for t in top %}
+                        <div class="ligne-top"><span class="r">{{ loop.index }}</span><b>{{ t.nom }}</b><small>L{{ t.ligue_num }}</small><span class="p">{{ t.points }} pts</span></div>
+                        {% else %}
+                        <p class="carte-vide">Les 5 premières teams inscrites apparaîtront ici.</p>
+                        {% endfor %}
+                    </div>
+                    {% if derniers %}
+                    <div class="verre flottant f-score">
+                        <small>Dernier match</small>
+                        {% set m = derniers[0] %}
+                        {% if m.score1 > m.score2 %}
+                        <div><span>{{ m.team1_nom }}</span><b>{{ m.score1 }}</b></div><div><span>{{ m.team2_nom }}</span><b>{{ m.score2 }}</b></div>
+                        {% else %}
+                        <div><span>{{ m.team2_nom }}</span><b>{{ m.score2 }}</b></div><div><span>{{ m.team1_nom }}</span><b>{{ m.score1 }}</b></div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    {% if en_forme %}
+                    <div class="verre flottant f-feu">
+                        <small>En feu</small>
+                        <strong>{{ en_forme.nom }}</strong>
+                        <span class="forme">{% for r in en_forme.forme %}<i class="{{ 'v' if r == 'V' }}">{{ r }}</i>{% endfor %}</span>
+                    </div>
+                    {% endif %}
+                    {% if prochain %}
+                    <div class="verre flottant f-compte">
+                        <small>{{ 'Prochain tournoi' if prochain.statut == 'inscriptions' else 'En cours' }}</small>
+                        <strong>{{ prochain.inscrits }}/{{ prochain.places }}</strong>
+                        <span>{{ prochain.nom }}</span>
+                    </div>
+                    {% endif %}
                 </div>
-                {% elif prochain.statut != 'inscriptions' %}
-                <div class="en-cours">{{ prochain.statut_label }} : suis les matchs en direct sur la page du tournoi.</div>
-                {% else %}
-                <div class="en-cours">Inscriptions ouvertes, la date sera annoncée sur le Discord.</div>
-                {% endif %}
-                <div class="places"><span>Teams inscrites</span><strong>{{ prochain.inscrits }} / {{ prochain.places }}</strong></div>
-                <div class="jauge"><i style="width:{{ (100 * prochain.inscrits / prochain.places) | round | int }}%"></i></div>
-                <a href="/tournois/{{ prochain.id }}" class="btn">{{ 'Inscrire ma team' if prochain.statut == 'inscriptions' else 'Suivre le tournoi' }}</a>
-                {% if autres_tournois %}
-                <div class="autres">Aussi : {% for t in autres_tournois %}<a href="/tournois/{{ t.id }}">{{ t.nom }}</a>{{ ', ' if not loop.last }}{% endfor %}</div>
-                {% endif %}
-                {% else %}
-                <span class="etiquette">Prochain tournoi</span>
-                <h2>Bientôt annoncé</h2>
-                <div class="en-cours">Poules puis phase finale, et un badge exclusif pour la team gagnante. Les dates tombent d'abord sur le Discord.</div>
-                {% if discord_url %}<a href="{{ discord_url }}" class="btn" target="_blank" rel="noopener">Être prévenu sur Discord</a>{% endif %}
-                {% endif %}
-            </aside>
-        </section>
-
-        <!-- ================= Résultats qui défilent ================= -->
-        {% if derniers %}
-        <div class="defile" aria-label="Derniers résultats">
-            <div class="defile-piste">
-                {% for tour in range(2) %}{% for m in derniers %}
-                <span{% if tour %} aria-hidden="true"{% endif %}><b>{{ m.team1_nom }}</b><em>{{ m.score1 }} - {{ m.score2 }}</em><b>{{ m.team2_nom }}</b> · Ligue {{ m.ligue_num }}</span>
-                {% endfor %}{% endfor %}
             </div>
         </div>
-        {% endif %}
+    </section>
 
-        <!-- ================= Chiffres ================= -->
-        <section class="chiffres">
-            <div><b data-compte-a="{{ chiffres.teams }}">{{ chiffres.teams }}</b><span>Teams en lice</span></div>
-            <div><b data-compte-a="{{ chiffres.joueurs }}">{{ chiffres.joueurs }}</b><span>Joueurs</span></div>
-            <div><b data-compte-a="{{ chiffres.matchs }}">{{ chiffres.matchs }}</b><span>Matchs joués</span></div>
-            <div><b data-compte-a="{{ nb_tournois }}">{{ nb_tournois }}</b><span>Tournois</span></div>
-        </section>
+    {% if derniers %}
+    <div class="defile" aria-label="Derniers résultats">
+        <div class="defile-piste">
+            {% for tour in range(3) %}{% for m in derniers %}
+            <span{% if tour %} aria-hidden="true"{% endif %}><b>{{ m.team1_nom }}</b><em>{{ m.score1 }} - {{ m.score2 }}</em><b>{{ m.team2_nom }}</b> · Ligue {{ m.ligue_num }}</span>
+            {% endfor %}{% endfor %}
+        </div>
+    </div>
+    {% endif %}
 
-        <!-- ================= À la une ================= -->
+    <main class="xhq-main">
+    <div class="container page">
+
+        <!-- ===================== BENTO ===================== -->
         <section>
-            <div class="titre-sec"><h2>À la une</h2></div>
-            <div class="a-la-une">
-                {% if leader %}
-                <div class="vedette">
-                    <small>Leader de la Ligue 1</small>
-                    <strong>{{ leader.team_name }}</strong>
-                    <p>{{ leader.points }} pts · {{ leader.victoires }} V - {{ leader.defaites }} D</p>
-                </div>
-                {% else %}
-                <div class="vedette libre"><small>Leader de la Ligue 1</small><strong>Place à prendre</strong><p>Aucun match joué en Ligue 1 pour l'instant.</p></div>
-                {% endif %}
-
-                {% if en_forme %}
-                <div class="vedette">
-                    <small>La team en feu</small>
-                    <strong>{{ en_forme.nom }}</strong>
-                    <p>{{ en_forme.serie }} victoires d'affilée · Ligue {{ en_forme.ligue }}</p>
-                    <span class="forme">{% for r in en_forme.forme %}<i class="{{ 'v' if r == 'V' }}">{{ r }}</i>{% endfor %}</span>
-                </div>
-                {% else %}
-                <div class="vedette libre"><small>La team en feu</small><strong>Qui sera la première ?</strong><p>Enchaîne 2 victoires pour apparaître ici.</p></div>
-                {% endif %}
-
-                {% if dernier_champion %}
-                <div class="vedette">
-                    <small>Dernier vainqueur de tournoi</small>
-                    <strong>{{ dernier_champion.champion_nom }}</strong>
-                    <p>{{ dernier_champion.nom }} · badge Champion</p>
-                </div>
-                {% elif palmares %}
-                <div class="vedette"><small>Champion saison {{ palmares[0].numero }}</small><strong>{{ palmares[0].champion or '—' }}</strong><p>Vainqueur de la Ligue 1</p></div>
-                {% else %}
-                <div class="vedette libre"><small>Dernier vainqueur de tournoi</small><strong>Le trophée t'attend</strong><p>Le premier tournoi XHQ n'a pas encore de vainqueur.</p></div>
-                {% endif %}
-            </div>
-        </section>
-
-        <!-- ================= Classement + fil d'actu ================= -->
-        <section class="duo">
-            <div>
-                <div class="titre-sec"><h2>Ligue 1</h2><a href="/ligue?jeu={{ jeu_actuel.code }}">Toutes les ligues →</a></div>
-                <div class="boite">
+            <div class="titre-sec"><div><h2>Le point sur la saison</h2><p>Classement, prochain tournoi et tout ce qui bouge en ce moment.</p></div></div>
+            <div class="bento">
+                <!-- Classement Ligue 1 -->
+                <div class="tuile t-cl">
+                    <header><h3>Ligue 1</h3><a href="/ligue?jeu={{ jeu_actuel.code }}">Toutes les ligues →</a></header>
                     <table class="classement">
-                        <thead><tr><th class="c">#</th><th>Team</th><th class="c">J</th><th class="cache-mobile">Forme</th><th class="c">+/-</th><th class="c">Pts</th></tr></thead>
+                        <thead><tr><th class="c">#</th><th>Team</th><th class="c">J</th><th class="cache-mobile">Forme</th><th class="c">+/-</th><th style="text-align:right">Pts</th></tr></thead>
                         <tbody>
                             {% for p in ligue1 %}
                             <tr class="{{ p.statut }}{% if not p.team_id %} libre{% endif %}">
@@ -278,20 +323,73 @@
                                 <td class="c">{{ p.joues }}</td>
                                 <td class="cache-mobile"><span class="forme">{% for r in p.forme %}<i class="{{ 'v' if r == 'V' }}">{{ r }}</i>{% endfor %}</span></td>
                                 <td class="c">{{ '+' if p.diff > 0 }}{{ p.diff }}</td>
-                                <td class="c pts">{{ p.points }}</td>
+                                <td class="pts">{{ p.points }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
                     </table>
-                    <div class="classement-pied">Le 1er est sacré champion, le 8e descend en Ligue 2.</div>
                 </div>
-            </div>
-            <div>
-                <div class="titre-sec"><h2>Fil d'actu</h2></div>
-                <div class="boite">
+
+                <!-- Prochain tournoi -->
+                <div class="tuile t-tn prochain">
+                    {% if prochain %}
+                    <span class="etiq">{% if prochain.statut != 'inscriptions' %}<i class="direct"></i>Tournoi en cours{% else %}Prochain tournoi{% endif %}</span>
+                    <h3>{{ prochain.nom }}</h3>
+                    {% if prochain.quand %}<div class="quand">{{ prochain.quand }}</div>{% endif %}
+                    {% if prochain.statut == 'inscriptions' and prochain.debut %}
+                    <div class="compte" data-debut="{{ prochain.debut }}">
+                        <div><b data-u="j">–</b><span>jours</span></div>
+                        <div><b data-u="h">–</b><span>heures</span></div>
+                        <div><b data-u="m">–</b><span>min</span></div>
+                        <div><b data-u="s">–</b><span>sec</span></div>
+                    </div>
+                    {% elif prochain.statut != 'inscriptions' %}
+                    <div class="en-cours">{{ prochain.statut_label }} : suis les matchs en direct sur la page du tournoi.</div>
+                    {% else %}
+                    <div class="en-cours">Inscriptions ouvertes, la date sera annoncée sur le Discord.</div>
+                    {% endif %}
+                    <div class="places"><span>Teams inscrites</span><strong>{{ prochain.inscrits }} / {{ prochain.places }}</strong></div>
+                    <div class="jauge"><i style="width:{{ (100 * prochain.inscrits / prochain.places) | round | int }}%"></i></div>
+                    <a href="/tournois/{{ prochain.id }}" class="btn btn-fleche">{{ 'Inscrire ma team' if prochain.statut == 'inscriptions' else 'Suivre le tournoi' }}</a>
+                    {% if autres_tournois %}<div class="autres">Aussi : {% for t in autres_tournois %}<a href="/tournois/{{ t.id }}">{{ t.nom }}</a>{{ ', ' if not loop.last }}{% endfor %}</div>{% endif %}
+                    {% else %}
+                    <span class="etiq">Prochain tournoi</span>
+                    <h3>Bientôt annoncé</h3>
+                    <div class="en-cours">Poules puis phase finale, et un badge exclusif pour la team gagnante. Les dates tombent d'abord sur le Discord.</div>
+                    {% if discord_url %}<a href="{{ discord_url }}" class="btn btn-fleche" target="_blank" rel="noopener">Être prévenu</a>{% endif %}
+                    {% endif %}
+                </div>
+
+                <!-- Team en feu -->
+                <div class="tuile t-fe{% if not en_forme %} libre{% endif %}">
+                    <span class="etiq">En feu</span>
+                    {% if en_forme %}
+                    <strong>{{ en_forme.nom }}</strong>
+                    <p>{{ en_forme.serie }} victoires d'affilée</p>
+                    <span class="forme">{% for r in en_forme.forme %}<i class="{{ 'v' if r == 'V' }}">{{ r }}</i>{% endfor %}</span>
+                    <span class="grand-chiffre">{{ en_forme.serie }}</span>
+                    {% else %}
+                    <strong>Personne… encore</strong><p>2 victoires d'affilée et c'est toi.</p>
+                    {% endif %}
+                </div>
+
+                <!-- Leader -->
+                <div class="tuile t-ld{% if not leader %} libre{% endif %}">
+                    <span class="etiq">Leader L1</span>
+                    {% if leader %}
+                    <strong>{{ leader.team_name }}</strong><p>{{ leader.points }} pts · {{ leader.victoires }}V {{ leader.defaites }}D</p>
+                    <span class="grand-chiffre">1</span>
+                    {% else %}
+                    <strong>Place à prendre</strong><p>Aucun match en Ligue 1.</p>
+                    {% endif %}
+                </div>
+
+                <!-- Fil d'actu -->
+                <div class="tuile t-fi">
+                    <header><h3>Fil d'actu</h3><span class="live">Direct</span></header>
                     {% if fil %}
                     <ul class="fil">
-                        {% for e in fil %}
+                        {% for e in fil[:6] %}
                         <li class="{{ e.type }}"><i class="point"></i><div><strong>{{ e.titre }}</strong><span>{{ e.detail }}</span></div><time>{{ e.quand }}</time></li>
                         {% endfor %}
                     </ul>
@@ -299,13 +397,38 @@
                     <p class="vide-boite">Rien pour l'instant : la première team inscrite apparaîtra ici.</p>
                     {% endif %}
                 </div>
+
+                <!-- Chiffres -->
+                <div class="tuile t-ch">
+                    <div><b data-compte-a="{{ chiffres.teams }}">{{ chiffres.teams }}</b><span>Teams</span></div>
+                    <div><b data-compte-a="{{ chiffres.joueurs }}">{{ chiffres.joueurs }}</b><span>Joueurs</span></div>
+                    <div><b data-compte-a="{{ chiffres.matchs }}">{{ chiffres.matchs }}</b><span>Matchs</span></div>
+                    <div><b data-compte-a="{{ nb_tournois }}">{{ nb_tournois }}</b><span>Tournois</span></div>
+                </div>
+
+                <!-- Dernier vainqueur -->
+                <div class="tuile t-vq{% if not dernier_champion and not palmares %} libre{% endif %}">
+                    {% if dernier_champion %}
+                    <span class="etiq">Dernier vainqueur</span><strong>{{ dernier_champion.champion_nom }}</strong><p>{{ dernier_champion.nom }}</p>
+                    {% elif palmares %}
+                    <span class="etiq">Champion S{{ palmares[0].numero }}</span><strong>{{ palmares[0].champion or '—' }}</strong><p>Vainqueur de la Ligue 1</p>
+                    {% else %}
+                    <span class="etiq">Dernier vainqueur</span><strong>Le trophée t'attend</strong><p>Aucun tournoi terminé.</p>
+                    {% endif %}
+                </div>
+
+                <!-- Discord -->
+                <div class="tuile t-dc">
+                    <div><h3>Rejoins le Discord</h3><p>Annonces des tournois, recherche de mates, résultats.</p></div>
+                    {% if discord_url %}<a href="{{ discord_url }}" class="btn btn-fleche" target="_blank" rel="noopener">Rejoindre</a>{% endif %}
+                </div>
             </div>
         </section>
 
-        <!-- ================= Derniers résultats ================= -->
+        <!-- ===================== RÉSULTATS ===================== -->
         {% if derniers %}
         <section>
-            <div class="titre-sec"><h2>Derniers résultats</h2><a href="/ligue?jeu={{ jeu_actuel.code }}">Classements →</a></div>
+            <div class="titre-sec"><div><h2>Derniers résultats</h2><p>Saisis et vérifiés par l'orga.</p></div><a href="/ligue?jeu={{ jeu_actuel.code }}">Classements →</a></div>
             <div class="resultats-grille">
                 {% for m in derniers %}
                 <div class="carte-match">
@@ -318,50 +441,64 @@
         </section>
         {% endif %}
 
-        <!-- ================= Comment ça marche ================= -->
+        <!-- ===================== COMMENT ÇA MARCHE ===================== -->
         <section>
-            <div class="titre-sec"><h2>Comment ça marche</h2></div>
+            <div class="titre-sec"><div><h2>Comment ça marche</h2><p>Trois étapes, et ta team est en jeu.</p></div></div>
             <div class="etapes">
                 <div class="etape"><h3>Monte ta team</h3><p>Un compte, une team de 3 à 5 joueurs. C'est gratuit. Tu démarres en Ligue {{ ligue_depart }}, dans une poule de {{ par_poule }}.</p></div>
                 <div class="etape"><h3>Joue tes matchs</h3><p>Un BO3 contre chaque team de ta poule. 3 points par victoire, et un match non joué coûte un point.</p></div>
                 <div class="etape"><h3>Grimpe</h3><p>Le 1er de chaque poule monte en fin de saison, jusqu'à la Ligue 1. Entre deux saisons, les tournois.</p></div>
             </div>
         </section>
-
-        {% if discord_url %}
-        <section class="discord">
-            <div><h2>Rejoins le Discord</h2><p>Annonces des tournois, recherche de mates, résultats : tout passe par là.</p></div>
-            <a href="{{ discord_url }}" class="btn" target="_blank" rel="noopener">Rejoindre le serveur</a>
-        </section>
-        {% endif %}
     </div>
     </main>
 
     {% include '_footer.html' %}
     <script>
-        // Compte à rebours avant le prochain tournoi (les chiffres « tombent » quand ils changent)
         (function () {
+            const calme = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+            // Compte à rebours (les chiffres « tombent » quand ils changent)
             const bloc = document.querySelector('.compte[data-debut]');
-            if (!bloc) return;
-            const debut = new Date(bloc.dataset.debut);
-            const champs = {};
-            bloc.querySelectorAll('[data-u]').forEach(b => { champs[b.dataset.u] = b; });
-            function poser(cle, valeur) {
-                const b = champs[cle];
-                if (b.textContent === valeur) return;
-                b.textContent = valeur;
-                b.classList.remove('tic'); void b.offsetWidth; b.classList.add('tic');
+            if (bloc) {
+                const debut = new Date(bloc.dataset.debut), champs = {};
+                bloc.querySelectorAll('[data-u]').forEach(b => { champs[b.dataset.u] = b; });
+                const poser = (cle, v) => {
+                    const b = champs[cle];
+                    if (b.textContent === v) return;
+                    b.textContent = v;
+                    if (!calme) { b.classList.remove('tic'); void b.offsetWidth; b.classList.add('tic'); }
+                };
+                (function maj() {
+                    let s = Math.max(0, Math.floor((debut - new Date()) / 1000));
+                    if (!s) { bloc.outerHTML = '<div class="en-cours">C\'est l\'heure : le tournoi commence !</div>'; return; }
+                    poser('j', String(Math.floor(s / 86400))); s %= 86400;
+                    poser('h', String(Math.floor(s / 3600)).padStart(2, '0')); s %= 3600;
+                    poser('m', String(Math.floor(s / 60)).padStart(2, '0'));
+                    poser('s', String(s % 60).padStart(2, '0'));
+                    setTimeout(maj, 1000);
+                })();
             }
-            function maj() {
-                let s = Math.max(0, Math.floor((debut - new Date()) / 1000));
-                if (!s) { bloc.outerHTML = '<div class="en-cours">C\'est l\'heure : le tournoi commence !</div>'; return; }
-                poser('j', String(Math.floor(s / 86400))); s %= 86400;
-                poser('h', String(Math.floor(s / 3600)).padStart(2, '0')); s %= 3600;
-                poser('m', String(Math.floor(s / 60)).padStart(2, '0'));
-                poser('s', String(s % 60).padStart(2, '0'));
-                setTimeout(maj, 1000);
+            if (calme) return;
+
+            // La composition 3D du bandeau suit la souris
+            const plateau = document.getElementById('plateau');
+            const scene = document.querySelector('.scene');
+            if (plateau && scene && matchMedia('(pointer: fine)').matches) {
+                scene.addEventListener('mousemove', e => {
+                    const r = scene.getBoundingClientRect();
+                    const x = (e.clientX - r.left) / r.width - 0.5, y = (e.clientY - r.top) / r.height - 0.5;
+                    plateau.style.transform = `rotateY(${-14 + x * 12}deg) rotateX(${8 - y * 10}deg)`;
+                });
+                scene.addEventListener('mouseleave', () => { plateau.style.transform = ''; });
             }
-            maj();
+
+            // Projecteur qui suit la souris sur les tuiles
+            document.querySelectorAll('.tuile').forEach(t => t.addEventListener('mousemove', e => {
+                const r = t.getBoundingClientRect();
+                t.style.setProperty('--mx', (e.clientX - r.left) + 'px');
+                t.style.setProperty('--my', (e.clientY - r.top) + 'px');
+            }));
         })();
     </script>
 </body>
