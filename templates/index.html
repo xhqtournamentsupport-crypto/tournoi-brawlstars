@@ -188,6 +188,19 @@
         .t-dc::after { content: ''; position: absolute; top: -50%; bottom: -50%; left: -40%; width: 30%; background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.2), transparent); transform: skewX(-20deg); animation: reflet 5s ease-in-out infinite; pointer-events: none; }
         @keyframes reflet { 0% { left: -40%; } 45%, 100% { left: 130%; } }
 
+        /* Prochains matchs */
+        .prochains-grille { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+        .carte-prochain { padding: 1rem 1.2rem 1.2rem; background: var(--panel); border: 1px solid var(--line); border-radius: 20px; transition: transform 0.3s var(--courbe), border-color 0.3s; }
+        .carte-prochain:hover { transform: translateY(-4px); border-color: rgba(124, 108, 255, 0.4); }
+        .carte-prochain header { display: flex; justify-content: space-between; gap: 0.6rem; margin-bottom: 0.9rem; color: var(--bleu-clair); font-size: 0.8rem; font-weight: 700; }
+        .carte-prochain header span:last-child { color: var(--muted); }
+        .face { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 0.5rem; text-align: center; }
+        .face a { display: flex; flex-direction: column; align-items: center; gap: 0.45rem; color: var(--text); text-decoration: none; min-width: 0; }
+        .face b { font-size: 0.95rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+        .face > span { color: var(--dim); font-weight: 800; font-size: 0.8rem; }
+        @media (max-width: 1020px) { .prochains-grille { grid-template-columns: 1fr 1fr; } }
+        @media (max-width: 620px) { .prochains-grille { grid-template-columns: 1fr; } .carte-prochain:nth-child(n+4) { display: none; } }
+
         /* =========================================================
            RÉSULTATS + ÉTAPES
            ========================================================= */
@@ -424,6 +437,25 @@
                 </div>
             </div>
         </section>
+
+        <!-- ===================== PROCHAINS MATCHS ===================== -->
+        {% if prochains_matchs %}
+        <section>
+            <div class="titre-sec"><div><h2>Prochains matchs</h2><p>Le programme des poules, journée par journée.</p></div><a href="/calendrier?jeu={{ jeu_actuel.code }}">Tout le calendrier →</a></div>
+            <div class="prochains-grille">
+                {% for r in prochains_matchs %}
+                <div class="carte-prochain">
+                    <header><span>{{ r.date_fr }}</span><span>L{{ r.ligue_num }}{% if r.ligue_num >= 4 %} · {{ r.poule }}{% endif %}</span></header>
+                    <div class="face">
+                        <a href="/team/{{ r.team1_id }}"><i class="logo-rond petit">{% if r.logo1 %}<img src="{{ r.logo1 }}" alt="">{% else %}{{ r.emb1 or r.team1_nom[:2] | upper }}{% endif %}</i><b>{{ r.team1_nom }}</b></a>
+                        <span>VS</span>
+                        <a href="/team/{{ r.team2_id }}"><i class="logo-rond petit">{% if r.logo2 %}<img src="{{ r.logo2 }}" alt="">{% else %}{{ r.emb2 or r.team2_nom[:2] | upper }}{% endif %}</i><b>{{ r.team2_nom }}</b></a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
 
         <!-- ===================== RÉSULTATS ===================== -->
         {% if derniers %}

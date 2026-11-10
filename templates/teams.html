@@ -30,8 +30,8 @@
         .team-actions { display: flex; gap: 0.6rem; flex-shrink: 0; }
         .team-actions.col { flex-direction: column; align-items: stretch; min-width: 190px; }
 
-        .membres-liste, .team-matchs, .participation, .team-edit { margin-top: 1.4rem; }
-        .membres-liste h4, .team-matchs h4, .team-edit h4 {
+        .membres-liste, .team-matchs, .team-prochains, .participation, .team-edit { margin-top: 1.4rem; }
+        .membres-liste h4, .team-matchs h4, .team-prochains h4, .team-edit h4 {
             display: flex;
             align-items: center;
             gap: 0.6rem;
@@ -121,6 +121,7 @@
         .lien-page { color: var(--bleu-clair); font-size: 0.88rem; font-weight: 600; text-decoration: none; }
         .lien-page:hover, .lien-team:hover, .lien-membre:hover { text-decoration: underline; }
         .lien-team, .lien-membre { color: inherit; text-decoration: none; }
+        .match-res.a-venir { background: var(--accent-dim); color: var(--bleu-clair); }
         .member-chip.a-photo { overflow: hidden; padding: 0; }
         .member-chip img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block; }
         .sous-titre-edit { margin-top: 1.6rem; }
@@ -182,6 +183,7 @@
         let userTeamId = null;
         let membres = [];
         let mesMatchs = [];
+        let prochains = [];
         let maxMembres = 5;
         let ligueDepart = 5;
         let participation = null, dernierePenalite = null;
@@ -213,6 +215,7 @@
             userTeamId = data.user_team_id;
             membres = data.membres || [];
             mesMatchs = data.matchs || [];
+            prochains = data.prochains || [];
             maxMembres = data.max_membres || maxMembres;
             ligueDepart = data.ligue_depart || ligueDepart;
             participation = data.participation;
@@ -303,6 +306,13 @@
                                 ${emblemes.map(e => `<button type="button" class="${e === myTeam.embleme ? 'actif' : ''}" onclick="choisirEmbleme(${myTeam.id}, '${e}')" aria-label="Emblème ${e}">${e}</button>`).join('')}
                             </div>
                         </div>` : ''}
+                        <div class="team-prochains">
+                            <h4>Prochains matchs</h4>
+                            ${prochains.length ? prochains.map(r => {
+                                const adv = r.team1_id === myTeam.id ? r.team2_nom : r.team1_nom;
+                                return `<div class="match-ligne"><span class="match-res a-venir">↗</span><span class="match-adv">vs ${escapeHtml(adv)}</span><span class="match-pts">${escapeHtml(r.date_fr)}</span></div>`;
+                            }).join('') + '<a class="lien-page" href="/calendrier?team=moi">Tout mon calendrier →</a>' : '<p>Aucun match prévu pour l\'instant.</p>'}
+                        </div>
                         <div class="team-matchs">
                             <h4>Derniers matchs</h4>
                             ${mesMatchs.length ? mesMatchs.map(m => `

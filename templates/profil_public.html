@@ -13,6 +13,8 @@
         .pp-photo { position: relative; width: 124px; height: 124px; display: grid; place-items: center; border-radius: 50%; border: 5px solid var(--bg); background: var(--panel-2); font-size: 3.4rem; }
         .pp-photo.cadre-or, .pp-photo.cadre-carbone { border-width: 4px; }
         .pp-actions { padding-bottom: 0.4rem; }
+        .signaler { color: var(--dim); font-size: 0.85rem; text-decoration: none; }
+        .signaler:hover { color: var(--text-soft); text-decoration: underline; }
         .pp-nom { margin: 0.9rem 1.4rem 0; }
         .pp-nom h1 { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; font-size: clamp(1.7rem, 4vw, 2.2rem); }
         .pp-handle { color: var(--muted); font-size: 1rem; margin-top: 0.2rem; }
@@ -50,7 +52,8 @@
                 {% if profil.photo %}<img src="{{ profil.photo }}" alt="Photo de {{ profil.username }}">{% else %}{{ profil.logo }}{% endif %}
             </div>
             <div class="pp-actions">
-                {% if profil.c_est_moi %}<a href="/profil" class="btn secondaire">Modifier le profil</a>{% endif %}
+                {% if profil.c_est_moi %}<a href="/profil" class="btn secondaire">Modifier le profil</a>
+                {% else %}<a href="/contact?sujet={{ ('Signalement du profil @' ~ profil.handle) | urlencode }}" class="signaler">Signaler</a>{% endif %}
             </div>
         </div>
 

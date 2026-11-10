@@ -59,6 +59,16 @@
         .mdp-box code { padding: 0.15rem 0.5rem; background: var(--accent); border-radius: var(--radius); color: var(--ink); font-size: 1.05rem; user-select: all; }
 
         .actions { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+        .cal-form { display: grid; grid-template-columns: 1fr 1fr auto; gap: 1rem; align-items: end; max-width: 760px; }
+        .cal-date { max-width: 220px; padding: 0.4rem 0.6rem; }
+        .sauvegarde-auto { margin: 1.4rem 0; padding: 1rem 1.2rem; background: var(--bg-2); border: 1px solid var(--line); border-radius: 14px; }
+        .sauvegarde-auto p { margin: 0.5rem 0; color: var(--text-soft); font-size: 0.93rem; }
+        .sauvegarde-auto code, .section code { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 8px; background: rgba(255, 255, 255, 0.06); color: var(--bleu-clair); font-size: 0.88rem; overflow-wrap: anywhere; }
+        .sous-titre { font-size: 1.05rem; margin: 1.4rem 0 0.6rem; }
+        .mini-av { width: 30px; height: 30px; display: inline-grid; place-items: center; border-radius: 50%; overflow: hidden; background: var(--panel-2); vertical-align: middle; margin-right: 0.5rem; font-size: 0.95rem; }
+        .mini-av img { width: 100%; height: 100%; object-fit: cover; }
+        .tag.suspendu { background: rgba(255, 255, 255, 0.1); color: #fff; }
+        @media (max-width: 700px) { .cal-form { grid-template-columns: 1fr; } }
         .actions select { width: auto; padding: 0.4rem 0.5rem; font-size: 0.9rem; }
         .recherche { margin-bottom: 1rem; }
 
@@ -122,8 +132,10 @@
             <button class="tab active" type="button" data-tab="matchs">Matchs</button>
             <button class="tab" type="button" data-tab="teams">Teams</button>
             <button class="tab" type="button" data-tab="saison">Saison</button>
+            <button class="tab" type="button" data-tab="calendrier">Calendrier</button>
             <button class="tab" type="button" data-tab="joueurs">Joueurs</button>
             <button class="tab" type="button" data-tab="messages">Messages<span class="pastille" id="pastille" hidden></span></button>
+            <button class="tab" type="button" data-tab="sauvegardes">Sauvegardes</button>
         </div>
 
         <div class="message" id="admin-message"></div>
@@ -239,6 +251,44 @@
             </div>
         </div>
 
+        <!-- ============ CALENDRIER ============ -->
+        <div class="panel" id="panel-calendrier">
+            <div class="section">
+                <h2 class="section-title">Générer le calendrier</h2>
+                <p class="hint">Prévoit toutes les rencontres de la saison qui ne sont ni jouées ni déjà prévues, poule par poule, une journée tous les X jours. Tu peux relancer la génération quand de nouvelles teams arrivent : rien n'est créé en double. Quand tu saisis un résultat, le match prévu entre ces deux teams disparaît du calendrier.</p>
+                <div class="cal-form">
+                    <div><label for="cal-debut">1re journée (date et heure)</label><input type="datetime-local" id="cal-debut"></div>
+                    <div><label for="cal-ecart">Jours entre deux journées</label><input type="number" id="cal-ecart" min="1" max="30" value="7"></div>
+                    <button class="btn" type="button" id="cal-generer" onclick="genererCalendrier()">Générer</button>
+                </div>
+            </div>
+            <div class="section">
+                <h2 class="section-title">Matchs prévus</h2>
+                <p class="hint">Change une date si deux teams se mettent d'accord sur un autre créneau. <a href="/calendrier" target="_blank">Voir la page publique →</a></p>
+                <div class="table-wrap"><table>
+                    <thead><tr><th>Date</th><th>Ligue</th><th>Match</th><th></th></tr></thead>
+                    <tbody id="liste-calendrier"></tbody>
+                </table></div>
+            </div>
+        </div>
+
+        <!-- ============ SAUVEGARDES ============ -->
+        <div class="panel" id="panel-sauvegardes">
+            <div class="section">
+                <h2 class="section-title">Sauvegardes</h2>
+                <p class="hint">Une sauvegarde contient toute la base (comptes, teams, matchs, tournois) et toutes les images. Télécharge-en une de temps en temps et garde-la sur ton ordinateur ou ton Google Drive : si le serveur a un problème, on pourra tout remettre.</p>
+                <a class="btn" href="/admin/sauvegarde">Télécharger une sauvegarde maintenant</a>
+                <div class="sauvegarde-auto">
+                    <strong>Sauvegarde automatique chaque jour (PythonAnywhere)</strong>
+                    <p>Onglet <b>Tasks</b> → « Scheduled tasks » → choisis une heure (par exemple 04:00) → colle cette commande → <b>Create</b> :</p>
+                    <code>python3.10 /home/XHQTounament/tournoi-brawlstars/app.py sauvegarde</code>
+                    <p>Les 14 dernières sont gardées dans le dossier <code>sauvegardes/</code>.</p>
+                </div>
+                <h3 class="sous-titre">Sauvegardes sur le serveur</h3>
+                <div id="liste-sauvegardes" class="muted">…</div>
+            </div>
+        </div>
+
         <!-- ============ MESSAGES ============ -->
         <div class="panel" id="panel-messages">
             <div class="section">
@@ -294,6 +344,8 @@
             if (nom === 'messages') chargerMessages();
             if (nom === 'teams') chargerTeams();
             if (nom === 'saison') chargerSaison();
+            if (nom === 'calendrier') chargerCalendrier();
+            if (nom === 'sauvegardes') chargerSauvegardes();
         }
         document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => ouvrirOnglet(t.dataset.tab)));
 
@@ -429,7 +481,7 @@
             };
             tbody.innerHTML = liste.map(t => `
                 <tr>
-                    <td><strong>${escapeHtml(t.nom)}</strong></td>
+                    <td><span class="mini-av">${t.logo ? `<img src="${escapeHtml(t.logo)}" alt="">` : '🛡️'}</span><a href="/team/${Number(t.id)}" target="_blank"><strong>${escapeHtml(t.nom)}</strong></a></td>
                     <td>${t.ligue_num ? `<span class="tag">L${Number(t.ligue_num)} · Poule ${escapeHtml(t.poule)}</span>` : '<span class="tag" style="color:var(--lose)">Hors classement</span>'}</td>
                     <td class="score">${Number(t.points) || 0}</td>
                     <td>${Number(t.nb_membres) || 0}</td>
@@ -437,6 +489,9 @@
                     <td><div class="actions">
                         <select id="move-${t.id}">${optionsLigue(t)}</select>
                         <button class="btn petit secondaire" type="button" onclick="deplacerTeam(${Number(t.id)})">${t.ligue_num ? 'Déplacer' : 'Remettre'}</button>
+                        ${t.logo ? `<button class="btn-mini" type="button" onclick="moderer('teams', 'logo', ${Number(t.id)})">Retirer le logo</button>` : ''}
+                        ${t.banniere ? `<button class="btn-mini" type="button" onclick="moderer('teams', 'banniere', ${Number(t.id)})">Retirer la bannière</button>` : ''}
+                        ${t.bio ? `<button class="btn-mini" type="button" onclick="moderer('teams', 'bio', ${Number(t.id)})">Effacer la bio</button>` : ''}
                         <button class="btn petit danger" type="button" onclick="supprimerTeam(${Number(t.id)})">Supprimer</button>
                     </div></td>
                 </tr>`).join('');
@@ -554,17 +609,87 @@
             }
             tbody.innerHTML = data.map(u => `
                 <tr>
-                    <td><strong>${escapeHtml(u.username)}</strong> ${u.is_admin ? '<span class="tag or">ADMIN</span>' : ''}</td>
+                    <td><span class="mini-av">${u.photo ? `<img src="${escapeHtml(u.photo)}" alt="">` : '👤'}</span><a href="/u/${encodeURIComponent(u.handle || '')}" target="_blank"><strong>${escapeHtml(u.username)}</strong></a>
+                        ${u.is_admin ? '<span class="tag or">ADMIN</span>' : ''}${u.bloque ? ' <span class="tag suspendu">SUSPENDU</span>' : ''}<div class="muted">@${escapeHtml(u.handle || '')}</div></td>
                     <td class="muted">${escapeHtml(u.email)}</td>
                     <td>${u.team_name ? escapeHtml(u.team_name) : '<span class="muted">—</span>'}</td>
                     <td class="muted">${dateCourte(u.created_at)}</td>
                     <td><div class="actions">
                         <button class="btn petit secondaire" type="button" onclick="resetMdp(${Number(u.id)}, 'mdp-box')">Nouveau mot de passe</button>
+                        ${u.photo ? `<button class="btn-mini" type="button" onclick="moderer('users', 'photo', ${Number(u.id)})">Retirer la photo</button>` : ''}
+                        ${u.banniere ? `<button class="btn-mini" type="button" onclick="moderer('users', 'banniere', ${Number(u.id)})">Retirer la bannière</button>` : ''}
+                        ${u.bio ? `<button class="btn-mini" type="button" onclick="moderer('users', 'bio', ${Number(u.id)})">Effacer la bio</button>` : ''}
+                        ${u.is_me ? '' : `<button class="btn petit danger" type="button" onclick="bloquer(${Number(u.id)}, ${!u.bloque})">${u.bloque ? 'Réactiver' : 'Suspendre'}</button>`}
                         ${u.is_me ? '' : (u.is_admin
                             ? `<button class="btn petit danger" type="button" onclick="changerAdmin(${Number(u.id)}, false)">Retirer admin</button>`
                             : `<button class="btn petit or" type="button" onclick="changerAdmin(${Number(u.id)}, true)">Rendre admin</button>`)}
                     </div></td>
                 </tr>`).join('');
+        }
+
+        // ---------- modération ----------
+        async function moderer(type, champ, id) {
+            const quoi = { photo: 'la photo', banniere: 'la bannière', bio: 'la bio', logo: 'le logo' }[champ];
+            if (!confirm(`Retirer ${quoi} ? Elle sera supprimée définitivement.`)) return;
+            const { ok, data } = await api('/api/admin/moderer', { method: 'POST', body: { type, champ, id } });
+            showMessage(ok ? 'Contenu retiré.' : (data.error || 'Erreur'), ok ? 'success' : 'error');
+            if (type === 'users') chargerJoueurs(); else chargerTeams();
+        }
+
+        async function bloquer(id, bloque) {
+            if (!confirm(bloque ? 'Suspendre ce compte ? Le joueur ne pourra plus se connecter et son profil sera masqué.' : 'Réactiver ce compte ?')) return;
+            const { ok, data } = await api(`/api/admin/users/${id}/bloquer`, { method: 'POST', body: { bloque } });
+            showMessage(ok ? (bloque ? 'Compte suspendu.' : 'Compte réactivé.') : (data.error || 'Erreur'), ok ? 'success' : 'error');
+            chargerJoueurs();
+        }
+
+        // ---------- calendrier ----------
+        async function chargerCalendrier() {
+            const { ok, data } = await api('/api/calendrier?limit=300');
+            const tbody = document.getElementById('liste-calendrier');
+            if (!ok) return;
+            if (!data.length) { tbody.innerHTML = '<tr><td colspan="4" class="vide">Aucun match prévu. Génère le calendrier ci-dessus.</td></tr>'; return; }
+            tbody.innerHTML = data.map(r => `
+                <tr>
+                    <td><input type="datetime-local" class="cal-date" id="cal-${r.id}" value="${escapeHtml(r.date || '')}">${r.en_retard ? '<div class="muted">Résultat attendu</div>' : ''}</td>
+                    <td><span class="tag">L${Number(r.ligue_num)} · ${escapeHtml(r.poule)}</span> <span class="muted">J${Number(r.journee) || '—'}</span></td>
+                    <td><strong>${escapeHtml(r.team1_nom)}</strong> <span class="muted">vs</span> <strong>${escapeHtml(r.team2_nom)}</strong></td>
+                    <td><div class="actions">
+                        <button class="btn petit secondaire" type="button" onclick="dateRencontre(${Number(r.id)})">Enregistrer</button>
+                        <button class="btn-mini" type="button" onclick="supprimerRencontre(${Number(r.id)})">Retirer</button>
+                    </div></td>
+                </tr>`).join('');
+        }
+
+        async function genererCalendrier() {
+            const debut = document.getElementById('cal-debut').value;
+            const ecart_jours = Number(document.getElementById('cal-ecart').value);
+            const { ok, data } = await api('/api/admin/calendrier/generer', { method: 'POST', body: { debut, ecart_jours } });
+            showMessage(ok ? `${data.crees} match(s) ajouté(s) au calendrier.` : (data.error || 'Erreur'), ok ? 'success' : 'error');
+            if (ok) chargerCalendrier();
+        }
+
+        async function dateRencontre(id) {
+            const date = document.getElementById('cal-' + id).value;
+            const { ok, data } = await api(`/api/admin/calendrier/${id}`, { method: 'POST', body: { date } });
+            showMessage(ok ? 'Date enregistrée : ' + data.date_fr : (data.error || 'Erreur'), ok ? 'success' : 'error');
+            if (ok) chargerCalendrier();
+        }
+
+        async function supprimerRencontre(id) {
+            if (!confirm('Retirer ce match du calendrier ?')) return;
+            const { ok } = await api(`/api/admin/calendrier/${id}`, { method: 'POST', body: { supprimer: true } });
+            if (ok) chargerCalendrier();
+        }
+
+        // ---------- sauvegardes ----------
+        async function chargerSauvegardes() {
+            const { ok, data } = await api('/api/admin/sauvegardes');
+            const box = document.getElementById('liste-sauvegardes');
+            if (!ok) return;
+            box.innerHTML = data.length
+                ? data.map(f => `<div>${escapeHtml(f.nom)} <span class="muted">· ${Number(f.taille_ko)} Ko</span></div>`).join('')
+                : 'Aucune sauvegarde sur le serveur pour l\'instant.';
         }
 
         async function changerAdmin(id, valeur) {

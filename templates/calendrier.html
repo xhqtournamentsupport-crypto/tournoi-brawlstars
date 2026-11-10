@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendrier {{ jeu.nom if jeu else '' }} · XHQ League</title>
+    {% include '_head.html' %}
+    <style>
+        .filtres { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 2rem; }
+        .filtre { padding: 0.45rem 0.95rem; border-radius: 999px; border: 1px solid var(--line-2); color: var(--text-soft); font-weight: 700; font-size: 0.9rem; text-decoration: none; transition: background 0.2s, color 0.2s; }
+        .filtre:hover { color: #fff; background: rgba(255, 255, 255, 0.05); }
+        .filtre.actif { background: var(--violet); border-color: var(--violet); color: #fff; }
+        .jour { margin-bottom: 2rem; }
+        .jour h2 { display: flex; align-items: baseline; gap: 0.7rem; font-size: 1.25rem; margin-bottom: 0.8rem; }
+        .jour h2 small { color: var(--muted); font-family: var(--body); font-size: 0.85rem; font-weight: 600; }
+        .liste { display: grid; gap: 0.6rem; }
+        .rencontre { display: grid; grid-template-columns: 4.2rem 1fr auto 1fr 7rem; align-items: center; gap: 1rem; padding: 0.85rem 1.1rem; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; transition: border-color 0.2s, transform 0.2s var(--courbe); }
+        .rencontre:hover { border-color: rgba(124, 108, 255, 0.4); transform: translateY(-2px); }
+        .rencontre.moi { border-color: rgba(124, 108, 255, 0.55); background: linear-gradient(90deg, rgba(124, 108, 255, 0.1), transparent 60%), var(--panel); }
+        .heure { font-family: var(--display); font-size: 1.15rem; font-weight: 800; }
+        .equipe { display: flex; align-items: center; gap: 0.6rem; min-width: 0; color: var(--text); text-decoration: none; font-weight: 700; }
+        .equipe:hover span { text-decoration: underline; }
+        .equipe span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .equipe.droite { justify-content: flex-end; text-align: right; }
+        .vs { color: var(--dim); font-weight: 800; font-size: 0.85rem; }
+        .ou { text-align: right; color: var(--muted); font-size: 0.82rem; }
+        .ou b { display: block; color: var(--text-soft); }
+        .retard { color: var(--bleu-clair); font-weight: 700; }
+        .vide-cal { padding: 2.5rem 1rem; text-align: center; color: var(--muted); background: var(--panel); border: 1px dashed var(--line-2); border-radius: 18px; }
+        @media (max-width: 680px) {
+            .rencontre { grid-template-columns: 1fr auto 1fr; row-gap: 0.4rem; }
+            .heure { grid-column: 1 / -1; font-size: 1rem; }
+            .ou { grid-column: 1 / -1; text-align: left; }
+            .ou b { display: inline; margin-right: 0.4rem; }
+        }
+    </style>
+</head>
+<body>
+    {% include '_nav.html' %}
+    <main class="xhq-main">
+    <div class="container">
+        <div class="header-nav">
+            <h1><span class="kicker">Calendrier</span>Prochains matchs</h1>
+            <a href="/ligue{% if jeu %}?jeu={{ jeu.code }}{% endif %}">Classements →</a>
+        </div>
+        {% include '_jeux.html' %}
+
+        <div class="filtres">
+            {% set base = '?jeu=' ~ (jeu.code if jeu else '') %}
+            <a class="filtre{% if not ligue_num and not filtre_team %} actif{% endif %}" href="/calendrier{{ base }}">Toutes les ligues</a>
+            {% for n in ligues %}<a class="filtre{% if ligue_num == n %} actif{% endif %}" href="/calendrier{{ base }}&ligue={{ n }}">Ligue {{ n }}</a>{% endfor %}
+            {% if ma_team %}<a class="filtre{% if filtre_team %} actif{% endif %}" href="/calendrier{{ base }}&team=moi">Ma team</a>{% endif %}
+        </div>
+
+        {% for j in jours %}
+        <section class="jour">
+            <h2>{{ j.titre }} <small>{{ j.matchs | length }} match{{ 's' if j.matchs | length > 1 }}</small></h2>
+            <div class="liste">
+                {% for r in j.matchs %}
+                <div class="rencontre{% if ma_team and ma_team.id in (r.team1_id, r.team2_id) %} moi{% endif %}">
+                    <span class="heure">{% if r.date %}{{ r.date[11:13] }}h{{ r.date[14:16] }}{% else %}—{% endif %}</span>
+                    <a class="equipe droite" href="/team/{{ r.team1_id }}"><span>{{ r.team1_nom }}</span><i class="logo-rond petit">{% if r.logo1 %}<img src="{{ r.logo1 }}" alt="">{% else %}{{ r.emb1 or r.team1_nom[:2] | upper }}{% endif %}</i></a>
+                    <span class="vs">VS</span>
+                    <a class="equipe" href="/team/{{ r.team2_id }}"><i class="logo-rond petit">{% if r.logo2 %}<img src="{{ r.logo2 }}" alt="">{% else %}{{ r.emb2 or r.team2_nom[:2] | upper }}{% endif %}</i><span>{{ r.team2_nom }}</span></a>
+                    <span class="ou"><b>Ligue {{ r.ligue_num }}{% if r.ligue_num >= 4 %} · {{ r.poule }}{% endif %}</b>{% if r.en_retard %}<span class="retard">Résultat attendu</span>{% else %}Journée {{ r.journee or '—' }}{% endif %}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        {% else %}
+        <p class="vide-cal">Aucun match prévu pour le moment.{% if filtre_team %} Ta team n'a pas de match au programme.{% endif %} Le calendrier est publié par l'organisation.</p>
+        {% endfor %}
+    </div>
+    </main>
+    {% include '_footer.html' %}
+</body>
+</html>

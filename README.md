@@ -93,6 +93,21 @@ Chaque team a sa page publique `/team/<id>` : bannière, logo (ou emblème), lig
 Menu du compte → *Ajouter un compte* : on passe ensuite de l'un à l'autre sans retaper le mot de passe
 (5 comptes max par navigateur). *Se déconnecter* ferme le compte actuel et bascule sur le suivant.
 
+## Calendrier
+Admin → onglet **Calendrier** : choisis la date de la 1re journée et l'écart entre deux journées, puis *Générer*.
+Toutes les rencontres de poule pas encore jouées sont prévues (relancer ne crée pas de doublon). Chaque date
+se modifie à la main. Saisir un résultat retire le match du calendrier. Page publique : `/calendrier`
+(filtres par ligue et « Ma team »), prochains matchs sur l'accueil et dans la page Teams.
+
+## Modération
+Admin → **Joueurs** / **Teams** : retirer une photo, un logo, une bannière ou une bio ; *Suspendre* un compte
+(connexion refusée, profil masqué, session coupée). Les visiteurs peuvent *Signaler* un profil ou une team.
+
+## Sauvegardes
+`python3.10 app.py sauvegarde` crée `sauvegardes/xhq-AAAAMMJJ-HHMMSS.zip` (base + images, 14 gardées).
+Admin → **Sauvegardes** pour en télécharger une. Sur PythonAnywhere, onglet *Tasks* : tâche quotidienne
+`python3.10 /home/XHQTounament/tournoi-brawlstars/app.py sauvegarde`.
+
 ## Teams
 - 5 joueurs maximum par team (`MAX_MEMBRES` en haut de `app.py`).
 - Tout membre peut **quitter** sa team ; si le capitaine part, le rôle passe au membre le plus ancien

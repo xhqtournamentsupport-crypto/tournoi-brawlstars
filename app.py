@@ -505,6 +505,19 @@ def init_db():
     for col, definition in (('logo', 'TEXT'), ('embleme', 'TEXT'), ('banniere', 'TEXT'),
                             ('banniere_pos', 'INTEGER DEFAULT 50'), ('banniere_zoom', 'INTEGER DEFAULT 100')):
         ajouter_colonne(c, 'teams', col, definition)
+    ajouter_colonne(c, 'users', 'bloque', 'INTEGER DEFAULT 0')
+    c.execute("""CREATE TABLE IF NOT EXISTS rencontres (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        jeu_id INTEGER NOT NULL,
+        saison INTEGER NOT NULL,
+        ligue_num INTEGER NOT NULL,
+        poule TEXT NOT NULL,
+        journee INTEGER,
+        team1_id INTEGER,
+        team2_id INTEGER,
+        date TEXT,
+        match_id INTEGER,
+        created_at TEXT)""")
     for r in c.execute('SELECT id, username FROM users WHERE handle IS NULL').fetchall():
         attribuer_handle(c, r['id'], r['username'])
     c.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_handle ON users(handle)')
@@ -525,9 +538,10 @@ def utilisateur_connecte():
     if uid is None:
         return None
     if 'user' not in g:
-        g.user = get_db().execute('SELECT id, username, email, profile_pic, is_admin, photo, handle FROM users WHERE id = ?', (uid,)).fetchone()
-        if g.user is None:  # compte supprimé entre-temps
+        g.user = get_db().execute('SELECT id, username, email, profile_pic, is_admin, photo, handle, bloque FROM users WHERE id = ?', (uid,)).fetchone()
+        if g.user is None or g.user['bloque']:  # compte supprimé ou suspendu entre-temps
             session.clear()
+            g.user = None
     return g.user
 
 
@@ -793,7 +807,8 @@ def index():
                                           WHERE t.jeu_id = ? ORDER BY l.ligue_num, l.points DESC, l.id LIMIT 5""", (jeu['id'],))]
     for t in top:
         t['forme'] = forme.get(t['id'], [])[:5]
-    return render_template('index.html', jeu_actuel=jeu, chiffres=chiffres, ligue1=ligue1, leader=leader,
+    prochains_matchs = rencontres_a_venir(db, jeu['id'], limite=6)
+    return render_template('index.html', jeu_actuel=jeu, chiffres=chiffres, ligue1=ligue1, leader=leader, prochains_matchs=prochains_matchs,
                            en_forme=en_forme, dernier_champion=dernier_champion, prochain=prochain,
                            autres_tournois=actifs[1:3], derniers=derniers, top=top, fil=fil_actu(db, jeu['id']),
                            nb_tournois=nb_tournois, nb_ligues=LIGUE_MAX, par_poule=TEAMS_PAR_POULE,
@@ -944,8 +959,10 @@ def api_login():
     email = texte(data, 'email').lower()
     password = data.get('password') if isinstance(data.get('password'), str) else ''
 
-    user = get_db().execute('SELECT id, password FROM users WHERE lower(email) = ?', (email,)).fetchone()
+    user = get_db().execute('SELECT id, password, bloque FROM users WHERE lower(email) = ?', (email,)).fetchone()
     if user and password and check_password_hash(user['password'], password):
+        if user['bloque']:
+            return jsonify({'success': False, 'error': 'Ce compte est suspendu. Contacte l\'organisation sur le Discord.'}), 403
         connecter(user['id'])
         return jsonify({'success': True}), 200
     return jsonify({'success': False, 'error': 'Email ou mot de passe incorrect'}), 401
@@ -1244,7 +1261,7 @@ def api_profil_identifiant():
 def profil_public(handle):
     db = get_db()
     u = db.execute("""SELECT id, username, bio, profile_pic, photo, banniere, banniere_pos, banniere_zoom, handle, created_at
-                      FROM users WHERE handle = ?""", (handle.lower().lstrip('@'),)).fetchone()
+                      FROM users WHERE handle = ? AND COALESCE(bloque, 0) = 0""", (handle.lower().lstrip('@'),)).fetchone()
     if not u:
         abort(404)
     teams = [dict(r) for r in db.execute("""
@@ -1316,6 +1333,7 @@ def api_teams():
             m['is_me'] = m['id'] == uid
             m.update(apparence(db, m['id']))
     matchs = matchs_de_team(db, user_team_id, limite=10) if user_team_id else []
+    prochains = rencontres_a_venir(db, jeu['id'], limite=3, team_id=user_team_id) if user_team_id else []
     participation, derniere_penalite = None, None
     if user_team_id:
         ligue = db.execute('SELECT ligue_num, poule FROM ligue WHERE team_id = ?', (user_team_id,)).fetchone()
@@ -1331,7 +1349,7 @@ def api_teams():
         derniere_penalite = dict(dp) if dp else None
     return jsonify({'jeu': jeu, 'ligue_depart': LIGUE_DEPART,
                     'teams': teams_list, 'user_team_id': user_team_id, 'emblemes': EMBLEMES, 'user_id': uid, 'membres': membres,
-                    'matchs': matchs, 'max_membres': MAX_MEMBRES, 'participation': participation,
+                    'matchs': matchs, 'prochains': prochains, 'max_membres': MAX_MEMBRES, 'participation': participation,
                     'derniere_penalite': derniere_penalite,
                     'regle_penalite': {'par_match': PENALITE_PAR_MATCH, 'recidive': MULTIPLICATEUR_RECIDIVE,
                                        'max': PENALITE_MAX}}), 200
@@ -1916,6 +1934,11 @@ def api_admin_create_match():
               (ligue_num, poule, team1_id, team2_id, t1['nom'], t2['nom'],
                score1, score2, points1, points2, session['user_id'], saison_actuelle(db, jeu_id), jeu_id))
     match_id = c.lastrowid
+    # Le résultat « remplit » le match prévu au calendrier entre ces deux teams (le plus ancien)
+    c.execute("""UPDATE rencontres SET match_id = ? WHERE id = (
+                    SELECT id FROM rencontres WHERE match_id IS NULL AND jeu_id = ? AND saison = ?
+                    AND ((team1_id = ? AND team2_id = ?) OR (team1_id = ? AND team2_id = ?))
+                    ORDER BY date LIMIT 1)""", (match_id, jeu_id, saison_actuelle(db, jeu_id), team1_id, team2_id, team2_id, team1_id))
     ajuster_points(c, team1_id, ligue_num, poule, points1)
     ajuster_points(c, team2_id, ligue_num, poule, points2)
     db.commit()
@@ -1937,6 +1960,7 @@ def api_admin_delete_match(match_id):
     ajuster_points(c, m['team1_id'], m['ligue_num'], m['poule'], -m['points1'])
     ajuster_points(c, m['team2_id'], m['ligue_num'], m['poule'], -m['points2'])
     c.execute('DELETE FROM matchs WHERE id = ?', (match_id,))
+    c.execute('UPDATE rencontres SET match_id = NULL WHERE match_id = ?', (match_id,))
     db.commit()
     return jsonify({'success': True}), 200
 
@@ -1949,14 +1973,19 @@ def api_admin_teams():
     if erreur:
         return erreur
     rows = db.execute("""
-        SELECT t.id, t.nom, u.username AS createur, l.ligue_num, l.poule, l.points,
+        SELECT t.id, t.nom, u.username AS createur, l.ligue_num, l.poule, l.points, t.logo, t.banniere, t.bio,
                (SELECT COUNT(*) FROM team_members tm WHERE tm.team_id = t.id) AS nb_membres
         FROM teams t
         LEFT JOIN users u ON u.id = t.createur_id
         LEFT JOIN ligue l ON l.team_id = t.id
         WHERE t.jeu_id = ?
         ORDER BY l.ligue_num, l.poule, t.nom COLLATE NOCASE""", (jeu['id'],)).fetchall()
-    return jsonify([dict(r) for r in rows]), 200
+    sortie = []
+    for r in rows:
+        t = dict(r)
+        t['logo'], t['banniere'] = url_media('logos', t['logo']), url_media('bannieres', t['banniere'])
+        sortie.append(t)
+    return jsonify(sortie), 200
 
 
 @app.route('/api/admin/teams/<int:team_id>/move', methods=['POST'])
@@ -2004,7 +2033,7 @@ def api_admin_delete_team(team_id):
 def api_admin_users():
     q = request.args.get('q', '').strip().lower()[:100]
     rows = get_db().execute("""
-        SELECT u.id, u.username, u.email, u.solde, u.is_admin, u.created_at,
+        SELECT u.id, u.username, u.email, u.solde, u.is_admin, u.created_at, u.handle, u.photo, u.banniere, u.bio, u.bloque,
                (SELECT GROUP_CONCAT(t.nom, ', ') FROM team_members tm JOIN teams t ON t.id = tm.team_id
                 WHERE tm.user_id = u.id) AS team_name
         FROM users u
@@ -2014,7 +2043,10 @@ def api_admin_users():
     for r in rows:
         u = dict(r)
         u['is_admin'] = bool(u['is_admin'])
+        u['bloque'] = bool(u['bloque'])
         u['is_me'] = u['id'] == session['user_id']
+        u['photo'] = url_media('avatars', u['photo'])
+        u['banniere'] = url_media('bannieres', u['banniere'])
         users.append(u)
     return jsonify(users), 200
 
@@ -2682,6 +2714,236 @@ def api_admin_supprimer_tournoi(tournoi_id):
 
 
 # ---------------------------------------------------------------------------
+# Sauvegardes : base de données + images dans un fichier .zip
+# ---------------------------------------------------------------------------
+SAUVEGARDE_DIR = os.path.join(BASE_DIR, 'sauvegardes')
+SAUVEGARDES_GARDEES = 14   # on garde les 14 dernières (2 semaines si une par jour)
+
+
+def creer_sauvegarde():
+    """Copie cohérente de la base (même si le site tourne) + dossier uploads, dans sauvegardes/xhq-AAAAMMJJ-HHMM.zip."""
+    import zipfile
+    import tempfile
+    os.makedirs(SAUVEGARDE_DIR, exist_ok=True)
+    nom = datetime.now().strftime('xhq-%Y%m%d-%H%M%S.zip')
+    chemin = os.path.join(SAUVEGARDE_DIR, nom)
+    with tempfile.TemporaryDirectory() as tmp:
+        copie = os.path.join(tmp, 'tournois.db')
+        source = sqlite3.connect(DB_PATH)
+        cible = sqlite3.connect(copie)
+        source.backup(cible)
+        cible.close()
+        source.close()
+        with zipfile.ZipFile(chemin, 'w', zipfile.ZIP_DEFLATED) as z:
+            z.write(copie, 'tournois.db')
+            if os.path.isdir(UPLOAD_DIR):
+                for dossier, _, fichiers in os.walk(UPLOAD_DIR):
+                    for f in fichiers:
+                        complet = os.path.join(dossier, f)
+                        z.write(complet, os.path.join('uploads', os.path.relpath(complet, UPLOAD_DIR)))
+    anciennes = sorted(f for f in os.listdir(SAUVEGARDE_DIR) if f.startswith('xhq-') and f.endswith('.zip'))
+    for f in anciennes[:-SAUVEGARDES_GARDEES]:
+        os.remove(os.path.join(SAUVEGARDE_DIR, f))
+    return chemin
+
+
+@app.route('/admin/sauvegarde')
+@page_admin
+def admin_sauvegarde():
+    chemin = creer_sauvegarde()
+    return send_from_directory(SAUVEGARDE_DIR, os.path.basename(chemin), as_attachment=True)
+
+
+@app.route('/api/admin/sauvegardes', methods=['GET'])
+@api_admin
+def api_admin_sauvegardes():
+    liste = []
+    if os.path.isdir(SAUVEGARDE_DIR):
+        for f in sorted(os.listdir(SAUVEGARDE_DIR), reverse=True):
+            if f.startswith('xhq-') and f.endswith('.zip'):
+                liste.append({'nom': f, 'taille_ko': round(os.path.getsize(os.path.join(SAUVEGARDE_DIR, f)) / 1024)})
+    return jsonify(liste), 200
+
+
+# ---------------------------------------------------------------------------
+# Modération : retirer une image / une bio, suspendre un compte
+# ---------------------------------------------------------------------------
+MODERATION = {
+    'users': {'photo': 'avatars', 'banniere': 'bannieres', 'bio': None},
+    'teams': {'logo': 'logos', 'banniere': 'bannieres', 'bio': None},
+}
+
+
+@app.route('/api/admin/moderer', methods=['POST'])
+@api_admin
+def api_admin_moderer():
+    data = donnees_json()
+    table, champ, cible = data.get('type'), data.get('champ'), entier(data.get('id'))
+    if table not in MODERATION or champ not in MODERATION[table] or cible is None:
+        return jsonify({'success': False, 'error': 'Demande invalide'}), 400
+    db = get_db()
+    ligne = db.execute(f'SELECT {champ} FROM {table} WHERE id = ?', (cible,)).fetchone()
+    if not ligne:
+        return jsonify({'success': False, 'error': 'Introuvable'}), 404
+    dossier = MODERATION[table][champ]
+    db.execute(f"UPDATE {table} SET {champ} = {'NULL' if dossier else chr(39) * 2} WHERE id = ?", (cible,))
+    db.commit()
+    if dossier:
+        supprimer_media(dossier, ligne[0])
+    return jsonify({'success': True}), 200
+
+
+@app.route('/api/admin/users/<int:user_id>/bloquer', methods=['POST'])
+@api_admin
+def api_admin_bloquer(user_id):
+    if user_id == session['user_id']:
+        return jsonify({'success': False, 'error': 'Tu ne peux pas suspendre ton propre compte'}), 400
+    bloque = bool(donnees_json().get('bloque'))
+    db = get_db()
+    if not db.execute('UPDATE users SET bloque = ? WHERE id = ?', (int(bloque), user_id)).rowcount:
+        return jsonify({'success': False, 'error': 'Joueur introuvable'}), 404
+    db.commit()
+    return jsonify({'success': True, 'bloque': bloque}), 200
+
+
+# ---------------------------------------------------------------------------
+# Calendrier : les matchs prévus de chaque poule
+# ---------------------------------------------------------------------------
+def journees(teams):
+    """Rencontres d'une poule regroupées par journée (méthode du tourniquet) : [[(a, b), ...], ...]."""
+    liste = list(teams) + ([None] if len(teams) % 2 else [])
+    n, tours = len(liste), []
+    for _ in range(n - 1):
+        tours.append([(liste[i], liste[n - 1 - i]) for i in range(n // 2) if liste[i] and liste[n - 1 - i]])
+        liste = [liste[0], liste[-1]] + liste[1:-1]
+    return tours
+
+
+def rencontres_a_venir(db, jeu_id, limite=50, team_id=None, ligue_num=None):
+    saison = saison_actuelle(db, jeu_id)
+    cond, params = ['r.jeu_id = ?', 'r.saison = ?', 'r.match_id IS NULL', 't1.id IS NOT NULL', 't2.id IS NOT NULL'], [jeu_id, saison]
+    if team_id:
+        cond.append('(r.team1_id = ? OR r.team2_id = ?)')
+        params += [team_id, team_id]
+    if ligue_num:
+        cond.append('r.ligue_num = ?')
+        params.append(ligue_num)
+    rows = db.execute(f"""SELECT r.id, r.ligue_num, r.poule, r.journee, r.date, r.team1_id, r.team2_id,
+                                 t1.nom AS team1_nom, t2.nom AS team2_nom, t1.logo AS logo1, t2.logo AS logo2,
+                                 t1.embleme AS emb1, t2.embleme AS emb2
+                          FROM rencontres r LEFT JOIN teams t1 ON t1.id = r.team1_id LEFT JOIN teams t2 ON t2.id = r.team2_id
+                          WHERE {' AND '.join(cond)} ORDER BY r.date IS NULL, r.date, r.ligue_num, r.poule LIMIT ?""",
+                      params + [limite]).fetchall()
+    maintenant = datetime.now().strftime('%Y-%m-%dT%H:%M')
+    sortie = []
+    for r in rows:
+        d = dict(r)
+        d['logo1'], d['logo2'] = url_media('logos', d['logo1']), url_media('logos', d['logo2'])
+        d['date_fr'] = date_fr(d['date']) if d['date'] else 'Date à fixer'
+        d['en_retard'] = bool(d['date'] and d['date'] < maintenant)
+        sortie.append(d)
+    return sortie
+
+
+@app.route('/calendrier')
+def calendrier_page():
+    db = get_db()
+    jeu = trouver_jeu(db)
+    if not jeu:
+        abort(404)
+    ligue_num = request.args.get('ligue', type=int)
+    if ligue_num not in LIGUES:
+        ligue_num = None
+    ma_team = ma_team_dans_jeu(db, jeu['id'])
+    filtre_team = ma_team['id'] if (ma_team and request.args.get('team') == 'moi') else None
+    a_venir = rencontres_a_venir(db, jeu['id'], limite=200, team_id=filtre_team, ligue_num=ligue_num)
+    jours = []
+    for r in a_venir:
+        cle = r['date'][:10] if r['date'] else 'a-fixer'
+        if not jours or jours[-1]['cle'] != cle:
+            titre = 'Date à fixer'
+            if r['date']:
+                d = datetime.strptime(r['date'], '%Y-%m-%dT%H:%M')
+                titre = f"{JOURS_FR[d.weekday()].capitalize()} {d.day} {MOIS_FR[d.month - 1]}"
+            jours.append({'cle': cle, 'titre': titre, 'matchs': []})
+        jours[-1]['matchs'].append(r)
+    return render_template('calendrier.html', jours=jours, ligues=LIGUES, ligue_num=ligue_num, ma_team=ma_team,
+                           filtre_team=bool(filtre_team), nb=len(a_venir))
+
+
+@app.route('/api/calendrier', methods=['GET'])
+def api_calendrier():
+    db = get_db()
+    jeu, erreur = jeu_ou_erreur(db)
+    if erreur:
+        return erreur
+    return jsonify(rencontres_a_venir(db, jeu['id'], limite=request.args.get('limit', 50, type=int),
+                                      team_id=request.args.get('team_id', type=int))), 200
+
+
+@app.route('/api/admin/calendrier/generer', methods=['POST'])
+@api_admin
+def api_admin_generer_calendrier():
+    """Prévoit toutes les rencontres pas encore jouées ni prévues de la saison, journée par journée."""
+    db = get_db()
+    jeu, erreur = jeu_ou_erreur(db)
+    if erreur:
+        return erreur
+    data = donnees_json()
+    try:
+        debut = datetime.strptime(texte(data, 'debut', 16), '%Y-%m-%dT%H:%M')
+    except ValueError:
+        return jsonify({'success': False, 'error': 'Choisis la date et l\'heure de la 1re journée'}), 400
+    ecart = entier(data.get('ecart_jours'))
+    if ecart is None or not 1 <= ecart <= 30:
+        return jsonify({'success': False, 'error': "L'écart entre deux journées doit être entre 1 et 30 jours"}), 400
+    saison = saison_actuelle(db, jeu['id'])
+    deja = set()
+    for r in db.execute('SELECT team1_id, team2_id FROM rencontres WHERE jeu_id = ? AND saison = ?', (jeu['id'], saison)):
+        deja.add(frozenset((r['team1_id'], r['team2_id'])))
+    for m in db.execute('SELECT team1_id, team2_id FROM matchs WHERE jeu_id = ? AND saison = ?', (jeu['id'], saison)):
+        deja.add(frozenset((m['team1_id'], m['team2_id'])))
+    crees = 0
+    for ligue_num in LIGUES:
+        for poule in lettres_poules(ligue_num):
+            teams = [r['team_id'] for r in db.execute("""SELECT l.team_id FROM ligue l JOIN teams t ON t.id = l.team_id
+                                                         WHERE t.jeu_id = ? AND l.ligue_num = ? AND l.poule = ? ORDER BY l.id""",
+                                                      (jeu['id'], ligue_num, poule))]
+            for n, tour in enumerate(journees(teams)):
+                date = (debut + timedelta(days=ecart * n)).strftime('%Y-%m-%dT%H:%M')
+                for a, b in tour:
+                    if frozenset((a, b)) in deja:
+                        continue
+                    db.execute("""INSERT INTO rencontres (jeu_id, saison, ligue_num, poule, journee, team1_id, team2_id, date, created_at)
+                                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))""",
+                               (jeu['id'], saison, ligue_num, poule, n + 1, a, b, date))
+                    deja.add(frozenset((a, b)))
+                    crees += 1
+    db.commit()
+    return jsonify({'success': True, 'crees': crees}), 200
+
+
+@app.route('/api/admin/calendrier/<int:rencontre_id>', methods=['POST'])
+@api_admin
+def api_admin_modifier_rencontre(rencontre_id):
+    data = donnees_json()
+    db = get_db()
+    if data.get('supprimer'):
+        db.execute('DELETE FROM rencontres WHERE id = ? AND match_id IS NULL', (rencontre_id,))
+        db.commit()
+        return jsonify({'success': True}), 200
+    date = texte(data, 'date', 16)
+    try:
+        date = datetime.strptime(date, '%Y-%m-%dT%H:%M').strftime('%Y-%m-%dT%H:%M') if date else None
+    except ValueError:
+        return jsonify({'success': False, 'error': 'Date invalide'}), 400
+    if not db.execute('UPDATE rencontres SET date = ? WHERE id = ? AND match_id IS NULL', (date, rencontre_id)).rowcount:
+        return jsonify({'success': False, 'error': 'Match introuvable ou déjà joué'}), 404
+    db.commit()
+    return jsonify({'success': True, 'date_fr': date_fr(date) if date else 'Date à fixer'}), 200
+
+
+# ---------------------------------------------------------------------------
 # Site public (GitHub Pages) : export des données en JSON
 # ---------------------------------------------------------------------------
 SITE_PUBLIC_DIR = os.path.join(BASE_DIR, 'docs')
@@ -2773,6 +3035,9 @@ if __name__ == '__main__':
         else:
             print(f"Erreur : aucun compte avec l'email {sys.argv[2]}. Inscris-toi d'abord sur le site.")
             sys.exit(1)
+    elif len(sys.argv) >= 2 and sys.argv[1] == 'sauvegarde':
+        # python app.py sauvegarde  -> crée sauvegardes/xhq-AAAAMMJJ-HHMMSS.zip (à lancer chaque jour)
+        print('OK : sauvegarde créée :', os.path.relpath(creer_sauvegarde(), BASE_DIR))
     elif len(sys.argv) >= 2 and sys.argv[1] == 'export':
         # python app.py export  -> met à jour les données du site public (dossier docs/)
         chemin, donnees = exporter_site_public()

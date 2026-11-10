@@ -7,3 +7,4 @@ env/
 .env
 secret_key.txt
 uploads/
+sauvegardes/

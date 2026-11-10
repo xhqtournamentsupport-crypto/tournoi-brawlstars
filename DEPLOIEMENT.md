@@ -52,3 +52,12 @@ puis **Reload** dans l'onglet Web.
 - Compte gratuit : une fois tous les 3 mois, PythonAnywhere demande de cliquer sur
   **Run until 3 months from today** (onglet Web), sinon le site se met en pause. Un email te prévient.
 - Ne partage jamais le fichier `secret_key.txt` (créé automatiquement) : il protège les connexions.
+
+
+## Sauvegarde automatique (à faire une fois)
+Onglet **Tasks** → *Scheduled tasks* → heure `04:00` → commande :
+
+    python3.10 /home/XHQTounament/tournoi-brawlstars/app.py sauvegarde
+
+→ **Create**. Une copie de la base et des images est faite chaque nuit dans `sauvegardes/` (14 gardées).
+Pense aussi à en télécharger une de temps en temps depuis Admin → Sauvegardes.

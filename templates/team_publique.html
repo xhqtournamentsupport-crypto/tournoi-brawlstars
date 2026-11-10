@@ -12,6 +12,8 @@
         .tp-tete { position: relative; z-index: 1; display: flex; justify-content: space-between; align-items: flex-end; gap: 1rem; flex-wrap: wrap; margin-top: -58px; padding: 0 1.4rem; }
         .tp-logo { position: relative; z-index: 1; width: 124px; height: 124px; display: grid; place-items: center; border-radius: 50%; border: 5px solid var(--bg); background: var(--panel-2); font-size: 3.4rem; overflow: hidden; }
         .tp-logo img { width: 100%; height: 100%; object-fit: cover; }
+        .signaler { color: var(--dim); font-size: 0.85rem; text-decoration: none; }
+        .signaler:hover { color: var(--text-soft); text-decoration: underline; }
         .tp-nom { margin: 0.9rem 1.4rem 0; }
         .tp-nom h1 { font-size: clamp(1.8rem, 4.4vw, 2.5rem); }
         .tp-sous { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.6rem; }
@@ -56,7 +58,8 @@
         </div>
         <div class="tp-tete">
             <div class="tp-logo">{% if team.logo %}<img src="{{ team.logo }}" alt="Logo de {{ team.nom }}">{% else %}{{ team.embleme or team.nom[:2] | upper }}{% endif %}</div>
-            <div>{% if team.c_est_moi %}<a href="/teams" class="btn secondaire">Gérer la team</a>{% endif %}</div>
+            <div>{% if team.c_est_moi %}<a href="/teams" class="btn secondaire">Gérer la team</a>
+                {% else %}<a href="/contact?sujet={{ ('Signalement de la team ' ~ team.nom) | urlencode }}" class="signaler">Signaler</a>{% endif %}</div>
         </div>
         <div class="tp-nom">
             <h1>{{ team.nom }}</h1>

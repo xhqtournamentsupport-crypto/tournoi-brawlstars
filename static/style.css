@@ -748,6 +748,6 @@ tbody tr:hover td { background: rgba(255, 255, 255, 0.025); }
 @media (max-width: 560px) { .grille-choix { grid-template-columns: repeat(6, 1fr); } }
 
 /* Logo rond (teams) */
-.logo-rond { width: 64px; height: 64px; flex-shrink: 0; display: grid; place-items: center; border-radius: 50%; background: var(--panel-2); border: 1px solid var(--line-2); font-size: 1.8rem; font-weight: 800; overflow: hidden; }
+.logo-rond { font-style: normal; width: 64px; height: 64px; flex-shrink: 0; display: grid; place-items: center; border-radius: 50%; background: var(--panel-2); border: 1px solid var(--line-2); font-size: 1.8rem; font-weight: 800; overflow: hidden; }
 .logo-rond img { width: 100%; height: 100%; object-fit: cover; }
 .logo-rond.petit { width: 44px; height: 44px; font-size: 1.25rem; }
