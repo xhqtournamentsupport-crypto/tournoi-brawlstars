@@ -2784,6 +2784,9 @@ def config_mail():
                      ('tls', 'XHQ_SMTP_TLS')):
         if os.environ.get(env):
             conf[cle] = os.environ[env]
+    if conf.get('mot_de_passe'):
+        # Google affiche le code d'application par blocs (« abcd efgh ijkl mnop ») : on retire les espaces
+        conf['mot_de_passe'] = ''.join(str(conf['mot_de_passe']).split())
     return conf if conf.get('hote') and conf.get('utilisateur') and conf.get('mot_de_passe') else None
 
 
