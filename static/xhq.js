@@ -90,3 +90,45 @@ async function api(url, options = {}) {
             .observe(document.body, { childList: true, subtree: true });
     });
 })();
+
+// ---------------------------------------------------------------------------
+// Barre du haut : verre dépoli au défilement, menu du compte, burger mobile
+// ---------------------------------------------------------------------------
+document.addEventListener('DOMContentLoaded', () => {
+    const nav = document.getElementById('xhq-nav');
+    if (!nav) return;
+
+    const majColle = () => nav.classList.toggle('colle', window.scrollY > 8);
+    majColle();
+    window.addEventListener('scroll', majColle, { passive: true });
+
+    const btn = document.getElementById('compte-btn');
+    const menu = document.getElementById('compte-menu');
+    const fermerCompte = () => {
+        if (!menu || menu.hidden) return;
+        menu.hidden = true;
+        btn.parentElement.classList.remove('ouvert');
+        btn.setAttribute('aria-expanded', 'false');
+    };
+    if (btn && menu) {
+        btn.addEventListener('click', e => {
+            e.stopPropagation();
+            const ouvrir = menu.hidden;
+            menu.hidden = !ouvrir;
+            btn.parentElement.classList.toggle('ouvert', ouvrir);
+            btn.setAttribute('aria-expanded', String(ouvrir));
+        });
+        menu.addEventListener('click', e => e.stopPropagation());
+    }
+
+    const burger = document.getElementById('burger');
+    if (burger) burger.addEventListener('click', e => {
+        e.stopPropagation();
+        const ouvert = nav.classList.toggle('ouvert');
+        burger.setAttribute('aria-expanded', String(ouvert));
+        fermerCompte();
+    });
+
+    document.addEventListener('click', () => { fermerCompte(); nav.classList.remove('ouvert'); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') { fermerCompte(); nav.classList.remove('ouvert'); } });
+});

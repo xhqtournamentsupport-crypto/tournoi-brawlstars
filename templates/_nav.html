@@ -1,28 +1,47 @@
 <svg class="decor-bracket gauche" viewBox="0 0 540 765" aria-hidden="true"><path d="M0 10 H110 V95 H0 M0 200 H110 V285 H0 M0 480 H110 V565 H0 M0 670 H110 V755 H0 M110 52 H220 V242 H110 M110 522 H220 V712 H110 M220 147 H470 V360 M220 617 H470 V405 M470 382 H540"/></svg>
     <svg class="decor-bracket droite" viewBox="0 0 540 765" aria-hidden="true"><path d="M0 10 H110 V95 H0 M0 200 H110 V285 H0 M0 480 H110 V565 H0 M0 670 H110 V755 H0 M110 52 H220 V242 H110 M110 522 H220 V712 H110 M220 147 H470 V360 M220 617 H470 V405 M470 382 H540"/></svg>
-    <nav class="xhq-nav">
-        <a href="/" class="xhq-logo"><img src="{{ url_for('static', filename='logo-xhq-clair.png') }}" alt="XHQ"></a>
-        <div class="xhq-nav-right">
+    <nav class="xhq-nav" id="xhq-nav">
+        <a href="/" class="xhq-logo" aria-label="Accueil XHQ"><img src="{{ url_for('static', filename='logo-xhq-clair.png') }}" alt="XHQ"></a>
+
+        {% set p = request.path %}
+        <div class="nav-capsule" id="nav-capsule">
+            <a href="/ligue" class="xhq-nav-btn{% if p == '/ligue' %} active{% endif %}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Classements</a>
+            <a href="/tournois" class="xhq-nav-btn{% if p.startswith('/tournois') %} active{% endif %}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4zM7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4"/></svg>Tournois</a>
             {% if current_user %}
-            <div class="xhq-nav-links">
-                <a href="/teams" class="xhq-nav-btn{% if request.path == '/teams' %} active{% endif %}">Teams</a>
-                <a href="/ligue" class="xhq-nav-btn{% if request.path == '/ligue' %} active{% endif %}">Classements</a>
-                <a href="/tournois" class="xhq-nav-btn{% if request.path.startswith('/tournois') %} active{% endif %}">Tournois</a>
-                <a href="/shop" class="xhq-nav-btn{% if request.path == '/shop' %} active{% endif %}">Shop</a>
-                {% if current_user.is_admin %}
-                <a href="/admin" class="xhq-nav-btn admin{% if request.path == '/admin' %} active{% endif %}">Admin</a>
-                {% endif %}
+            <a href="/teams" class="xhq-nav-btn{% if p == '/teams' %} active{% endif %}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21v-1a6 6 0 0 1 12 0v1M16 3.5a4 4 0 0 1 0 7.5M22 21v-1a6 6 0 0 0-4-5.6"/></svg>Teams</a>
+            <a href="/shop" class="xhq-nav-btn{% if p == '/shop' %} active{% endif %}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l-1.2 12H6.2L5 8zM9 8V6a3 3 0 0 1 6 0v2"/></svg>Shop</a>
+            {% if current_user.is_admin %}
+            <a href="/admin" class="xhq-nav-btn admin{% if p == '/admin' %} active{% endif %}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6l8-3z"/></svg>Admin</a>
+            {% endif %}
+            {% endif %}
+        </div>
+
+        <div class="nav-droite">
+            {% if current_user %}
+            <div class="compte-nav">
+                <button class="compte-btn" type="button" id="compte-btn" aria-haspopup="true" aria-expanded="false" aria-controls="compte-menu">
+                    <span class="xhq-avatar{% if current_user.cadre %} cadre-{{ current_user.cadre | replace('cadre_', '') }}{% endif %}" id="nav-avatar">{{ current_user.logo }}</span>
+                    <span class="compte-nom">{{ current_user.username }}</span>
+                    <svg class="chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <div class="compte-menu" id="compte-menu" hidden>
+                    <div class="compte-tete">
+                        <strong>{{ current_user.username }}</strong>
+                        {% if current_user.badge %}<span class="badge-joueur">{{ current_user.badge }}</span>{% endif %}
+                    </div>
+                    <a href="/profil">Mon profil</a>
+                    <a href="/teams">Ma team</a>
+                    <a href="/shop">Shop et inventaire</a>
+                    {% if current_user.is_admin %}<a href="/admin">Panneau admin</a>{% endif %}
+                    <a href="/logout" class="sortie">Se déconnecter</a>
+                </div>
             </div>
-            <a href="/profil" class="xhq-avatar{% if current_user.cadre %} cadre-{{ current_user.cadre | replace('cadre_', '') }}{% endif %}" id="nav-avatar" title="{{ current_user.username }}">{{ current_user.logo }}</a>
             {% else %}
-            <div class="xhq-nav-links">
-                <a href="/ligue" class="xhq-nav-btn{% if request.path == '/ligue' %} active{% endif %}">Classements</a>
-                <a href="/tournois" class="xhq-nav-btn{% if request.path.startswith('/tournois') %} active{% endif %}">Tournois</a>
-            </div>
             <div class="xhq-nav-auth">
                 <a href="/login" class="xhq-nav-btn outline">Connexion</a>
                 <a href="/signup" class="xhq-nav-btn primary">S'inscrire</a>
             </div>
             {% endif %}
+            <button class="burger" type="button" id="burger" aria-label="Menu" aria-expanded="false" aria-controls="nav-capsule"><i></i><i></i><i></i></button>
         </div>
     </nav>
