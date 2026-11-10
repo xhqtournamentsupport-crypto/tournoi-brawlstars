@@ -6,121 +6,146 @@
     <title>XHQ League — la ligue {{ jeu_actuel.nom }} où chaque match compte</title>
     {% include '_head.html' %}
     <style>
-        .accueil { display: grid; gap: 2.6rem; }
-        .accueil > .jeux-switch { margin: 0 0 -1.6rem; }
+        .accueil { display: grid; gap: 3.2rem; }
+        .accueil > .jeux-switch { margin: 0 0 -2.2rem; justify-self: start; }
 
         /* ---------- Bandeau du haut ---------- */
-        .une { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 2.5rem; align-items: center; padding: 1.2rem 0 0.5rem; }
-        .une h1 { font-size: clamp(2.6rem, 6.4vw, 4.6rem); line-height: 0.95; text-transform: uppercase; }
-        .une h1 em { font-style: normal; color: var(--bleu-clair); }
-        .une-texte p { max-width: 520px; margin: 1.1rem 0 1.6rem; color: var(--text-soft); font-size: 1.12rem; line-height: 1.55; }
-        .une-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; }
-        .une-actions .btn { padding: 0.75rem 1.4rem; font-size: 1.05rem; }
-        .preuve { margin-top: 1.3rem; color: var(--muted); font-size: 0.95rem; }
-        .preuve strong { color: var(--text); }
+        .une { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 3rem; align-items: center; padding-top: 1rem; }
+        .une h1 { font-size: clamp(2.7rem, 6.2vw, 4.7rem); line-height: 1.02; letter-spacing: -0.04em; }
+        .une h1 .mot { display: inline-block; animation: entree 0.8s var(--courbe) both; }
+        .une h1 .mot:nth-child(2) { animation-delay: 0.08s; }
+        .une h1 .mot:nth-child(3) { animation-delay: 0.16s; }
+        .une h1 .violet { background: linear-gradient(90deg, #fff, var(--violet) 70%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+        .une-texte > p { max-width: 520px; margin: 1.3rem 0 1.8rem; color: var(--text-soft); font-size: 1.12rem; line-height: 1.6; animation: entree 0.8s var(--courbe) 0.3s both; }
+        .une-actions { display: flex; flex-wrap: wrap; gap: 0.7rem; animation: entree 0.8s var(--courbe) 0.4s both; }
+        .une-actions .btn { padding: 0.85rem 1.6rem; font-size: 1.02rem; }
+        .une-texte > .preuve { display: flex; align-items: center; gap: 0.7rem; margin: 1.6rem 0 0; color: var(--muted); font-size: 0.95rem; animation: entree 0.8s var(--courbe) 0.5s both; }
+        .preuve strong { color: #fff; }
+        .direct { display: inline-block; width: 8px; height: 8px; flex-shrink: 0; border-radius: 50%; background: var(--violet); animation: pulse 1.8s infinite; }
+        @keyframes entree { from { opacity: 0; transform: translateY(18px); } }
 
         /* Prochain tournoi */
-        .prochain { position: relative; background: var(--panel); border: 1px solid var(--line-2); border-top: 4px solid var(--violet); border-radius: var(--radius); padding: 1.3rem 1.4rem 1.4rem; }
-        .prochain .etiquette { color: var(--bleu-clair); font-family: var(--display); font-size: 1rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
-        .prochain h2 { margin: 0.3rem 0 0.2rem; font-size: 2.1rem; text-transform: uppercase; }
+        .prochain { position: relative; padding: 1.6rem; background: linear-gradient(160deg, rgba(124, 108, 255, 0.16), rgba(255, 255, 255, 0.02) 60%), var(--panel); border: 1px solid rgba(124, 108, 255, 0.35); border-radius: 22px; box-shadow: 0 30px 60px rgba(0, 0, 0, 0.45); overflow: hidden; }
+        .prochain::after { content: ''; position: absolute; top: -40%; right: -30%; width: 70%; height: 80%; background: radial-gradient(closest-side, rgba(124, 108, 255, 0.35), transparent); animation: flotte 7s ease-in-out infinite alternate; pointer-events: none; }
+        @keyframes flotte { to { transform: translate(-20%, 25%); } }
+        .etiquette { display: inline-flex; align-items: center; gap: 0.5rem; color: var(--bleu-clair); font-size: 0.8rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+        .prochain h2 { margin: 0.6rem 0 0.2rem; font-size: 2rem; }
         .prochain .quand { color: var(--text-soft); }
-        .compte { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; margin: 1.1rem 0; }
-        .compte div { padding: 0.55rem 0 0.45rem; background: var(--ink); border: 1px solid var(--line); text-align: center; }
-        .compte b { display: block; font-family: var(--display); font-size: 2.2rem; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
-        .compte span { color: var(--muted); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; }
-        .en-cours { margin: 1rem 0; padding: 0.7rem 0.9rem; background: var(--ink); border-left: 3px solid var(--violet); color: var(--text-soft); }
-        .places { display: flex; justify-content: space-between; margin-bottom: 0.35rem; color: var(--muted); font-size: 0.9rem; }
-        .places strong { color: var(--text); }
-        .jauge { height: 8px; background: var(--ink); border: 1px solid var(--line); }
-        .jauge i { display: block; height: 100%; background: var(--violet); }
-        .prochain .btn { width: 100%; margin-top: 1.1rem; padding: 0.7rem; font-size: 1.02rem; }
-        .autres { margin-top: 0.9rem; padding-top: 0.8rem; border-top: 1px solid var(--line); font-size: 0.9rem; color: var(--muted); }
+        .compte { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.6rem; margin: 1.3rem 0; }
+        .compte div { padding: 0.75rem 0 0.6rem; background: rgba(0, 0, 0, 0.35); border: 1px solid var(--line); border-radius: 14px; text-align: center; overflow: hidden; }
+        .compte b { display: block; font-family: var(--display); font-size: 2.1rem; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+        .compte b.tic { animation: tic 0.35s var(--courbe); }
+        @keyframes tic { from { transform: translateY(-35%); opacity: 0.2; } }
+        .compte span { color: var(--muted); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+        .en-cours { position: relative; z-index: 1; margin: 1.2rem 0; padding: 0.8rem 1rem; background: rgba(0, 0, 0, 0.3); border-radius: 12px; color: var(--text-soft); }
+        .places { position: relative; z-index: 1; display: flex; justify-content: space-between; margin-bottom: 0.45rem; color: var(--muted); font-size: 0.9rem; }
+        .places strong { color: #fff; }
+        .jauge { position: relative; z-index: 1; height: 8px; background: rgba(255, 255, 255, 0.07); border-radius: 999px; overflow: hidden; }
+        .jauge i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--violet), var(--bleu-clair)); transform-origin: left; animation: remplit 1.4s var(--courbe) 0.4s both; }
+        @keyframes remplit { from { transform: scaleX(0); } }
+        .prochain .btn { position: relative; z-index: 1; width: 100%; margin-top: 1.3rem; padding: 0.8rem; }
+        .autres { position: relative; z-index: 1; margin-top: 1rem; color: var(--muted); font-size: 0.9rem; }
         .autres a { color: var(--text-soft); }
 
+        /* ---------- Bandeau de résultats qui défile ---------- */
+        .defile { position: relative; overflow: hidden; padding: 0.85rem 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
+        .defile-piste { display: flex; gap: 2.6rem; width: max-content; animation: defile 38s linear infinite; }
+        .defile:hover .defile-piste { animation-play-state: paused; }
+        .defile-piste span { display: inline-flex; align-items: center; gap: 0.6rem; white-space: nowrap; color: var(--muted); font-weight: 600; }
+        .defile-piste b { color: #fff; }
+        .defile-piste em { font-style: normal; padding: 0.05rem 0.6rem; border-radius: 999px; background: var(--accent-dim); color: var(--bleu-clair); font-family: var(--display); font-weight: 700; }
+        @keyframes defile { to { transform: translateX(-50%); } }
+
         /* ---------- Chiffres ---------- */
-        .chiffres { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--line); background: var(--panel); }
-        .chiffres div { padding: 1rem 1.2rem; border-right: 1px solid var(--line); }
-        .chiffres div:last-child { border-right: 0; }
-        .chiffres b { display: block; font-family: var(--display); font-size: 2.6rem; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
-        .chiffres span { color: var(--muted); font-size: 0.85rem; letter-spacing: 0.04em; text-transform: uppercase; }
+        .chiffres { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+        .chiffres > div { padding: 1.3rem 1.4rem; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
+        .chiffres b { display: block; font-family: var(--display); font-size: 2.8rem; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+        .chiffres span { display: block; margin-top: 0.35rem; color: var(--muted); font-size: 0.9rem; font-weight: 600; }
 
         /* ---------- Titres de section ---------- */
-        .titre-sec { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; margin-bottom: 0.9rem; }
-        .titre-sec h2 { font-size: 1.7rem; text-transform: uppercase; }
-        .titre-sec a { color: var(--bleu-clair); font-size: 0.92rem; text-decoration: none; white-space: nowrap; }
+        .titre-sec { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; margin-bottom: 1.1rem; }
+        .titre-sec h2 { font-size: 1.75rem; }
+        .titre-sec a { color: var(--bleu-clair); font-size: 0.92rem; font-weight: 600; text-decoration: none; white-space: nowrap; }
         .titre-sec a:hover { text-decoration: underline; }
 
         /* ---------- À la une ---------- */
         .a-la-une { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
-        .vedette { display: flex; flex-direction: column; gap: 0.3rem; padding: 1.1rem 1.2rem 1.2rem; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
-        .vedette small { color: var(--bleu-clair); font-weight: 600; font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; }
-        .vedette strong { font-family: var(--display); font-size: 2rem; line-height: 1.05; text-transform: uppercase; overflow-wrap: anywhere; }
-        .vedette p { margin: 0; color: var(--muted); font-size: 0.92rem; }
+        .vedette { position: relative; display: flex; flex-direction: column; gap: 0.35rem; padding: 1.4rem; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+        .vedette:hover { border-color: rgba(124, 108, 255, 0.45); }
+        .vedette::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 3px; background: linear-gradient(90deg, var(--violet), transparent); }
+        .vedette small { color: var(--bleu-clair); font-weight: 800; font-size: 0.76rem; letter-spacing: 0.08em; text-transform: uppercase; }
+        .vedette strong { font-family: var(--display); font-size: 1.85rem; line-height: 1.1; overflow-wrap: anywhere; }
+        .vedette p { margin: 0; color: var(--muted); font-size: 0.93rem; }
         .vedette.libre strong { color: var(--dim); }
 
-        .forme { display: inline-flex; gap: 3px; vertical-align: middle; }
-        .forme i { display: inline-grid; place-items: center; width: 1.25rem; height: 1.25rem; font-style: normal; font-size: 0.72rem; font-weight: 700; border: 1px solid var(--line-2); color: var(--muted); }
-        .forme i.v { background: var(--violet); border-color: var(--violet); color: #fff; }
+        .forme { display: inline-flex; gap: 4px; vertical-align: middle; }
+        .forme i { display: inline-grid; place-items: center; width: 1.35rem; height: 1.35rem; border-radius: 50%; font-style: normal; font-size: 0.68rem; font-weight: 800; background: rgba(255, 255, 255, 0.06); color: var(--muted); }
+        .forme i.v { background: var(--violet); color: #fff; }
 
         /* ---------- Classement + fil ---------- */
-        .duo { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 1.2rem; align-items: start; }
+        .duo { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 1.3rem; align-items: start; }
         .boite { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
-        .classement { min-width: 0; font-variant-numeric: tabular-nums; }
-        .classement th, .classement td { padding: 0.5rem 0.6rem; }
-        .classement .c { text-align: center; width: 2.6rem; }
-        .classement td.rg { font-family: var(--display); font-size: 1.15rem; font-weight: 700; color: var(--muted); }
-        .classement td.nom { font-weight: 600; }
-        .classement td.pts { font-family: var(--display); font-size: 1.2rem; font-weight: 700; }
-        .classement tr.champion td { background: var(--gold-fond); }
-        .classement tr.champion td:first-child { box-shadow: inset 4px 0 0 var(--violet); color: var(--text); }
-        .classement tr.descend td:first-child { box-shadow: inset 4px 0 0 var(--line-2); }
-        .classement tr.libre td { color: var(--vide); font-weight: 400; }
-        .classement-pied { display: flex; justify-content: space-between; gap: 1rem; padding: 0.55rem 0.8rem; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.85rem; }
+        .classement { min-width: 0; font-variant-numeric: tabular-nums; background: transparent; }
+        .classement th, .classement td { padding: 0.6rem 0.7rem; }
+        .classement .c { text-align: center; width: 2.8rem; }
+        .classement td.nom { font-weight: 700; }
+        .classement td.pts { font-family: var(--display); font-size: 1.1rem; font-weight: 800; }
+        .rg { display: inline-grid; place-items: center; width: 1.8rem; height: 1.8rem; border-radius: 50%; background: rgba(255, 255, 255, 0.05); font-size: 0.82rem; font-weight: 800; }
+        .classement tr.champion .rg { background: var(--violet); box-shadow: 0 0 14px rgba(124, 108, 255, 0.6); }
+        .classement tr.champion td { background: var(--win-fond); }
+        .classement tr.descend td { opacity: 0.6; }
+        .classement tr.libre td { color: var(--dim); font-weight: 500; }
+        .classement-pied { padding: 0.7rem 0.9rem; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.85rem; }
 
-        .fil { list-style: none; margin: 0; padding: 0; }
-        .fil li { display: grid; grid-template-columns: 0.55rem 1fr auto; gap: 0.75rem; align-items: start; padding: 0.7rem 0.9rem; border-bottom: 1px solid var(--line); }
-        .fil li:last-child { border-bottom: 0; }
-        .fil .point { width: 0.55rem; height: 0.55rem; margin-top: 0.45rem; background: var(--line-2); }
+        .fil { list-style: none; margin: 0; padding: 0.4rem; }
+        .fil li { display: grid; grid-template-columns: 0.6rem 1fr auto; gap: 0.8rem; align-items: start; padding: 0.7rem; border-radius: 12px; transition: background 0.2s; }
+        .fil li:hover { background: rgba(255, 255, 255, 0.03); }
+        .fil .point { width: 0.6rem; height: 0.6rem; margin-top: 0.42rem; border-radius: 50%; background: var(--line-2); }
         .fil .match .point, .fil .champion .point { background: var(--violet); }
-        .fil strong { display: block; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+        .fil li:first-child .point { animation: pulse 1.8s infinite; }
+        .fil strong { display: block; font-weight: 700; line-height: 1.3; overflow-wrap: anywhere; }
         .fil span { color: var(--muted); font-size: 0.85rem; }
         .fil time { color: var(--dim); font-size: 0.8rem; white-space: nowrap; }
-        .vide-boite { padding: 1.2rem 0.9rem; color: var(--muted); }
+        .vide-boite { padding: 1.3rem 1rem; color: var(--muted); }
 
         /* ---------- Résultats ---------- */
-        .resultats-grille { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.8rem; }
-        .carte-match { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
-        .carte-match header { display: flex; justify-content: space-between; padding: 0.4rem 0.8rem; background: var(--ink); color: var(--muted); font-size: 0.78rem; letter-spacing: 0.06em; text-transform: uppercase; }
-        .carte-match .ligne { display: flex; justify-content: space-between; align-items: center; gap: 0.8rem; padding: 0.5rem 0.8rem; color: var(--muted); }
-        .carte-match .ligne + .ligne { border-top: 1px solid var(--line); }
-        .carte-match .ligne b { font-family: var(--display); font-size: 1.4rem; line-height: 1; }
-        .carte-match .ligne.g { color: var(--text); font-weight: 700; }
+        .resultats-grille { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+        .carte-match { padding: 0.9rem 1.1rem; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
+        .carte-match:hover { border-color: rgba(124, 108, 255, 0.45); }
+        .carte-match header { display: flex; justify-content: space-between; margin-bottom: 0.5rem; color: var(--muted); font-size: 0.78rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
+        .carte-match .ligne { display: flex; justify-content: space-between; align-items: center; gap: 0.8rem; padding: 0.3rem 0; color: var(--muted); }
+        .carte-match .ligne b { font-family: var(--display); font-size: 1.45rem; line-height: 1; }
+        .carte-match .ligne.g { color: #fff; font-weight: 800; }
         .carte-match .ligne.g b { color: var(--bleu-clair); }
 
         /* ---------- Comment ça marche ---------- */
-        .etapes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
-        .etape { padding: 1.1rem 1.2rem; border-left: 3px solid var(--violet); background: var(--panel); }
-        .etape h3 { font-size: 1.35rem; text-transform: uppercase; margin-bottom: 0.3rem; }
+        .etapes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; counter-reset: e; }
+        .etape { position: relative; padding: 1.4rem 1.4rem 1.5rem; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
+        .etape::before { counter-increment: e; content: counter(e); display: grid; place-items: center; width: 2.2rem; height: 2.2rem; margin-bottom: 0.9rem; border-radius: 50%; background: var(--accent-dim); color: var(--bleu-clair); font-family: var(--display); font-weight: 800; }
+        .etape h3 { font-size: 1.25rem; margin-bottom: 0.35rem; }
         .etape p { margin: 0; color: var(--text-soft); font-size: 0.95rem; }
 
-        .discord { display: flex; justify-content: space-between; align-items: center; gap: 1.2rem; flex-wrap: wrap; padding: 1.4rem 1.6rem; background: var(--violet); border-radius: var(--radius); }
-        .discord h2 { font-size: 1.8rem; text-transform: uppercase; }
-        .discord p { margin: 0.2rem 0 0; color: #fff; opacity: 0.9; }
-        .discord .btn { background: #fff; border-color: #fff; color: var(--indigo); padding: 0.7rem 1.4rem; }
-        .discord .btn:hover { background: var(--ink-texte); border-color: var(--ink-texte); }
+        .discord { position: relative; display: flex; justify-content: space-between; align-items: center; gap: 1.2rem; flex-wrap: wrap; padding: 2rem 2.2rem; background: linear-gradient(120deg, var(--violet), #5a4bd8); border-radius: 22px; overflow: hidden; }
+        .discord::after { content: ''; position: absolute; top: -50%; bottom: -50%; left: -40%; width: 30%; background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.18), transparent); transform: skewX(-20deg); animation: reflet 5s ease-in-out infinite; pointer-events: none; }
+        @keyframes reflet { 0% { left: -40%; } 45%, 100% { left: 130%; } }
+        .discord h2 { font-size: 1.9rem; }
+        .discord p { margin: 0.3rem 0 0; color: #fff; opacity: 0.9; }
+        .discord .btn { position: relative; z-index: 1; background: #fff; border-color: #fff; color: var(--noir); box-shadow: none; padding: 0.8rem 1.5rem; }
+        .discord .btn:hover { background: #fff; transform: translateY(-2px) scale(1.03); }
 
         @media (max-width: 960px) {
             .une, .duo { grid-template-columns: 1fr; }
             .a-la-une, .resultats-grille { grid-template-columns: 1fr 1fr; }
+            .chiffres { grid-template-columns: 1fr 1fr; }
         }
         @media (max-width: 620px) {
-            .chiffres { grid-template-columns: 1fr 1fr; }
-            .chiffres div:nth-child(2) { border-right: 0; }
-            .chiffres div:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+            .accueil { gap: 2.4rem; }
             .a-la-une, .resultats-grille, .etapes { grid-template-columns: 1fr; }
             .cache-mobile { display: none; }
-            .compte b { font-size: 1.8rem; }
+            .compte b { font-size: 1.7rem; }
             .carte-match:nth-child(n+4) { display: none; }
+            .chiffres b { font-size: 2.2rem; }
+            .discord { padding: 1.5rem; }
         }
     </style>
 </head>
@@ -134,8 +159,8 @@
         <!-- ================= Bandeau ================= -->
         <section class="une">
             <div class="une-texte">
-                <span class="kicker">{{ jeu_actuel.nom }} · {{ jeu_actuel.format }} · Saison {{ '%02d' % chiffres.saison }} en cours</span>
-                <h1>La ligue où<br><em>chaque match</em><br>compte.</h1>
+                <span class="kicker"><i class="direct"></i>{{ jeu_actuel.nom }} · Saison {{ chiffres.saison }} en cours</span>
+                <h1><span class="mot">La ligue où</span> <span class="mot violet">chaque match</span> <span class="mot">compte.</span></h1>
                 <p>Monte ta team, joue ta poule et grimpe de la Ligue {{ ligue_depart }} à la Ligue 1. Des tournois réguliers, des résultats vérifiés par l'orga, et un palmarès qui reste.</p>
                 <div class="une-actions">
                     {% if current_user %}
@@ -145,12 +170,12 @@
                     {% endif %}
                     <a href="/ligue?jeu={{ jeu_actuel.code }}" class="btn secondaire">Voir les classements</a>
                 </div>
-                <p class="preuve"><strong>{{ chiffres.teams }}</strong> teams et <strong>{{ chiffres.joueurs }}</strong> joueurs déjà en lice · {{ chiffres.places - chiffres.teams }} places encore libres</p>
+                <p class="preuve"><i class="direct"></i><span><strong>{{ chiffres.teams }}</strong> teams et <strong>{{ chiffres.joueurs }}</strong> joueurs en lice · {{ chiffres.places - chiffres.teams }} places encore libres</span></p>
             </div>
 
             <aside class="prochain">
                 {% if prochain %}
-                <span class="etiquette">{{ 'Prochain tournoi' if prochain.statut == 'inscriptions' else 'Tournoi en cours' }}</span>
+                <span class="etiquette">{% if prochain.statut != 'inscriptions' %}<i class="direct"></i>Tournoi en cours{% else %}Prochain tournoi{% endif %}</span>
                 <h2>{{ prochain.nom }}</h2>
                 {% if prochain.quand %}<div class="quand">{{ prochain.quand }}</div>{% endif %}
                 {% if prochain.statut == 'inscriptions' and prochain.debut %}
@@ -180,12 +205,23 @@
             </aside>
         </section>
 
+        <!-- ================= Résultats qui défilent ================= -->
+        {% if derniers %}
+        <div class="defile" aria-label="Derniers résultats">
+            <div class="defile-piste">
+                {% for tour in range(2) %}{% for m in derniers %}
+                <span{% if tour %} aria-hidden="true"{% endif %}><b>{{ m.team1_nom }}</b><em>{{ m.score1 }} - {{ m.score2 }}</em><b>{{ m.team2_nom }}</b> · Ligue {{ m.ligue_num }}</span>
+                {% endfor %}{% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
         <!-- ================= Chiffres ================= -->
         <section class="chiffres">
-            <div><b>{{ chiffres.teams }}</b><span>Teams en lice</span></div>
-            <div><b>{{ chiffres.joueurs }}</b><span>Joueurs</span></div>
-            <div><b>{{ chiffres.matchs }}</b><span>Matchs joués</span></div>
-            <div><b>{{ nb_tournois }}</b><span>Tournois</span></div>
+            <div><b data-compte-a="{{ chiffres.teams }}">{{ chiffres.teams }}</b><span>Teams en lice</span></div>
+            <div><b data-compte-a="{{ chiffres.joueurs }}">{{ chiffres.joueurs }}</b><span>Joueurs</span></div>
+            <div><b data-compte-a="{{ chiffres.matchs }}">{{ chiffres.matchs }}</b><span>Matchs joués</span></div>
+            <div><b data-compte-a="{{ nb_tournois }}">{{ nb_tournois }}</b><span>Tournois</span></div>
         </section>
 
         <!-- ================= À la une ================= -->
@@ -237,7 +273,7 @@
                         <tbody>
                             {% for p in ligue1 %}
                             <tr class="{{ p.statut }}{% if not p.team_id %} libre{% endif %}">
-                                <td class="c rg">{{ p.rang }}</td>
+                                <td class="c"><span class="rg">{{ p.rang }}</span></td>
                                 <td class="nom">{{ p.team_name if p.team_id else 'Place libre' }}</td>
                                 <td class="c">{{ p.joues }}</td>
                                 <td class="cache-mobile"><span class="forme">{% for r in p.forme %}<i class="{{ 'v' if r == 'V' }}">{{ r }}</i>{% endfor %}</span></td>
@@ -247,7 +283,7 @@
                             {% endfor %}
                         </tbody>
                     </table>
-                    <div class="classement-pied"><span>Le 1er est sacré champion, le 8e descend en Ligue 2.</span></div>
+                    <div class="classement-pied">Le 1er est sacré champion, le 8e descend en Ligue 2.</div>
                 </div>
             </div>
             <div>
@@ -303,20 +339,26 @@
 
     {% include '_footer.html' %}
     <script>
-        // Compte à rebours avant le prochain tournoi
+        // Compte à rebours avant le prochain tournoi (les chiffres « tombent » quand ils changent)
         (function () {
             const bloc = document.querySelector('.compte[data-debut]');
             if (!bloc) return;
             const debut = new Date(bloc.dataset.debut);
             const champs = {};
             bloc.querySelectorAll('[data-u]').forEach(b => { champs[b.dataset.u] = b; });
+            function poser(cle, valeur) {
+                const b = champs[cle];
+                if (b.textContent === valeur) return;
+                b.textContent = valeur;
+                b.classList.remove('tic'); void b.offsetWidth; b.classList.add('tic');
+            }
             function maj() {
                 let s = Math.max(0, Math.floor((debut - new Date()) / 1000));
                 if (!s) { bloc.outerHTML = '<div class="en-cours">C\'est l\'heure : le tournoi commence !</div>'; return; }
-                champs.j.textContent = Math.floor(s / 86400); s %= 86400;
-                champs.h.textContent = String(Math.floor(s / 3600)).padStart(2, '0'); s %= 3600;
-                champs.m.textContent = String(Math.floor(s / 60)).padStart(2, '0');
-                champs.s.textContent = String(s % 60).padStart(2, '0');
+                poser('j', String(Math.floor(s / 86400))); s %= 86400;
+                poser('h', String(Math.floor(s / 3600)).padStart(2, '0')); s %= 3600;
+                poser('m', String(Math.floor(s / 60)).padStart(2, '0'));
+                poser('s', String(s % 60).padStart(2, '0'));
                 setTimeout(maj, 1000);
             }
             maj();

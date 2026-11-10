@@ -20,22 +20,22 @@
             text-decoration: none;
             overflow: hidden;
         }
-        .carte-tournoi::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 4px; background: var(--ink); }
+        .carte-tournoi::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 3px; background: linear-gradient(90deg, var(--violet), transparent); }
         .carte-tournoi:hover { border-color: var(--text-soft); }
         .carte-tournoi.termine::before { background: var(--gold); }
-        .carte-tournoi h3 { font-size: 1.45rem; text-transform: uppercase; margin-top: 0.3rem; }
+        .carte-tournoi h3 { font-size: 1.4rem; margin-top: 0.4rem; }
         .carte-tournoi .quand { color: var(--muted); font-size: 0.9rem; }
         .carte-tournoi .desc { color: var(--text-soft); font-size: 0.92rem; margin: 0.2rem 0 0; }
         .carte-bas { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-top: auto; padding-top: 0.9rem; }
         .jauge { flex: 1; height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
-        .jauge i { display: block; height: 100%; background: var(--text-soft); }
+        .jauge i { display: block; height: 100%; border-radius: 999px; background: var(--violet); }
         .places { color: var(--muted); font-size: 0.85rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
-        .statut { align-self: flex-start; padding: 0 0.4rem; border-radius: 2px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; background: var(--panel-2); border: 1px solid var(--line-2); color: #fff; }
+        .statut { align-self: flex-start; padding: 0.15rem 0.7rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; background: var(--panel-2); border: 1px solid var(--line-2); color: #fff; }
         .statut.inscriptions { background: var(--accent); color: #fff; }
         .statut.termine { background: var(--gold); color: #fff; }
         .champion { color: var(--gold); font-weight: 600; }
 
-        .creer { margin-bottom: 2.2rem; padding: 1.4rem; background: var(--panel); border: 1px solid var(--line); border-top: 4px solid var(--accent); border-radius: var(--radius); }
+        .creer { margin-bottom: 2.2rem; padding: 1.5rem; background: var(--panel); border: 1px solid rgba(124, 108, 255, 0.35); border-radius: var(--radius); }
         .creer h2 { font-size: 1.1rem; margin-bottom: 1rem; }
         .creer-grille { display: grid; grid-template-columns: 2fr 1.4fr 0.8fr; gap: 0.9rem; }
         .creer-grille .large { grid-column: 1 / -1; }

@@ -7,23 +7,24 @@
     {% include '_head.html' %}
     <style>
         .infos { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem 1.2rem; margin: -0.6rem 0 1.6rem; color: var(--muted); }
-        .statut { padding: 0 0.4rem; border-radius: 2px; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; background: var(--panel-2); border: 1px solid var(--line-2); color: #fff; }
+        .statut { padding: 0.15rem 0.7rem; border-radius: 999px; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; background: var(--panel-2); border: 1px solid var(--line-2); color: #fff; }
         .statut.inscriptions { background: var(--accent); }
         .statut.termine { background: var(--gold); }
         .description { max-width: 760px; color: var(--text-soft); white-space: pre-line; margin-bottom: 1.6rem; }
 
-        /* Étapes du tournoi : une barre en 4 segments */
-        .etapes { display: grid; grid-template-columns: repeat(4, 1fr); margin-bottom: 1.8rem; border: 1px solid var(--line); background: var(--panel); }
-        .etape { padding: 0.5rem 0.8rem; border-right: 1px solid var(--line); border-top: 3px solid transparent; color: var(--dim); font-family: var(--display); font-size: 1rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
-        .etape:last-child { border-right: 0; }
-        .etape b { margin-right: 0.4rem; font-weight: 700; }
-        .etape.faite { color: var(--text-soft); border-top-color: var(--text-soft); }
-        .etape.active { color: var(--text); border-top-color: var(--accent); background: var(--panel-2); }
+        /* Étapes du tournoi : 4 pastilles reliées */
+        .etapes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; margin-bottom: 1.8rem; }
+        .etape { position: relative; display: flex; align-items: center; gap: 0.55rem; padding: 0.6rem 0.9rem; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; color: var(--dim); font-weight: 700; font-size: 0.92rem; }
+        .etape b { display: inline-grid; place-items: center; width: 1.6rem; height: 1.6rem; border-radius: 50%; background: rgba(255, 255, 255, 0.06); font-size: 0.78rem; }
+        .etape.faite { color: var(--text-soft); }
+        .etape.faite b { background: var(--accent-dim); color: var(--bleu-clair); }
+        .etape.active { color: #fff; border-color: var(--violet); background: var(--accent-dim); }
+        .etape.active b { background: var(--violet); color: #fff; animation: pulse 1.8s infinite; }
 
         /* Champion */
-        .champion-banniere { margin-bottom: 1.8rem; padding: 1rem 1.2rem; background: var(--panel); border: 1px solid var(--line); border-left: 6px solid var(--gold); }
+        .champion-banniere { position: relative; margin-bottom: 1.8rem; padding: 1.4rem 1.6rem; background: linear-gradient(120deg, rgba(124, 108, 255, 0.28), rgba(124, 108, 255, 0.06)); border: 1px solid rgba(124, 108, 255, 0.5); border-radius: 20px; overflow: hidden; animation: monte 0.6s var(--courbe); }
         .champion-banniere small { color: var(--gold); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
-        .champion-banniere strong { display: block; font-family: var(--display); font-size: clamp(1.8rem, 5vw, 2.5rem); text-transform: uppercase; line-height: 1.1; }
+        .champion-banniere strong { display: block; font-family: var(--display); font-size: clamp(1.8rem, 5vw, 2.5rem); line-height: 1.1; }
 
         /* Inscription */
         .inscription { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 2rem; padding: 1.1rem 1.3rem; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
@@ -42,7 +43,7 @@
         .table-poule th { color: var(--muted); font-size: 0.75rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
         .table-poule td.nom, .table-poule th.nom { text-align: left; }
         .table-poule tr.qualifie td:first-child { box-shadow: inset 3px 0 0 var(--win); }
-        .table-poule tr.qualifie td.nom::after { content: 'Qualifiée'; margin-left: 0.5rem; padding: 0.05rem 0.45rem; border-radius: 2px; background: var(--win-fond); color: var(--win); font-size: 0.68rem; font-weight: 600; text-transform: uppercase; }
+        .table-poule tr.qualifie td.nom::after { content: 'Qualifiée'; margin-left: 0.5rem; padding: 0.05rem 0.45rem; border-radius: 999px; background: var(--win-fond); color: var(--win); font-size: 0.68rem; font-weight: 600; text-transform: uppercase; }
         .table-poule td.pts { font-weight: 700; }
         .poule-tournoi .poule-title::after { content: none; }
         .matchs-poule { padding: 0.6rem 0.8rem 0.9rem; display: grid; gap: 0.4rem; }
@@ -60,14 +61,14 @@
         .bracket-wrap { overflow-x: auto; padding-bottom: 0.8rem; }
         .bracket { display: flex; gap: 2.4rem; min-width: max-content; }
         .tour { display: flex; flex-direction: column; min-width: 230px; }
-        .tour h4 { margin-bottom: 0.6rem; color: var(--muted); font-size: 0.95rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .tour h4 { margin-bottom: 0.6rem; color: var(--muted); font-size: 0.82rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
         .tour-corps { flex: 1; display: flex; flex-direction: column; }
         .paire { position: relative; flex: 1; display: flex; flex-direction: column; }
         .paire::after { content: ''; position: absolute; right: -1.2rem; top: 25%; bottom: 25%; width: 1.2rem; border: 2px solid var(--line-2); border-left: 0; }
         .case { flex: 1; display: flex; align-items: center; padding: 0.4rem 0; position: relative; }
         .tour:not(:first-child) .case::before { content: ''; position: absolute; left: -1.2rem; top: 50%; width: 1.2rem; border-top: 2px solid var(--line-2); }
         .bm { width: 100%; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
-        .bm.finale { border: 2px solid var(--ink); }
+        .bm.finale { border-color: var(--violet); box-shadow: 0 0 30px rgba(124, 108, 255, 0.3); }
         .bm-team { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; padding: 0.5rem 0.75rem; font-size: 0.92rem; }
         .bm-team + .bm-team { border-top: 1px solid var(--line); }
         .bm-team .n { overflow-wrap: anywhere; }
@@ -84,8 +85,8 @@
             .table-poule th, .table-poule td { padding: 0.5rem 0.25rem; font-size: 0.9rem; }
             .match-ligne { font-size: 0.85rem; gap: 0.4rem; }
         }
-        .admin-box { margin-bottom: 1.8rem; padding: 1rem 1.2rem; border: 1px solid var(--line); border-top: 4px solid var(--ink); background: var(--panel); }
-        .admin-box h3 { font-size: 1.15rem; margin-bottom: 0.3rem; text-transform: uppercase; }
+        .admin-box { margin-bottom: 1.8rem; padding: 1.2rem 1.4rem; background: var(--panel); border: 1px dashed rgba(124, 108, 255, 0.5); border-radius: var(--radius); }
+        .admin-box h3 { font-size: 1.15rem; margin-bottom: 0.3rem; }
         .admin-box p { color: var(--text-soft); margin: 0 0 0.8rem; font-size: 0.92rem; }
         .admin-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; }
     </style>
@@ -130,7 +131,7 @@
             const noms = ['Inscriptions', 'Poules', 'Phase finale', 'Champion'];
             const idx = ordre.indexOf(statut);
             return '<div class="etapes">' + noms.map((n, i) =>
-                `<span class="etape ${i < idx || statut === 'termine' ? 'faite' : ''} ${i === idx && statut !== 'termine' ? 'active' : ''}"><b>${i + 1}.</b>${n}</span>`
+                `<span class="etape ${i < idx || statut === 'termine' ? 'faite' : ''} ${i === idx && statut !== 'termine' ? 'active' : ''}"><b>${i + 1}</b>${n}</span>`
             ).join('') + '</div>';
         }
 
