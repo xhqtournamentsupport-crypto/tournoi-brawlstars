@@ -6,12 +6,62 @@
     <title>Classements {{ jeu.nom if jeu else '' }} · XHQ League</title>
     {% include '_head.html' %}
     <style>
-        /* Les styles du classement (poules, rangs, résultats) sont dans static/style.css */
-        .resultat .equipe:first-child { text-align: right; }
-        .lien-team { display: inline-flex; align-items: center; gap: 0.55rem; color: inherit; text-decoration: none; }
+        /* ---------- Onglets des ligues ---------- */
+        .onglets-ligues { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 1.8rem; }
+        .onglets-ligues .dropdown-item {
+            display: flex; flex-direction: column; align-items: flex-start; gap: 0.1rem; width: auto; min-width: 118px;
+            padding: 0.7rem 1rem; background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
+            color: var(--text-soft); font-family: var(--body); text-align: left; cursor: pointer;
+            transition: border-color 0.2s, background 0.2s, transform 0.2s var(--courbe);
+        }
+        .onglets-ligues .dropdown-item:hover { border-color: var(--line-2); transform: translateY(-2px); background: var(--panel); }
+        .onglets-ligues .dropdown-item b { font-family: var(--display); font-size: 1.15rem; color: #fff; }
+        .onglets-ligues .dropdown-item small { color: var(--muted); font-size: 0.78rem; font-weight: 600; }
+        .onglets-ligues .dropdown-item.active { background: var(--accent-dim); border-color: var(--violet); box-shadow: 0 8px 22px rgba(124, 108, 255, 0.2); }
+        .onglets-ligues .dropdown-item.active small { color: var(--bleu-clair); }
+
+        /* ---------- Tableau d'une poule ---------- */
+        .ligne-classement, .entete-poule {
+            display: grid;
+            grid-template-columns: 2.1rem minmax(0, 1fr) 7rem 2.2rem 2.6rem 3.6rem;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .entete-poule { padding: 0.5rem 1.1rem; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+        .entete-poule span, .ligne-classement .c { text-align: center; }
+        .entete-poule span:last-child, .ligne-classement .player-points { text-align: right; }
+        .poule .poule-title::after { content: none; }
+        .poule .poule-title { justify-content: flex-start; gap: 0.7rem; }
+        .poule-info { color: var(--muted); font-family: var(--body); font-size: 0.82rem; font-weight: 600; }
+        .leaderboard-item.ligne-classement { gap: 0.5rem; padding: 0.55rem 0.8rem; }
+        .ligne-classement .c { color: var(--text-soft); font-variant-numeric: tabular-nums; font-size: 0.93rem; }
+        .ligne-classement .diff-pos { color: var(--bleu-clair); }
+        .equipe-cellule { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+        .equipe-cellule .player-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .equipe-cellule .badge { flex-shrink: 0; }
+        .lien-team > :last-child { overflow: hidden; text-overflow: ellipsis; }
+        .lien-team { display: inline-flex; align-items: center; gap: 0.6rem; min-width: 0; color: inherit; text-decoration: none; }
         .lien-team:hover { text-decoration: underline; }
-        .logo-mini { width: 28px; height: 28px; flex-shrink: 0; display: inline-grid; place-items: center; border-radius: 50%; background: var(--panel-2); border: 1px solid var(--line-2); font-size: 0.8rem; font-weight: 800; overflow: hidden; }
+        .logo-mini { width: 30px; height: 30px; flex-shrink: 0; display: inline-grid; place-items: center; border-radius: 50%; background: var(--panel-2); border: 1px solid var(--line-2); font-size: 0.78rem; font-weight: 800; overflow: hidden; }
         .logo-mini img { width: 100%; height: 100%; object-fit: cover; }
+        .forme { display: inline-flex; gap: 3px; }
+        .forme i { display: inline-grid; place-items: center; width: 1.25rem; height: 1.25rem; border-radius: 50%; font-style: normal; font-size: 0.62rem; font-weight: 800; background: rgba(255, 255, 255, 0.06); color: var(--muted); }
+        .forme i.v { background: var(--violet); color: #fff; }
+        .legende { display: flex; flex-wrap: wrap; gap: 1.2rem; padding: 0.75rem 1.1rem; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.82rem; }
+        .legende span::before { content: ''; display: inline-block; width: 9px; height: 9px; margin-right: 0.4rem; border-radius: 50%; vertical-align: 0; }
+        .legende .l-monte::before, .legende .l-champion::before { background: var(--violet); }
+        .legende .l-descend::before { background: var(--line-2); }
+
+        /* ---------- Résultats ---------- */
+        .resultats .liste-res { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.6rem; }
+        .resultats .resultat { margin: 0; }
+
+        @media (max-width: 720px) {
+            .ligne-classement, .entete-poule { grid-template-columns: 1.9rem minmax(0, 1fr) 2.2rem 2.6rem 3.2rem; }
+            .cache-mobile { display: none !important; }
+            .resultats .liste-res { grid-template-columns: 1fr; }
+            .onglets-ligues .dropdown-item { min-width: 0; flex: 1 1 28%; }
+        }
     </style>
 </head>
 <body>
@@ -20,20 +70,16 @@
     <div class="container">
         <div class="header-nav">
             <h1><span class="kicker">Classements</span>{{ jeu.nom if jeu else 'Ligues' }}</h1>
-            <a href="/">← Retour à l'accueil</a>
+            <a href="/calendrier{% if jeu %}?jeu={{ jeu.code }}{% endif %}">Calendrier →</a>
         </div>
         {% include '_jeux.html' %}
 
-        <div class="selector-wrapper">
-            <button class="selector-btn" type="button" onclick="toggleDropdown()" aria-haspopup="true">
-                <span id="selector-label">Ligue 1</span>
-                <span class="dropdown-arrow">▼</span>
+        <div class="onglets-ligues" role="tablist" aria-label="Choix de la ligue">
+            {% for n, config in ligues.items() %}
+            <button class="dropdown-item{% if n == 1 %} active{% endif %}" type="button" role="tab" data-ligue="{{ n }}" onclick="selectLigue({{ n }})">
+                <b>Ligue {{ n }}</b><small>{{ config.poules }} poule{{ 's' if config.poules > 1 }}{% if n == 1 %} · élite{% elif loop.last %} · départ{% endif %}</small>
             </button>
-            <div class="dropdown-menu" id="dropdown-menu">
-                {% for n in ligues %}
-                <button class="dropdown-item{% if n == 1 %} active{% endif %}" type="button" data-ligue="{{ n }}" onclick="selectLigue({{ n }})">Ligue {{ n }}</button>
-                {% endfor %}
-            </div>
+            {% endfor %}
         </div>
 
         <div class="ligue-section" id="ligue-content">
@@ -49,27 +95,15 @@
             monte: '<span class="badge monte">Monte</span>',
             descend: '<span class="badge descend">Descend</span>'
         };
-
         let currentLigue = 1;
         let derniereRequete = 0;
 
-        function toggleDropdown() {
-            document.getElementById('dropdown-menu').classList.toggle('open');
-            document.querySelector('.dropdown-arrow').classList.toggle('open');
-        }
-
-        function closeDropdown() {
-            document.getElementById('dropdown-menu').classList.remove('open');
-            document.querySelector('.dropdown-arrow').classList.remove('open');
-        }
-
         function selectLigue(ligue) {
             currentLigue = ligue;
-            closeDropdown();
             document.querySelectorAll('.dropdown-item').forEach(item => {
                 item.classList.toggle('active', Number(item.dataset.ligue) === ligue);
             });
-            document.getElementById('selector-label').textContent = 'Ligue ' + ligue;
+            history.replaceState(null, '', location.pathname + location.search + '#' + ligue);
             loadLigue(ligue);
         }
 
@@ -80,57 +114,63 @@
 
         function renderItem(place) {
             const rang = place.rang;
-            let rankClass = '';
-            if (rang === 1) rankClass = 'top1';
-            else if (rang === 2) rankClass = 'top2';
-            else if (rang === 3) rankClass = 'top3';
-
+            const rankClass = rang === 1 ? 'top1' : rang === 2 ? 'top2' : rang === 3 ? 'top3' : '';
             const vide = !place.team_id;
             const statut = vide ? '' : (place.statut || '');
             const nom = vide ? 'XXXXX' : escapeHtml(place.team_name);
-
+            const diff = Number(place.diff) || 0;
+            const forme = (place.forme || []).map(r => `<i class="${r === 'V' ? 'v' : ''}">${r}</i>`).join('');
             return `
-                <li class="leaderboard-item ${statut} ${vide ? 'vide' : ''}">
+                <li class="leaderboard-item ligne-classement ${statut} ${vide ? 'vide' : ''}">
                     <span class="rank ${rankClass}">${rang}</span>
-                    <div class="player-info">
-                        <div class="player-name">${vide ? nom : `<a class="lien-team" href="/team/${Number(place.team_id)}">${logoMini(place)}${nom}</a>`}</div>
-                        ${vide ? '' : `<div class="player-stats">J ${place.joues} · V ${place.victoires} · D ${place.defaites} · ${place.diff > 0 ? '+' : ''}${place.diff}</div>`}
-                    </div>
-                    <div class="player-points">${vide ? 0 : Number(place.points) || 0} pts</div>
-                    ${BADGES[statut] || ''}
-                </li>
-            `;
+                    <span class="equipe-cellule">
+                        <span class="player-name">${vide ? nom : `<a class="lien-team" href="/team/${Number(place.team_id)}">${logoMini(place)}<span>${nom}</span></a>`}</span>
+                        ${BADGES[statut] || ''}
+                    </span>
+                    <span class="forme cache-mobile">${forme}</span>
+                    <span class="c">${vide ? '' : Number(place.joues) || 0}</span>
+                    <span class="c ${diff > 0 ? 'diff-pos' : ''}">${vide ? '' : (diff > 0 ? '+' : '') + diff}</span>
+                    <span class="player-points">${vide ? 0 : Number(place.points) || 0} pts</span>
+                </li>`;
         }
 
-        // N'affiche QUE les teams renvoyées par l'API pour cette ligue
+        function legende(data) {
+            const items = [];
+            if (data.champion) items.push('<span class="l-champion">1er : champion</span>');
+            if (data.monte && data.monte.length) items.push(`<span class="l-monte">${data.monte.map(r => r + (r === 1 ? 'er' : 'e')).join(', ')} : monte en Ligue ${data.ligue_num - 1}</span>`);
+            if (data.descend && data.descend.length) items.push(`<span class="l-descend">${data.descend.map(r => r + 'e').join(' et ')} : descend en Ligue ${data.ligue_num + 1}</span>`);
+            return items.length ? `<div class="legende">${items.join('')}</div>` : '';
+        }
+
         function renderResultats(matchs) {
             if (!matchs.length) {
                 return '<div class="resultats"><h3>Derniers résultats</h3><p class="ligue-message">Aucun match joué dans cette ligue pour le moment</p></div>';
             }
-            return '<div class="resultats"><h3>Derniers résultats</h3>' + matchs.map(m => `
+            return '<div class="resultats"><h3>Derniers résultats</h3><div class="liste-res">' + matchs.map(m => `
                 <div class="resultat">
                     <span class="equipe ${m.score1 > m.score2 ? 'gagnant' : ''}">${escapeHtml(m.team1_nom)}</span>
                     <span class="score">${Number(m.score1)} - ${Number(m.score2)}</span>
                     <span class="equipe ${m.score2 > m.score1 ? 'gagnant' : ''}">${escapeHtml(m.team2_nom)}</span>
                     <span class="poule-tag">Poule ${escapeHtml(m.poule)}</span>
-                </div>`).join('') + '</div>';
+                </div>`).join('') + '</div></div>';
         }
-        
+
         function renderLigue(data, matchs) {
             const unique = data.poules.length === 1;
-            let html = `<h2 class="ligue-title">Ligue ${data.ligue_num}</h2>`;
             const palmares = (data.palmares || []).filter(p => p.champion);
+            let html = `<h2 class="ligue-title">Ligue ${data.ligue_num}</h2>`;
             html += `<div class="saison-bandeau">
                 <span class="saison-tag">Saison ${Number(data.saison) || 1} en cours</span>
                 ${palmares.length ? `<span class="palmares">Derniers champions : ${palmares.map(p => `S${Number(p.numero)} <strong>${escapeHtml(p.champion)}</strong>`).join(' · ')}</span>` : ''}
             </div>`;
             html += '<div class="poules-grid">';
             for (const poule of data.poules) {
+                const nb = poule.teams.filter(t => t.team_id).length;
                 html += '<div class="poule">';
                 html += `<div class="poule-title">${unique ? 'Poule Unique' : 'Poule ' + escapeHtml(poule.nom)}</div>`;
-                html += '<ul class="leaderboard">';
-                html += poule.teams.map(renderItem).join('');
-                html += '</ul></div>';
+                html += `<div class="entete-poule"><span>#</span><span style="text-align:left">Team <span class="poule-info">· ${nb}/${Number(data.teams_par_poule) || 8}</span></span><span class="cache-mobile">Forme</span><span>J</span><span>+/-</span><span>Pts</span></div>`;
+                html += '<ul class="leaderboard">' + poule.teams.map(renderItem).join('') + '</ul>';
+                html += legende(data) + '</div>';
             }
             html += '</div>';
             html += renderResultats(matchs);
@@ -153,18 +193,10 @@
             renderLigue(data, resMatchs.ok && Array.isArray(resMatchs.data) ? resMatchs.data : []);
         }
 
-        document.addEventListener('click', (e) => {
-            const selector = document.querySelector('.selector-wrapper');
-            if (!selector.contains(e.target)) {
-                closeDropdown();
-            }
-        });
-
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') closeDropdown();
-        });
-
-        loadLigue(currentLigue);
+        // Ouvre directement la ligue demandée dans l'adresse (ex. /ligue#3)
+        const depuisAdresse = parseInt(location.hash.slice(1), 10);
+        if (depuisAdresse >= 1 && depuisAdresse <= {{ ligues | length }}) selectLigue(depuisAdresse);
+        else loadLigue(1);
     </script>
 </body>
 </html>

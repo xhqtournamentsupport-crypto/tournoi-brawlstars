@@ -1748,6 +1748,10 @@ def api_ligue():
     if erreur:
         return erreur
     poules = [{'nom': l, 'teams': classement_poule(db, jeu['id'], ligue_num, l)} for l in (poule or lettres)]
+    forme = forme_des_teams(db, jeu['id'], saison_actuelle(db, jeu['id']))
+    for p in poules:
+        for t in p['teams']:
+            t['forme'] = forme.get(t['team_id'], [])[:5] if t['team_id'] else []
     config = LIGUES[ligue_num]
     return jsonify({
         'jeu': jeu,
