@@ -235,6 +235,22 @@ a { color: var(--bleu-clair); }
 .compte-menu a.ajout-compte { color: var(--bleu-clair); font-size: 0.88rem; }
 .compte-menu a.sortie { margin-top: 0.35rem; padding-top: 0.7rem; border-top: 1px solid var(--line); color: var(--muted); }
 
+/* Cloche des notifications */
+.cloche-nav { position: relative; }
+.cloche-btn { position: relative; width: 40px; height: 40px; display: grid; place-items: center; padding: 0; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.09); border-radius: 50%; color: var(--text-soft); cursor: pointer; transition: border-color 0.2s, color 0.2s; }
+.cloche-btn:hover, .cloche-nav.ouvert .cloche-btn { color: #fff; border-color: rgba(124, 108, 255, 0.6); }
+.cloche-btn svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.cloche-compte { position: absolute; top: -3px; right: -3px; min-width: 18px; height: 18px; padding: 0 5px; display: grid; place-items: center; border-radius: 999px; background: var(--violet); color: #fff; font-size: 0.68rem; font-weight: 800; border: 2px solid var(--bg); }
+.cloche-menu { position: absolute; top: calc(100% + 8px); right: 0; width: 330px; max-width: calc(100vw - 1.8rem); background: #17171f; border: 1px solid var(--line-2); border-radius: 14px; box-shadow: 0 14px 30px rgba(0, 0, 0, 0.5); animation: menu 0.18s ease-out; overflow: hidden; }
+.cloche-tete { padding: 0.75rem 1rem; border-bottom: 1px solid var(--line); font-weight: 800; }
+.cloche-liste { max-height: 380px; overflow-y: auto; }
+.cloche-item { display: block; padding: 0.7rem 1rem; border-bottom: 1px solid var(--line); color: var(--text-soft); text-decoration: none; font-size: 0.9rem; line-height: 1.4; }
+.cloche-item:last-child { border-bottom: 0; }
+.cloche-item:hover { background: rgba(255, 255, 255, 0.04); color: #fff; }
+.cloche-item.nouveau { color: #fff; box-shadow: inset 3px 0 0 var(--violet); background: rgba(124, 108, 255, 0.06); }
+.cloche-item small { display: block; margin-top: 0.15rem; color: var(--dim); font-size: 0.76rem; }
+.cloche-vide { margin: 0; padding: 1.2rem 1rem; color: var(--muted); font-size: 0.9rem; }
+
 /* Bouton burger (mobile) */
 .burger { display: none; width: 42px; height: 42px; padding: 0; place-content: center; gap: 5px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 50%; cursor: pointer; }
 .burger i { display: block; width: 18px; height: 2px; margin: 0 auto; border-radius: 2px; background: #fff; transition: transform 0.3s var(--courbe), opacity 0.2s; }
@@ -245,6 +261,7 @@ a { color: var(--bleu-clair); }
 @media (max-width: 900px) {
     .xhq-nav, .xhq-nav.colle { grid-template-columns: auto 1fr; padding: 0.6rem 0.9rem; background: rgba(10, 10, 15, 0.82); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
     .burger { display: grid; }
+    .cloche-menu, .compte-menu { position: fixed; top: 62px; left: 0.9rem; right: 0.9rem; width: auto; max-width: none; }
     .xhq-logo { grid-column: 1; grid-row: 1; }
     .nav-droite { grid-column: 2; grid-row: 1; justify-self: end; }
     .compte-nom { display: none; }

@@ -127,6 +127,34 @@ document.addEventListener('DOMContentLoaded', () => {
         if (ok) location.reload();
     }));
 
+    // Cloche : charge les notifications à l'ouverture et les marque comme lues
+    const cloche = document.getElementById('cloche-btn');
+    const clocheMenu = document.getElementById('cloche-menu');
+    if (cloche && clocheMenu) {
+        cloche.addEventListener('click', async e => {
+            e.stopPropagation();
+            fermerCompte();
+            const ouvrir = clocheMenu.hidden;
+            clocheMenu.hidden = !ouvrir;
+            cloche.parentElement.classList.toggle('ouvert', ouvrir);
+            cloche.setAttribute('aria-expanded', String(ouvrir));
+            if (!ouvrir) return;
+            const { ok, data } = await api('/api/notifications', { noRedirect: true });
+            const liste = document.getElementById('cloche-liste');
+            if (!ok) { liste.innerHTML = '<p class="cloche-vide">Impossible de charger les notifications.</p>'; return; }
+            liste.innerHTML = data.items.length ? data.items.map(n => `
+                <a class="cloche-item${n.lu ? '' : ' nouveau'}" href="${escapeHtml(n.lien || '#')}">${escapeHtml(n.texte)}<small>${escapeHtml(n.quand)}</small></a>`).join('')
+                : '<p class="cloche-vide">Rien de neuf pour l\'instant. Tu seras prévenu ici des matchs, résultats et tournois.</p>';
+            if (data.non_lues) {
+                await api('/api/notifications/lues', { method: 'POST', noRedirect: true });
+                const pastille = document.getElementById('cloche-compte');
+                if (pastille) pastille.remove();
+            }
+        });
+        clocheMenu.addEventListener('click', e => e.stopPropagation());
+        document.addEventListener('click', () => { clocheMenu.hidden = true; cloche.parentElement.classList.remove('ouvert'); });
+    }
+
     const burger = document.getElementById('burger');
     if (burger) burger.addEventListener('click', e => {
         e.stopPropagation();

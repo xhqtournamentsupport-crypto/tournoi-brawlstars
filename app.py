@@ -325,6 +325,17 @@ def creer_tables_tournois(c):
     """)
 
 
+def notifier(c, user_ids, texte, lien=None):
+    """Ajoute une notification (cloche de la barre du haut) à chacun de ces joueurs."""
+    for uid in {u for u in user_ids if u}:
+        c.execute("INSERT INTO notifications (user_id, texte, lien, created_at) VALUES (?, ?, ?, datetime('now'))",
+                  (uid, texte[:200], lien))
+
+
+def membres_de(c, team_id):
+    return [r[0] for r in c.execute('SELECT user_id FROM team_members WHERE team_id = ?', (team_id,))]
+
+
 def handle_depuis(texte):
     """Pseudo -> identifiant valide : minuscules, sans accents ni espaces."""
     import unicodedata
@@ -506,6 +517,21 @@ def init_db():
                             ('banniere_pos', 'INTEGER DEFAULT 50'), ('banniere_zoom', 'INTEGER DEFAULT 100')):
         ajouter_colonne(c, 'teams', col, definition)
     ajouter_colonne(c, 'users', 'bloque', 'INTEGER DEFAULT 0')
+    c.execute("""CREATE TABLE IF NOT EXISTS notifications (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        texte TEXT NOT NULL,
+        lien TEXT,
+        lu INTEGER DEFAULT 0,
+        created_at TEXT)""")
+    c.execute('CREATE INDEX IF NOT EXISTS idx_notifs_user ON notifications(user_id, lu)')
+    c.execute("""CREATE TABLE IF NOT EXISTS reinitialisations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        jeton_hash TEXT NOT NULL,
+        expire_at TEXT NOT NULL,
+        utilise INTEGER DEFAULT 0,
+        created_at TEXT)""")
     c.execute("""CREATE TABLE IF NOT EXISTS rencontres (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         jeu_id INTEGER NOT NULL,
@@ -620,6 +646,8 @@ def injecter_utilisateur():
         current_user = {'username': user['username'], 'email': user['email'], 'logo': logo_valide(user['profile_pic']),
                         'is_admin': bool(user['is_admin']), 'photo': url_media('avatars', user['photo']),
                         'handle': user['handle'], 'autres_comptes': autres_comptes(get_db(), user['id']),
+                        'notifs': get_db().execute('SELECT COUNT(*) FROM notifications WHERE user_id = ? AND lu = 0',
+                                                   (user['id'],)).fetchone()[0],
                         **apparence(get_db(), user['id'])}
     db = get_db()
     jeux = liste_jeux(db)
@@ -1404,6 +1432,8 @@ def api_join_team(team_id):
     try:
         db.execute("INSERT INTO team_members (team_id, user_id, jeu_id, joined_at) VALUES (?, ?, ?, datetime('now'))",
                    (team_id, uid, jeu_id))
+        t = db.execute('SELECT createur_id FROM teams WHERE id = ?', (team_id,)).fetchone()
+        notifier(db, [t['createur_id']], f"{utilisateur_connecte()['username']} a rejoint ta team", '/teams')
         db.commit()
     except sqlite3.IntegrityError:
         db.rollback()
@@ -1461,6 +1491,7 @@ def api_kick_member(team_id, user_id):
     if not db.execute('SELECT 1 FROM team_members WHERE team_id = ? AND user_id = ?', (team_id, user_id)).fetchone():
         return jsonify({'success': False, 'error': "Ce joueur n'est pas dans votre team"}), 404
     retirer_membre(db.cursor(), user_id, jeu_de_team(db, team_id))
+    notifier(db, [user_id], f"Tu as été retiré de la team {team['nom']}", '/teams')
     db.commit()
     return jsonify({'success': True}), 200
 
@@ -1477,6 +1508,7 @@ def api_transfer_captain(team_id, user_id):
     if not db.execute('SELECT 1 FROM team_members WHERE team_id = ? AND user_id = ?', (team_id, user_id)).fetchone():
         return jsonify({'success': False, 'error': "Ce joueur n'est pas dans votre team"}), 404
     db.execute('UPDATE teams SET createur_id = ? WHERE id = ?', (user_id, team_id))
+    notifier(db, [user_id], f"Tu es maintenant capitaine de {team['nom']}", '/teams')
     db.commit()
     return jsonify({'success': True}), 200
 
@@ -1640,7 +1672,7 @@ def classement_poule(db, jeu_id, ligue_num, poule, penalites=False):
     config = LIGUES[ligue_num]
     saison = saison_actuelle(db, jeu_id)
     rows = db.execute("""
-        SELECT t.id AS team_id, t.nom AS team_name, l.points, l.id AS ligue_id
+        SELECT t.id AS team_id, t.nom AS team_name, l.points, l.id AS ligue_id, t.logo, t.embleme
         FROM ligue l JOIN teams t ON t.id = l.team_id
         WHERE t.jeu_id = ? AND l.ligue_num = ? AND l.poule = ?""", (jeu_id, ligue_num, poule)).fetchall()
 
@@ -1686,6 +1718,7 @@ def classement_poule(db, jeu_id, ligue_num, poule, penalites=False):
         elif rang in config['descend']:
             statut = 'descend'
         places.append({'rang': rang, 'team_id': r['team_id'], 'team_name': r['team_name'],
+                       'logo': url_media('logos', r['logo']), 'embleme': r['embleme'] if r['embleme'] in EMBLEMES else None,
                        **stats[r['team_id']], 'points': finaux[r['team_id']], 'statut': statut})
     while len(places) < TEAMS_PAR_POULE:
         places.append({'rang': len(places) + 1, 'team_id': None, 'team_name': 'XXXXX', 'points': 0, 'statut': '',
@@ -1941,6 +1974,9 @@ def api_admin_create_match():
                     ORDER BY date LIMIT 1)""", (match_id, jeu_id, saison_actuelle(db, jeu_id), team1_id, team2_id, team2_id, team1_id))
     ajuster_points(c, team1_id, ligue_num, poule, points1)
     ajuster_points(c, team2_id, ligue_num, poule, points2)
+    for moi, adv, a, b, pts in ((team1_id, t2['nom'], score1, score2, points1), (team2_id, t1['nom'], score2, score1, points2)):
+        notifier(c, membres_de(c, moi), f"{'Victoire' if a > b else 'Défaite'} {a}-{b} contre {adv} ({'+' if pts else ''}{pts} pts)",
+                 f'/team/{moi}')
     db.commit()
     gagnant = t1['nom'] if score1 > score2 else t2['nom']
     return jsonify({'success': True, 'match_id': match_id, 'gagnant': gagnant,
@@ -2373,6 +2409,12 @@ def faire_avancer(c, match):
     c.execute("""UPDATE tournois SET statut = 'termine', champion_team_id = ?, champion_nom = ?,
                  termine_at = datetime('now') WHERE id = ?""", (match['vainqueur_id'], nom, t['id']))
     donner_badge_champion(c, match['vainqueur_id'])
+    notifier(c, membres_de(c, match['vainqueur_id']), f"Ta team remporte {nom_tournoi(c, t['id'])} ! Badge Champion débloqué",
+             f"/tournois/{t['id']}")
+
+
+def nom_tournoi(c, tournoi_id):
+    return c.execute('SELECT nom FROM tournois WHERE id = ?', (tournoi_id,)).fetchone()[0]
 
 
 def resume_tournoi(db, t):
@@ -2574,6 +2616,8 @@ def api_admin_creer_tournoi():
     c.execute("""INSERT INTO tournois (jeu_id, nom, description, quand, places, created_at, debut)
                  VALUES (?, ?, ?, ?, ?, datetime('now'), ?)""",
               (jeu['id'], nom, texte(data, 'description', 500), quand, places, debut))
+    capitaines = [r[0] for r in db.execute('SELECT createur_id FROM teams WHERE jeu_id = ?', (jeu['id'],))]
+    notifier(db, capitaines, f"Nouveau tournoi : {nom}{' (' + quand + ')' if quand else ''}, inscriptions ouvertes", f'/tournois/{c.lastrowid}')
     db.commit()
     return jsonify({'success': True, 'tournoi_id': c.lastrowid}), 201
 
@@ -2603,6 +2647,8 @@ def api_admin_tournoi_poules(tournoi_id):
             c.execute("""INSERT INTO tournoi_matchs (tournoi_id, phase, poule, team1_id, team2_id)
                          VALUES (?, 'poule', ?, ?, ?)""", (t['id'], lettre, a, b))
     c.execute("UPDATE tournois SET statut = 'poules' WHERE id = ?", (t['id'],))
+    for tid in teams:
+        notifier(c, membres_de(c, tid), f"{t['nom']} : les poules sont tirées, à vous de jouer", f"/tournois/{t['id']}")
     db.commit()
     return jsonify({'success': True, 'poules': {l: len(m) for l, m in repartition.items()}}), 200
 
@@ -2709,6 +2755,154 @@ def api_admin_supprimer_tournoi(tournoi_id):
     for table in ('tournoi_matchs', 'tournoi_inscriptions'):
         db.execute(f'DELETE FROM {table} WHERE tournoi_id = ?', (t['id'],))
     db.execute('DELETE FROM tournois WHERE id = ?', (t['id'],))
+    db.commit()
+    return jsonify({'success': True}), 200
+
+
+# ---------------------------------------------------------------------------
+# Mot de passe oublié : lien de réinitialisation envoyé par email (valable 1 heure)
+# Réglages : variables d'environnement XHQ_SMTP_* ou fichier config_mail.json (non versionné) :
+#   {"hote": "smtp.gmail.com", "port": 587, "utilisateur": "...@gmail.com",
+#    "mot_de_passe": "mot de passe d'application", "expediteur": "XHQ League <...@gmail.com>"}
+# ---------------------------------------------------------------------------
+REINIT_DUREE_MINUTES = 60
+REINIT_MAX_PAR_HEURE = 3
+
+
+def config_mail():
+    import json
+    conf = {}
+    chemin = os.path.join(BASE_DIR, 'config_mail.json')
+    if os.path.exists(chemin):
+        try:
+            with open(chemin, encoding='utf-8') as f:
+                conf = json.load(f)
+        except (OSError, ValueError):
+            conf = {}
+    for cle, env in (('hote', 'XHQ_SMTP_HOST'), ('port', 'XHQ_SMTP_PORT'), ('utilisateur', 'XHQ_SMTP_USER'),
+                     ('mot_de_passe', 'XHQ_SMTP_PASSWORD'), ('expediteur', 'XHQ_SMTP_FROM'), ('site', 'XHQ_SITE_URL'),
+                     ('tls', 'XHQ_SMTP_TLS')):
+        if os.environ.get(env):
+            conf[cle] = os.environ[env]
+    return conf if conf.get('hote') and conf.get('utilisateur') and conf.get('mot_de_passe') else None
+
+
+def envoyer_mail(destinataire, sujet, texte_brut):
+    import smtplib
+    from email.message import EmailMessage
+    conf = config_mail()
+    if not conf:
+        return False
+    msg = EmailMessage()
+    msg['Subject'] = sujet
+    msg['From'] = conf.get('expediteur') or conf['utilisateur']
+    msg['To'] = destinataire
+    msg.set_content(texte_brut)
+    try:
+        with smtplib.SMTP(conf['hote'], int(conf.get('port') or 587), timeout=15) as smtp:
+            if str(conf.get('tls', True)).lower() not in ('0', 'false', 'non'):
+                smtp.starttls()
+                smtp.login(conf['utilisateur'], conf['mot_de_passe'])
+            smtp.send_message(msg)
+        return True
+    except (OSError, smtplib.SMTPException) as e:
+        app.logger.error('Envoi du mail impossible : %s', e)
+        return False
+
+
+def hash_jeton(jeton):
+    import hashlib
+    return hashlib.sha256(jeton.encode()).hexdigest()
+
+
+@app.route('/mot-de-passe-oublie')
+def mot_de_passe_oublie_page():
+    return render_template('mot_de_passe.html', etape='demande', mail_actif=bool(config_mail()), jeton='')
+
+
+@app.route('/api/mot-de-passe/demande', methods=['POST'])
+def api_demande_reinitialisation():
+    email = texte(donnees_json(), 'email', 120).lower()
+    conf = config_mail()
+    if not conf:
+        return jsonify({'success': False, 'mail': False,
+                        'error': "L'envoi d'emails n'est pas encore activé : écris-nous via la page Contact."}), 503
+    db = get_db()
+    user = db.execute('SELECT id, username, email FROM users WHERE lower(email) = ? AND COALESCE(bloque, 0) = 0', (email,)).fetchone()
+    if user:
+        recentes = db.execute("""SELECT COUNT(*) FROM reinitialisations WHERE user_id = ?
+                                  AND created_at > datetime('now', '-1 hour')""", (user['id'],)).fetchone()[0]
+        if recentes < REINIT_MAX_PAR_HEURE:
+            jeton = secrets.token_urlsafe(32)
+            expire = (datetime.utcnow() + timedelta(minutes=REINIT_DUREE_MINUTES)).strftime('%Y-%m-%d %H:%M:%S')
+            db.execute("""INSERT INTO reinitialisations (user_id, jeton_hash, expire_at, created_at)
+                          VALUES (?, ?, ?, datetime('now'))""", (user['id'], hash_jeton(jeton), expire))
+            db.commit()
+            site = (conf.get('site') or request.host_url).rstrip('/')
+            envoyer_mail(user['email'], 'XHQ League · Réinitialiser ton mot de passe', f"""Salut {user['username']},
+
+Tu as demandé à changer ton mot de passe XHQ League. Clique sur ce lien (valable {REINIT_DUREE_MINUTES} minutes) :
+
+{site}/reinitialiser/{jeton}
+
+Si ce n'est pas toi, ignore ce message : ton mot de passe actuel reste valable.
+
+L'équipe XHQ""")
+    # Même réponse que le compte existe ou non (on ne révèle pas quels emails sont inscrits)
+    return jsonify({'success': True, 'mail': True}), 200
+
+
+def reinitialisation_valide(db, jeton):
+    return db.execute("""SELECT r.id, r.user_id FROM reinitialisations r JOIN users u ON u.id = r.user_id
+                         WHERE r.jeton_hash = ? AND r.utilise = 0 AND r.expire_at > ? AND COALESCE(u.bloque, 0) = 0""",
+                      (hash_jeton(jeton), datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'))).fetchone()
+
+
+@app.route('/reinitialiser/<jeton>')
+def reinitialiser_page(jeton):
+    valide = reinitialisation_valide(get_db(), jeton) is not None
+    return render_template('mot_de_passe.html', etape='nouveau' if valide else 'expire', jeton=jeton if valide else '')
+
+
+@app.route('/api/mot-de-passe/reinitialiser', methods=['POST'])
+def api_reinitialiser():
+    data = donnees_json()
+    db = get_db()
+    r = reinitialisation_valide(db, texte(data, 'jeton', 100))
+    if not r:
+        return jsonify({'success': False, 'error': 'Ce lien a expiré ou a déjà servi. Refais une demande.'}), 400
+    nouveau = data.get('nouveau') if isinstance(data.get('nouveau'), str) else ''
+    if len(nouveau) < 6:
+        return jsonify({'success': False, 'error': 'Le mot de passe doit faire au moins 6 caractères'}), 400
+    db.execute('UPDATE users SET password = ? WHERE id = ?', (generate_password_hash(nouveau), r['user_id']))
+    db.execute('UPDATE reinitialisations SET utilise = 1 WHERE user_id = ?', (r['user_id'],))
+    db.commit()
+    connecter(r['user_id'])
+    return jsonify({'success': True}), 200
+
+
+# ---------------------------------------------------------------------------
+# Notifications
+# ---------------------------------------------------------------------------
+@app.route('/api/notifications', methods=['GET'])
+@api_connectee
+def api_notifications():
+    db = get_db()
+    rows = db.execute('SELECT id, texte, lien, lu, created_at FROM notifications WHERE user_id = ? ORDER BY id DESC LIMIT 20',
+                      (session['user_id'],)).fetchall()
+    return jsonify({'non_lues': sum(1 for r in rows if not r['lu']),
+                    'items': [{**dict(r), 'lu': bool(r['lu']), 'quand': il_y_a(r['created_at'])} for r in rows]}), 200
+
+
+@app.route('/api/notifications/lues', methods=['POST'])
+@api_connectee
+def api_notifications_lues():
+    db = get_db()
+    db.execute('UPDATE notifications SET lu = 1 WHERE user_id = ? AND lu = 0', (session['user_id'],))
+    # On ne garde que les 100 dernières par joueur
+    db.execute('''DELETE FROM notifications WHERE user_id = ? AND id NOT IN
+                  (SELECT id FROM notifications WHERE user_id = ? ORDER BY id DESC LIMIT 100)''',
+               (session['user_id'], session['user_id']))
     db.commit()
     return jsonify({'success': True}), 200
 
@@ -2903,7 +3097,7 @@ def api_admin_generer_calendrier():
         deja.add(frozenset((r['team1_id'], r['team2_id'])))
     for m in db.execute('SELECT team1_id, team2_id FROM matchs WHERE jeu_id = ? AND saison = ?', (jeu['id'], saison)):
         deja.add(frozenset((m['team1_id'], m['team2_id'])))
-    crees = 0
+    crees, par_team = 0, {}
     for ligue_num in LIGUES:
         for poule in lettres_poules(ligue_num):
             teams = [r['team_id'] for r in db.execute("""SELECT l.team_id FROM ligue l JOIN teams t ON t.id = l.team_id
@@ -2919,6 +3113,11 @@ def api_admin_generer_calendrier():
                                (jeu['id'], saison, ligue_num, poule, n + 1, a, b, date))
                     deja.add(frozenset((a, b)))
                     crees += 1
+                    par_team[a] = par_team.get(a, 0) + 1
+                    par_team[b] = par_team.get(b, 0) + 1
+    for tid, n in par_team.items():
+        notifier(db, membres_de(db, tid), f"Calendrier publié : {n} match{'s' if n > 1 else ''} de ta team au programme",
+                 '/calendrier?team=moi')
     db.commit()
     return jsonify({'success': True, 'crees': crees}), 200
 
@@ -2939,6 +3138,11 @@ def api_admin_modifier_rencontre(rencontre_id):
         return jsonify({'success': False, 'error': 'Date invalide'}), 400
     if not db.execute('UPDATE rencontres SET date = ? WHERE id = ? AND match_id IS NULL', (date, rencontre_id)).rowcount:
         return jsonify({'success': False, 'error': 'Match introuvable ou déjà joué'}), 404
+    r = db.execute("""SELECT r.team1_id, r.team2_id, t1.nom AS n1, t2.nom AS n2 FROM rencontres r
+                      JOIN teams t1 ON t1.id = r.team1_id JOIN teams t2 ON t2.id = r.team2_id WHERE r.id = ?""", (rencontre_id,)).fetchone()
+    if r:
+        notifier(db, membres_de(db, r['team1_id']) + membres_de(db, r['team2_id']),
+                 f"Nouveau créneau : {r['n1']} vs {r['n2']}, {date_fr(date) if date else 'date à fixer'}", '/calendrier?team=moi')
     db.commit()
     return jsonify({'success': True, 'date_fr': date_fr(date) if date else 'Date à fixer'}), 200
 

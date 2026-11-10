@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mot de passe oublié · XHQ League</title>
+    {% include '_head.html' %}
+    <style>
+        .container { max-width: 440px; width: 100%; }
+        .card { padding: 2.4rem 2rem; }
+        h2 { font-size: 2rem; line-height: 1.1; margin-bottom: 0.5rem; }
+        .subtitle { color: var(--muted); margin-bottom: 1.8rem; }
+        .btn { width: 100%; padding: 0.9rem; font-size: 1.05rem; }
+        .retour { display: block; margin-top: 1.4rem; text-align: center; color: var(--muted); font-size: 0.92rem; text-decoration: none; }
+        .retour:hover { color: #fff; }
+        .envoye { display: none; }
+        .envoye.show { display: block; }
+    </style>
+</head>
+<body>
+    {% include '_nav.html' %}
+    <main class="xhq-main center">
+    <div class="container">
+        <div class="card">
+            {% if etape == 'demande' %}
+            <h2>Mot de passe oublié</h2>
+            {% if mail_actif %}
+            <p class="subtitle">Entre l'email de ton compte : on t'envoie un lien pour choisir un nouveau mot de passe (valable 1 heure).</p>
+            <div class="error-message" id="erreur"></div>
+            <div class="success-message envoye" id="envoye">C'est envoyé ! Si un compte existe avec cet email, tu vas recevoir le lien dans quelques minutes. Pense à regarder tes spams.</div>
+            <form id="form-demande">
+                <div class="form-group"><label for="email">Email</label><input type="email" id="email" autocomplete="email" required placeholder="ton@email.com"></div>
+                <button class="btn" type="submit">Recevoir le lien</button>
+            </form>
+            {% else %}
+            <p class="subtitle">La réinitialisation par email n'est pas encore activée. Écris-nous avec l'email de ton compte, un admin te donnera un nouveau mot de passe.</p>
+            <a class="btn" href="/contact?sujet=Mot%20de%20passe%20oubli%C3%A9">Contacter l'organisation</a>
+            {% endif %}
+
+            {% elif etape == 'nouveau' %}
+            <h2>Nouveau mot de passe</h2>
+            <p class="subtitle">Choisis ton nouveau mot de passe (6 caractères minimum).</p>
+            <div class="error-message" id="erreur"></div>
+            <form id="form-nouveau">
+                <div class="form-group"><label for="nouveau">Nouveau mot de passe</label><input type="password" id="nouveau" autocomplete="new-password" minlength="6" required></div>
+                <div class="form-group"><label for="confirmation">Confirmation</label><input type="password" id="confirmation" autocomplete="new-password" minlength="6" required></div>
+                <button class="btn" type="submit">Enregistrer et me connecter</button>
+            </form>
+
+            {% else %}
+            <h2>Lien expiré</h2>
+            <p class="subtitle">Ce lien n'est plus valable : il a déjà servi ou il a plus d'une heure.</p>
+            <a class="btn" href="/mot-de-passe-oublie">Refaire une demande</a>
+            {% endif %}
+            <a class="retour" href="/login">← Retour à la connexion</a>
+        </div>
+    </div>
+    </main>
+    {% include '_footer.html' %}
+    <script>
+        const erreur = document.getElementById('erreur');
+        const montrerErreur = t => { erreur.textContent = t; erreur.classList.add('show'); };
+
+        const demande = document.getElementById('form-demande');
+        if (demande) demande.addEventListener('submit', async e => {
+            e.preventDefault();
+            erreur.classList.remove('show');
+            const btn = demande.querySelector('button'); btn.disabled = true;
+            const { ok, data } = await api('/api/mot-de-passe/demande', { method: 'POST', body: { email: document.getElementById('email').value }, noRedirect: true });
+            btn.disabled = false;
+            if (ok) { demande.hidden = true; document.getElementById('envoye').classList.add('show'); }
+            else montrerErreur(data.error || 'Erreur');
+        });
+
+        const nouveau = document.getElementById('form-nouveau');
+        if (nouveau) nouveau.addEventListener('submit', async e => {
+            e.preventDefault();
+            const mdp = document.getElementById('nouveau').value;
+            if (mdp !== document.getElementById('confirmation').value) { montrerErreur('Les deux mots de passe ne sont pas identiques'); return; }
+            const { ok, data } = await api('/api/mot-de-passe/reinitialiser', { method: 'POST', body: { jeton: {{ jeton | tojson }}, nouveau: mdp }, noRedirect: true });
+            if (ok) window.location.href = '/';
+            else montrerErreur(data.error || 'Erreur');
+        });
+    </script>
+</body>
+</html>

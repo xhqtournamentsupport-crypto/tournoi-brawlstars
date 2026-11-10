@@ -108,6 +108,14 @@ Admin → **Joueurs** / **Teams** : retirer une photo, un logo, une bannière ou
 Admin → **Sauvegardes** pour en télécharger une. Sur PythonAnywhere, onglet *Tasks* : tâche quotidienne
 `python3.10 /home/XHQTounament/tournoi-brawlstars/app.py sauvegarde`.
 
+## Notifications
+Cloche dans la barre du haut : nouveau membre, calendrier publié, créneau changé, résultat, nouveau tournoi,
+poules tirées, tournoi gagné, exclusion, nomination capitaine. Marquées lues à l'ouverture (100 gardées par joueur).
+
+## Mot de passe oublié
+Lien par email valable 1 heure, à usage unique (`/mot-de-passe-oublie`). Réglages SMTP dans `config_mail.json`
+(voir DEPLOIEMENT.md) ou variables `XHQ_SMTP_*`. Sans réglage, renvoi vers le formulaire de contact.
+
 ## Teams
 - 5 joueurs maximum par team (`MAX_MEMBRES` en haut de `app.py`).
 - Tout membre peut **quitter** sa team ; si le capitaine part, le rôle passe au membre le plus ancien

@@ -126,6 +126,9 @@
         .classement th:last-child, .classement td:last-child { padding-right: 1.4rem; }
         .classement .c { text-align: center; width: 2.6rem; white-space: nowrap; }
         .classement td.nom { font-weight: 700; }
+        .lien-l1 { display: inline-flex; align-items: center; gap: 0.6rem; color: inherit; text-decoration: none; }
+        .lien-l1:hover { text-decoration: underline; }
+        .logo-rond.l1 { width: 30px; height: 30px; font-size: 0.75rem; }
         .classement td.pts { font-family: var(--display); font-size: 1.1rem; font-weight: 800; text-align: right; }
         .rg { display: inline-grid; place-items: center; width: 1.8rem; height: 1.8rem; border-radius: 50%; background: rgba(255, 255, 255, 0.05); font-size: 0.8rem; font-weight: 800; }
         .classement tr.champion .rg { background: var(--violet); box-shadow: 0 0 14px rgba(124, 108, 255, 0.6); }
@@ -332,7 +335,7 @@
                             {% for p in ligue1 %}
                             <tr class="{{ p.statut }}{% if not p.team_id %} libre{% endif %}">
                                 <td class="c"><span class="rg">{{ p.rang }}</span></td>
-                                <td class="nom">{{ p.team_name if p.team_id else 'Place libre' }}</td>
+                                <td class="nom">{% if p.team_id %}<a class="lien-l1" href="/team/{{ p.team_id }}"><i class="logo-rond petit l1">{% if p.logo %}<img src="{{ p.logo }}" alt="">{% else %}{{ p.embleme or p.team_name[:2] | upper }}{% endif %}</i>{{ p.team_name }}</a>{% else %}Place libre{% endif %}</td>
                                 <td class="c">{{ p.joues }}</td>
                                 <td class="cache-mobile"><span class="forme">{% for r in p.forme %}<i class="{{ 'v' if r == 'V' }}">{{ r }}</i>{% endfor %}</span></td>
                                 <td class="c">{{ '+' if p.diff > 0 }}{{ p.diff }}</td>

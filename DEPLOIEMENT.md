@@ -61,3 +61,22 @@ Onglet **Tasks** → *Scheduled tasks* → heure `04:00` → commande :
 
 → **Create**. Une copie de la base et des images est faite chaque nuit dans `sauvegardes/` (14 gardées).
 Pense aussi à en télécharger une de temps en temps depuis Admin → Sauvegardes.
+
+
+## Activer les emails « mot de passe oublié » (facultatif)
+Tant que ce n'est pas fait, « Mot de passe oublié » renvoie vers le formulaire de contact.
+
+1. Sur le Gmail de XHQ : *Compte Google → Sécurité → Validation en 2 étapes* (à activer), puis
+   *Mots de passe des applications* → crée-en un nommé « XHQ » → copie les 16 lettres.
+2. Sur PythonAnywhere, onglet **Files** → dossier `tournoi-brawlstars` → *New file* `config_mail.json` :
+
+        {
+          "hote": "smtp.gmail.com",
+          "port": 587,
+          "utilisateur": "xhqtournamentsupport@gmail.com",
+          "mot_de_passe": "les 16 lettres du mot de passe d'application",
+          "expediteur": "XHQ League <xhqtournamentsupport@gmail.com>",
+          "site": "https://xhqtounament.pythonanywhere.com"
+        }
+
+3. **Reload** dans l'onglet Web. Ce fichier n'est jamais envoyé sur GitHub.
