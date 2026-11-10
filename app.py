@@ -2838,11 +2838,11 @@ def api_demande_reinitialisation():
         if recentes < REINIT_MAX_PAR_HEURE:
             jeton = secrets.token_urlsafe(32)
             expire = (datetime.utcnow() + timedelta(minutes=REINIT_DUREE_MINUTES)).strftime('%Y-%m-%d %H:%M:%S')
-            db.execute("""INSERT INTO reinitialisations (user_id, jeton_hash, expire_at, created_at)
-                          VALUES (?, ?, ?, datetime('now'))""", (user['id'], hash_jeton(jeton), expire))
+            cur = db.execute("""INSERT INTO reinitialisations (user_id, jeton_hash, expire_at, created_at)
+                                VALUES (?, ?, ?, datetime('now'))""", (user['id'], hash_jeton(jeton), expire))
             db.commit()
             site = (conf.get('site') or request.host_url).rstrip('/')
-            envoyer_mail(user['email'], 'XHQ League · Réinitialiser ton mot de passe', f"""Salut {user['username']},
+            envoye = envoyer_mail(user['email'], 'XHQ League · Réinitialiser ton mot de passe', f"""Salut {user['username']},
 
 Tu as demandé à changer ton mot de passe XHQ League. Clique sur ce lien (valable {REINIT_DUREE_MINUTES} minutes) :
 
@@ -2851,6 +2851,10 @@ Tu as demandé à changer ton mot de passe XHQ League. Clique sur ce lien (valab
 Si ce n'est pas toi, ignore ce message : ton mot de passe actuel reste valable.
 
 L'équipe XHQ""")
+            if not envoye:
+                # L'envoi a échoué : la demande ne compte pas dans la limite, on pourra réessayer
+                db.execute('DELETE FROM reinitialisations WHERE id = ?', (cur.lastrowid,))
+                db.commit()
     # Même réponse que le compte existe ou non (on ne révèle pas quels emails sont inscrits)
     return jsonify({'success': True, 'mail': True}), 200
 
