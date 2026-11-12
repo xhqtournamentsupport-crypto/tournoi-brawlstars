@@ -7,75 +7,67 @@
     {% include '_head.html' %}
     <style>
         .header-right { display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; }
-        .solde-display { color: var(--muted); font-size: 0.95rem; }
-        .solde-display strong { color: var(--text); font-size: 1.2rem; }
+        .solde-display { color: var(--muted); font-size: 0.92rem; }
+        .solde-display strong { color: #fff; }
 
-        .intro { max-width: 640px; color: var(--muted); margin: -0.6rem 0 2rem; line-height: 1.6; }
+        /* ---------- Ton look + collection ---------- */
+        .vitrine { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 1rem; margin-bottom: 2rem; }
+        .look, .collection { position: relative; padding: 1.4rem 1.5rem; background: var(--panel); border: 1px solid var(--line); border-radius: 22px; overflow: hidden; }
+        .look { display: flex; align-items: center; gap: 1.3rem; background: radial-gradient(circle at 15% 50%, rgba(124, 108, 255, 0.22), transparent 55%), var(--panel); }
+        .look-av { width: 92px; height: 92px; flex-shrink: 0; display: grid; place-items: center; border-radius: 50%; background: var(--panel-2); border: 1px solid var(--line-2); font-size: 2.6rem; overflow: hidden; transition: box-shadow 0.3s, border-color 0.3s; }
+        .look-av img { width: 100%; height: 100%; object-fit: cover; }
+        .look small, .collection small { display: block; color: var(--bleu-clair); font-size: 0.75rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+        .look strong { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin: 0.25rem 0; font-family: var(--display); font-size: 1.5rem; }
+        .look p { margin: 0; color: var(--muted); font-size: 0.9rem; }
+        .collection b { display: block; margin: 0.3rem 0 0.7rem; font-family: var(--display); font-size: 2.2rem; line-height: 1; }
+        .collection b span { color: var(--muted); font-size: 1.2rem; }
+        .barre-coll { height: 8px; background: rgba(255, 255, 255, 0.07); border-radius: 999px; overflow: hidden; }
+        .barre-coll i { display: block; height: 100%; width: 0; border-radius: 999px; background: linear-gradient(90deg, var(--violet), var(--bleu-clair)); transition: width 0.8s var(--courbe); }
+        .collection p { margin: 0.7rem 0 0; color: var(--muted); font-size: 0.88rem; }
 
-        .shop-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
-            gap: 1rem;
-        }
+        /* ---------- Filtres ---------- */
+        .filtres { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 1.4rem; }
+        .filtre { padding: 0.45rem 1rem; border-radius: 999px; border: 1px solid var(--line-2); background: transparent; color: var(--text-soft); font-family: var(--body); font-weight: 700; font-size: 0.9rem; cursor: pointer; transition: background 0.2s, color 0.2s; }
+        .filtre:hover { color: #fff; background: rgba(255, 255, 255, 0.05); }
+        .filtre.actif { background: var(--violet); border-color: var(--violet); color: #fff; }
+        .filtre small { opacity: 0.75; margin-left: 0.25rem; }
 
-        .item-card {
-            display: flex;
-            flex-direction: column;
-            background: var(--panel);
-            border: 1px solid var(--line);
-            border-radius: var(--radius);
-            overflow: hidden;
-        }
+        /* ---------- Cartes ---------- */
+        .shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); gap: 1rem; }
+        .item-card { position: relative; display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line); border-radius: 22px; overflow: hidden; }
+        .item-card.equipe-carte { border-color: rgba(124, 108, 255, 0.6); box-shadow: 0 0 0 1px rgba(124, 108, 255, 0.25), 0 16px 34px rgba(0, 0, 0, 0.35); }
+        .item-image { position: relative; height: 160px; display: grid; place-items: center; background: radial-gradient(circle at 50% 60%, rgba(124, 108, 255, 0.18), transparent 60%), var(--bg-2); border-bottom: 1px solid var(--line); overflow: hidden; }
+        .item-card:hover .item-image > :first-child { transform: scale(1.06) rotate(-1deg); }
+        .item-image > :first-child { transition: transform 0.4s var(--courbe); }
+        .etat { position: absolute; top: 0.8rem; right: 0.8rem; padding: 0.15rem 0.6rem; border-radius: 999px; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.04em; }
+        .etat.recupere { background: rgba(255, 255, 255, 0.1); color: #fff; }
+        .etat.equipe { background: var(--violet); color: #fff; }
+        .rarete { position: absolute; top: 0.8rem; left: 0.8rem; padding: 0.15rem 0.6rem; border-radius: 999px; font-size: 0.7rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; background: rgba(10, 10, 15, 0.6); color: var(--text-soft); border: 1px solid var(--line-2); }
+        .rarete.exclusif { color: #fff; border-color: var(--violet); background: rgba(124, 108, 255, 0.25); }
+        .rarete.limite { color: var(--bleu-clair); }
 
-        .item-card.possede .item-image { background: var(--win-fond); }
-
-        .item-image {
-            height: 150px;
-            display: grid;
-            place-items: center;
-            background: var(--bg-2);
-            border-bottom: 1px solid var(--line);
-        }
-
-        /* Aperçus dessinés en CSS, pas d'images génériques */
-        .apercu-badge {
-            padding: 0.35rem 1rem;
-            border: 1px solid var(--line);
-            border-radius: var(--radius);
-            background: var(--accent);
-            color: #fff;
-            
-            font-size: 1.6rem;
-            font-weight: 700;
-            letter-spacing: 0.12em;
-            text-transform: uppercase;
-        }
-
+        /* Aperçus dessinés en CSS */
+        .apercu-badge { padding: 0.35rem 1rem; border: 1px solid var(--line); border-radius: 12px; background: var(--accent); color: #fff; font-size: 1.5rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
         .apercu-badge.saison { background: var(--bg); color: #fff; border-color: var(--line-2); }
         .apercu-badge.champion { background: transparent; color: #fff; border: 2px solid var(--violet); box-shadow: 0 0 22px rgba(124, 108, 255, 0.45); }
-
-        .apercu-cadre {
-            width: 84px;
-            height: 84px;
-            display: grid;
-            place-items: center;
-            font-size: 2.6rem;
-            background: var(--panel-2);
-            border-radius: var(--radius);
-        }
-
+        .apercu-cadre { width: 84px; height: 84px; display: grid; place-items: center; font-size: 2.6rem; background: var(--panel-2); border-radius: 50%; overflow: hidden; }
+        .apercu-cadre img { width: 100%; height: 100%; object-fit: cover; }
         .apercu-avatars { display: flex; gap: 0.5rem; font-size: 2.2rem; }
 
-        .item-content { flex: 1; display: flex; flex-direction: column; padding: 1.2rem 1.3rem 1.3rem; }
-        .item-type { color: var(--dim); font-size: 0.75rem; letter-spacing: 0.14em; text-transform: uppercase; }
-        .item-name { margin: 0.2rem 0 0.4rem; font-size: 1.5rem; font-weight: 700; }
-        .item-description { flex: 1; color: var(--muted); font-size: 0.92rem; line-height: 1.55; margin-bottom: 1.1rem; }
+        .item-content { flex: 1; display: flex; flex-direction: column; padding: 1.1rem 1.2rem 1.2rem; }
+        .item-type { color: var(--dim); font-size: 0.74rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
+        .item-name { margin: 0.15rem 0 0.4rem; font-family: var(--display); font-size: 1.35rem; font-weight: 700; }
+        .item-description { flex: 1; color: var(--muted); font-size: 0.9rem; line-height: 1.55; margin-bottom: 1rem; }
+        .item-footer { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+        .item-price { font-size: 0.85rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--bleu-clair); }
+        .item-limite { color: var(--bleu-clair); font-size: 0.82rem; font-weight: 600; }
+        .places { width: 100%; height: 5px; margin-top: -0.4rem; border-radius: 999px; background: rgba(255, 255, 255, 0.07); overflow: hidden; }
+        .places i { display: block; height: 100%; background: var(--violet); }
+        .boutons { display: flex; gap: 0.4rem; }
+        .item-btn { padding: 0.55rem 1.05rem; font-size: 0.9rem; }
+        .equip-btn { padding: 0.55rem 1rem; font-size: 0.9rem; }
 
-        .item-footer { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
-        .item-price { font-size: 1.1rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--win); }
-        .item-limite { color: var(--warn); font-size: 0.82rem; }
-        .item-btn { padding: 0.6rem 1.1rem; font-size: 0.95rem; }
-        
+        @media (max-width: 760px) { .vitrine { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
@@ -85,11 +77,34 @@
         <div class="header-nav">
             <h1><span class="kicker">Objets</span>Shop</h1>
             <div class="header-right">
-                <div class="solde-display" id="solde-display">Solde : …</div>
+                <div class="solde-display" id="solde-display">Tout est gratuit · solde <strong>0 €</strong></div>
             </div>
         </div>
 
-        <p class="intro">Tout est gratuit et purement visuel : rien ici ne change un résultat ou un classement. Certains objets ne sont disponibles qu'un temps, après ils disparaissent.</p>
+        <div class="vitrine">
+            <div class="look">
+                <span class="look-av{% if current_user.photo %} a-photo{% endif %}{% if current_user.cadre %} cadre-{{ current_user.cadre | replace('cadre_', '') }}{% endif %}" id="look-av">{% if current_user.photo %}<img src="{{ current_user.photo }}" alt="">{% else %}{{ current_user.logo }}{% endif %}</span>
+                <div>
+                    <small>Ton look</small>
+                    <strong>{{ current_user.username }} <span class="badge-joueur" id="look-badge"{% if not current_user.badge %} hidden{% endif %}>{{ current_user.badge or '' }}</span></strong>
+                    <p>C'est ce que les autres voient sur ton profil, dans ta team et dans la barre du haut.</p>
+                </div>
+            </div>
+            <div class="collection">
+                <small>Ta collection</small>
+                <b id="coll-chiffre">– <span>/ –</span></b>
+                <div class="barre-coll"><i id="coll-barre"></i></div>
+                <p>Tout est gratuit et purement visuel : rien ici ne change un résultat. Certains objets ne reviendront jamais.</p>
+            </div>
+        </div>
+
+        <div class="filtres" id="filtres">
+            <button class="filtre actif" type="button" data-filtre="tout">Tout</button>
+            <button class="filtre" type="button" data-filtre="badge">Badges</button>
+            <button class="filtre" type="button" data-filtre="cadre">Cadres</button>
+            <button class="filtre" type="button" data-filtre="avatars">Avatars</button>
+            <button class="filtre" type="button" data-filtre="manquants">À récupérer</button>
+        </div>
 
         <div class="message" id="shop-message"></div>
         <div id="shop-list" class="shop-grid">
@@ -102,16 +117,24 @@
     <script>
         const TYPES = { badge: 'Badge', cadre: "Cadre d'avatar", avatars: 'Avatars' };
         const monAvatar = {{ current_user.logo | tojson }};
+        const maPhoto = {{ (current_user.photo or '') | tojson }};
+        const RARETE = { champion_tournoi: ['exclusif', 'Exclusif'], fondateur: ['limite', 'Limité'], saison1: ['limite', 'Saison 1'] };
+        let objets = [];
+        let filtre = 'tout';
+
+        function visage() {
+            return maPhoto ? `<img src="${escapeHtml(maPhoto)}" alt="">` : escapeHtml(monAvatar);
+        }
 
         function apercu(item) {
             switch (item.code) {
                 case 'fondateur': return '<span class="apercu-badge">Fondateur</span>';
                 case 'saison1': return '<span class="apercu-badge saison">Saison 1</span>';
                 case 'champion_tournoi': return '<span class="apercu-badge champion">Champion</span>';
-                case 'cadre_or': return `<span class="apercu-cadre cadre-or">${escapeHtml(monAvatar)}</span>`;
-                case 'cadre_carbone': return `<span class="apercu-cadre cadre-carbone">${escapeHtml(monAvatar)}</span>`;
+                case 'cadre_or': return `<span class="apercu-cadre cadre-or">${visage()}</span>`;
+                case 'cadre_carbone': return `<span class="apercu-cadre cadre-carbone">${visage()}</span>`;
                 case 'pack_rare': return '<span class="apercu-avatars">🐉 🦄 🤖 👽</span>';
-                default: return '';
+                default: return '<span></span>';
             }
         }
 
@@ -123,54 +146,103 @@
             showMessage.timer = setTimeout(() => el.classList.remove('show'), 4000);
         }
 
-        async function loadSolde() {
-            const { ok, data } = await api('/api/profil');
-            if (ok) document.getElementById('solde-display').innerHTML = `Solde : <strong>${Number(data.solde) || 0} €</strong>`;
+        function majCollection() {
+            const total = objets.length, eus = objets.filter(o => o.possede).length;
+            document.getElementById('coll-chiffre').innerHTML = `${eus} <span>/ ${total} objets</span>`;
+            document.getElementById('coll-barre').style.width = total ? Math.round(100 * eus / total) + '%' : '0';
         }
 
-        async function loadShop() {
-            const container = document.getElementById('shop-list');
-            const { ok, data } = await api('/api/shop');
-            if (!ok || !Array.isArray(data)) {
-                container.innerHTML = `<div class="empty">${escapeHtml(data.error || 'Impossible de charger le shop')}</div>`;
-                return;
+        // Met à jour l'aperçu du look (et la barre du haut) après avoir équipé un objet
+        function majLook(d) {
+            const badge = document.getElementById('look-badge');
+            badge.textContent = d.badge || '';
+            badge.hidden = !d.badge;
+            for (const el of [document.getElementById('look-av'), document.getElementById('nav-avatar')]) {
+                if (!el) continue;
+                el.classList.remove('cadre-or', 'cadre-carbone');
+                if (d.cadre) el.classList.add('cadre-' + d.cadre.replace('cadre_', ''));
             }
-            if (!data.length) {
-                container.innerHTML = '<div class="empty">Rien pour le moment.</div>';
-                return;
+        }
+
+        function carte(item) {
+            let bouton;
+            if (item.possede) bouton = '<button class="item-btn" type="button" disabled>Récupéré</button>';
+            else if (!item.disponible) bouton = `<button class="item-btn" type="button" disabled>${escapeHtml(item.raison || 'Indisponible')}</button>`;
+            else bouton = `<button class="item-btn" type="button" onclick="recuperer(${Number(item.id)})">Récupérer</button>`;
+            let equiper = '';
+            if (item.possede && (item.type === 'badge' || item.type === 'cadre')) {
+                equiper = item.equipe
+                    ? `<button class="btn secondaire equip-btn" type="button" onclick="equiper('${item.type}', null)">Retirer</button>`
+                    : `<button class="btn equip-btn" type="button" onclick="equiper('${item.type}', '${escapeHtml(item.code)}')">Équiper</button>`;
             }
-            container.innerHTML = data.map(item => {
-                let bouton;
-                if (item.possede) bouton = '<button class="item-btn" type="button" disabled>Récupéré</button>';
-                else if (!item.disponible) bouton = `<button class="item-btn" type="button" disabled>${escapeHtml(item.raison || 'Indisponible')}</button>`;
-                else bouton = `<button class="item-btn" type="button" onclick="recuperer(${Number(item.id)})">Récupérer</button>`;
-                const limite = item.code === 'fondateur' && !item.possede && item.disponible
-                    ? `<span class="item-limite">${Number(item.places_restantes)} place(s) restante(s)</span>`
-                    : (item.code === 'saison1' && item.disponible && !item.possede ? '<span class="item-limite">Saison 1 seulement</span>' : '<span class="item-price">Gratuit</span>');
-                return `
-                <div class="item-card ${item.possede ? 'possede' : ''}">
-                    <div class="item-image">${apercu(item)}</div>
+            let limite = '<span class="item-price">Gratuit</span>';
+            let barre = '';
+            if (item.code === 'fondateur' && !item.possede && item.disponible) {
+                limite = `<span class="item-limite">${Number(item.places_restantes)} place(s) restante(s)</span>`;
+                barre = `<div class="places"><i style="width:${Math.max(2, Math.round(Number(item.places_restantes)))}%"></i></div>`;
+            } else if (item.code === 'saison1' && item.disponible && !item.possede) {
+                limite = '<span class="item-limite">Saison 1 seulement</span>';
+            }
+            const rarete = RARETE[item.code];
+            const etat = item.equipe ? '<span class="etat equipe">Équipé</span>' : item.possede ? '<span class="etat recupere">Récupéré</span>' : '';
+            return `
+                <div class="item-card ${item.possede ? 'possede' : ''} ${item.equipe ? 'equipe-carte' : ''}">
+                    <div class="item-image">${apercu(item)}${rarete ? `<span class="rarete ${rarete[0]}">${rarete[1]}</span>` : ''}${etat}</div>
                     <div class="item-content">
                         <div class="item-type">${TYPES[item.type] || escapeHtml(item.type)}</div>
                         <div class="item-name">${escapeHtml(item.nom)}</div>
                         <div class="item-description">${escapeHtml(item.description)}</div>
-                        <div class="item-footer">${limite}${bouton}</div>
+                        <div class="item-footer">${limite}<span class="boutons">${equiper}${bouton}</span>${barre}</div>
                     </div>
                 </div>`;
-            }).join('');
         }
+
+        function afficher() {
+            const liste = objets.filter(o => filtre === 'tout' || (filtre === 'manquants' ? !o.possede : o.type === filtre));
+            document.getElementById('shop-list').innerHTML = liste.length
+                ? liste.map(carte).join('')
+                : '<div class="empty">' + (filtre === 'manquants' ? 'Tu as tout récupéré, bravo !' : 'Rien dans cette catégorie.') + '</div>';
+        }
+
+        async function loadShop() {
+            const { ok, data } = await api('/api/shop');
+            if (!ok || !Array.isArray(data)) {
+                document.getElementById('shop-list').innerHTML = `<div class="empty">${escapeHtml(data.error || 'Impossible de charger le shop')}</div>`;
+                return;
+            }
+            objets = data;
+            majCollection();
+            afficher();
+        }
+
+        document.querySelectorAll('.filtre').forEach(b => b.addEventListener('click', () => {
+            filtre = b.dataset.filtre;
+            document.querySelectorAll('.filtre').forEach(x => x.classList.toggle('actif', x === b));
+            afficher();
+        }));
 
         async function recuperer(itemId) {
             const { ok, data } = await api(`/api/shop/recuperer/${itemId}`, { method: 'POST' });
             if (ok && data.success) {
-                showMessage(`${data.item} ajouté à ton inventaire. Tu peux l'équiper depuis ton profil.`, 'success');
+                showMessage(`${data.item} ajouté à ta collection.`, 'success');
+                majLook(data);
                 loadShop();
             } else {
                 showMessage(data.error || 'Erreur', 'error');
             }
         }
 
-        loadSolde();
+        async function equiper(type, code) {
+            const { ok, data } = await api('/api/profil/equiper', { method: 'POST', body: { type, code } });
+            if (ok && data.success) {
+                majLook(data);
+                showMessage(code ? 'Équipé : visible sur ton profil.' : 'Retiré de ton profil.', 'success');
+                loadShop();
+            } else {
+                showMessage(data.error || 'Erreur', 'error');
+            }
+        }
+
         loadShop();
     </script>
 </body>
