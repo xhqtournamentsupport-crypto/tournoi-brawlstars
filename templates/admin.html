@@ -13,36 +13,44 @@
         .stat.alerte { border-color: var(--violet); }
         .stat.alerte .stat-value { color: var(--gold); }
 
-        .tabs { display: flex; gap: 1.8rem; flex-wrap: wrap; margin-bottom: 1.6rem; border-bottom: 1px solid var(--line); }
-        .tab {
-            position: relative;
-            padding: 0.6rem 0;
-            border: 0;
-            background: none;
-            color: var(--muted);
-            font-family: var(--display);
-            font-size: 1.2rem;
-            font-weight: 600;
-            letter-spacing: 0.04em;
-            text-transform: uppercase;
-            cursor: pointer;
-        }
+        .stat[data-aller] { cursor: pointer; transition: border-color 0.2s, transform 0.2s var(--courbe); }
+        .stat[data-aller]:hover { border-color: var(--line-2); transform: translateY(-2px); }
 
-        .tab:hover { color: var(--text); }
-        .tab.active { color: var(--text); }
-        .tab.active::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 3px; background: var(--accent); }
+        /* ---------- À faire ---------- */
+        .a-faire { margin-bottom: 1.8rem; padding: 1.2rem 1.3rem; background: radial-gradient(circle at 0% 0%, rgba(124, 108, 255, 0.16), transparent 50%), var(--panel); border: 1px solid var(--line); border-radius: 20px; }
+        .a-faire-tete { display: flex; justify-content: space-between; align-items: baseline; gap: 0.3rem 1rem; flex-wrap: wrap; margin-bottom: 0.8rem; }
+        .a-faire-tete h2 { white-space: nowrap; }
+        .a-faire-tete h2 { margin: 0; font-size: 1.15rem; }
+        .a-faire-tete span { color: var(--muted); font-size: 0.88rem; }
+        .taches { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: 0.6rem; }
+        .tache { display: flex; align-items: center; gap: 0.8rem; padding: 0.75rem 0.9rem; border: 1px solid var(--line); border-radius: 14px; background: var(--bg-2); color: var(--text); text-align: left; font: inherit; cursor: pointer; transition: border-color 0.2s, background 0.2s; }
+        .tache:hover { border-color: var(--violet); background: var(--panel-2); }
+        .tache .ic { width: 34px; height: 34px; flex-shrink: 0; display: grid; place-items: center; border-radius: 10px; background: rgba(255, 255, 255, 0.05); color: var(--muted); }
+        .tache.urgent .ic { background: var(--violet); color: #fff; box-shadow: 0 0 16px rgba(124, 108, 255, 0.45); }
+        .tache .ic svg { width: 17px; height: 17px; }
+        .tache b { display: block; font-size: 0.95rem; }
+        .tache small { display: block; color: var(--muted); font-size: 0.82rem; margin-top: 0.1rem; }
+        .tache .fleche { margin-left: auto; color: var(--dim); }
+        .a-jour { display: flex; align-items: center; gap: 0.6rem; color: var(--text-soft); }
+        .a-jour::before { content: '✓'; width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; background: var(--violet); color: #fff; font-weight: 800; font-size: 0.85rem; }
 
-        .tab .pastille {
-            display: inline-block;
-            min-width: 1.3rem;
-            margin-left: 0.35rem;
-            padding: 0 0.35rem;
-            border-radius: 999px;
-            background: var(--gold);
-            color: var(--ink);
-            font-size: 0.8rem;
-            text-align: center;
-        }
+        /* ---------- Onglets ---------- */
+        .tabs { position: sticky; top: 76px; z-index: 5; display: flex; gap: 0.3rem; margin-bottom: 1.4rem; padding: 0.3rem; overflow-x: auto; scrollbar-width: none; background: rgba(20, 20, 28, 0.85); backdrop-filter: blur(12px); border: 1px solid var(--line); border-radius: 999px; }
+        .tabs::-webkit-scrollbar { display: none; }
+        .tab { flex-shrink: 0; display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.55rem 1rem; border: 0; border-radius: 999px; background: none; color: var(--muted); font-family: var(--body); font-size: 0.92rem; font-weight: 700; cursor: pointer; transition: background 0.2s, color 0.2s; white-space: nowrap; }
+        .tab svg { width: 16px; height: 16px; }
+        .tab:hover { color: var(--text); background: rgba(255, 255, 255, 0.05); }
+        .tab.active { color: #fff; background: var(--violet); box-shadow: 0 6px 18px rgba(124, 108, 255, 0.35); }
+        .tab .pastille { display: inline-block; min-width: 1.25rem; padding: 0 0.35rem; border-radius: 999px; background: #fff; color: var(--noir); font-size: 0.75rem; line-height: 1.25rem; text-align: center; }
+        .tab.active .pastille { color: var(--violet); }
+
+        /* ---------- Sauvegardes ---------- */
+        .svg-liste { display: grid; gap: 0.4rem; }
+        .svg-ligne { display: flex; justify-content: space-between; gap: 1rem; padding: 0.6rem 0.9rem; border: 1px solid var(--line); border-radius: 12px; background: var(--bg-2); font-size: 0.92rem; }
+        .svg-ligne span { color: var(--muted); }
+        .surligne { animation: surligne 1.6s var(--courbe); }
+        @keyframes surligne { 0% { box-shadow: 0 0 0 0 rgba(124, 108, 255, 0.7); } 100% { box-shadow: 0 0 0 14px rgba(124, 108, 255, 0); } }
+        @media (max-width: 900px) { .tabs { top: 64px; } }
 
         .tab .pastille[hidden] { display: none; }
         .panel { display: none; background: none; border: 0; padding: 0; }
@@ -105,6 +113,8 @@
             .match-form { grid-template-columns: 1fr; }
             .versus { grid-template-columns: 1fr 70px; }
             .versus .vs { display: none; }
+            .versus > :nth-child(5) { order: 3; }
+            .versus > :nth-child(4) { order: 4; }
         }
     </style>
 </head>
@@ -121,21 +131,25 @@
         </div>
 
         <div class="stats">
-            <div class="stat"><div class="stat-label">Joueurs</div><div class="stat-value" id="st-joueurs">…</div></div>
-            <div class="stat"><div class="stat-label">Teams</div><div class="stat-value" id="st-teams">…</div></div>
-            <div class="stat"><div class="stat-label" id="st-matchs-label">Matchs (saison)</div><div class="stat-value" id="st-matchs">…</div></div>
-            <div class="stat" id="st-messages-card"><div class="stat-label">Messages à traiter</div><div class="stat-value" id="st-messages">…</div></div>
+            <div class="stat" data-aller="joueurs"><div class="stat-label">Joueurs</div><div class="stat-value" id="st-joueurs">…</div></div>
+            <div class="stat" data-aller="teams"><div class="stat-label">Teams</div><div class="stat-value" id="st-teams">…</div></div>
+            <div class="stat" data-aller="matchs"><div class="stat-label" id="st-matchs-label">Matchs (saison)</div><div class="stat-value" id="st-matchs">…</div></div>
+            <div class="stat" id="st-messages-card" data-aller="messages"><div class="stat-label">Messages à traiter</div><div class="stat-value" id="st-messages">…</div></div>
         </div>
+        <section class="a-faire" id="a-faire">
+            <div class="a-faire-tete"><h2>À faire</h2><span id="a-faire-resume">…</span></div>
+            <div class="taches" id="taches"></div>
+        </section>
         {% include '_jeux.html' %}
 
         <div class="tabs" role="tablist">
-            <button class="tab active" type="button" data-tab="matchs">Matchs</button>
-            <button class="tab" type="button" data-tab="teams">Teams</button>
-            <button class="tab" type="button" data-tab="saison">Saison</button>
-            <button class="tab" type="button" data-tab="calendrier">Calendrier</button>
-            <button class="tab" type="button" data-tab="joueurs">Joueurs</button>
-            <button class="tab" type="button" data-tab="messages">Messages<span class="pastille" id="pastille" hidden></span></button>
-            <button class="tab" type="button" data-tab="sauvegardes">Sauvegardes</button>
+            <button class="tab active" type="button" data-tab="matchs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h12v4a6 6 0 0 1-12 0V4zM9 20h6M12 14v6"/></svg>Matchs</button>
+            <button class="tab" type="button" data-tab="teams"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M3 19c0-3 3-5 6-5s6 2 6 5M16 5a3 3 0 0 1 0 6M18 14c2 .5 3 2.4 3 5"/></svg>Teams</button>
+            <button class="tab" type="button" data-tab="saison"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Saison</button>
+            <button class="tab" type="button" data-tab="calendrier"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Calendrier</button>
+            <button class="tab" type="button" data-tab="joueurs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Joueurs</button>
+            <button class="tab" type="button" data-tab="messages"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4z"/></svg>Messages<span class="pastille" id="pastille" hidden></span></button>
+            <button class="tab" type="button" data-tab="sauvegardes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M4 19h16"/></svg>Sauvegardes</button>
         </div>
 
         <div class="message" id="admin-message"></div>
@@ -145,7 +159,7 @@
             <div class="section">
                 <h2 class="section-title">Enregistrer un résultat</h2>
                 <p class="hint">Victoire = {{ points_victoire }} pts, défaite = {{ points_defaite }} pt. Pas de match nul. Les deux teams doivent être dans la même ligue et la même poule.</p>
-                <div class="match-form">
+                <div class="match-form" id="form-match">
                     <div>
                         <label for="m-ligue">Ligue</label>
                         <select id="m-ligue">
@@ -280,7 +294,7 @@
                 <a class="btn" href="/admin/sauvegarde">Télécharger une sauvegarde maintenant</a>
                 <div class="sauvegarde-auto">
                     <strong>Sauvegarde automatique chaque jour (PythonAnywhere)</strong>
-                    <p>Onglet <b>Tasks</b> → « Scheduled tasks » → choisis une heure (par exemple 04:00) → colle cette commande → <b>Create</b> :</p>
+                    <p>Onglet <b>Tâches</b> → choisis une heure (par exemple 04:00) → colle cette commande → valide :</p>
                     <code>python3.10 /home/XHQTounament/tournoi-brawlstars/app.py sauvegarde</code>
                     <p>Les 14 dernières sont gardées dans le dossier <code>sauvegardes/</code>.</p>
                 </div>
@@ -346,8 +360,52 @@
             if (nom === 'saison') chargerSaison();
             if (nom === 'calendrier') chargerCalendrier();
             if (nom === 'sauvegardes') chargerSauvegardes();
+            history.replaceState(null, '', nom === 'matchs' ? location.pathname : '#' + nom);
         }
         document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => ouvrirOnglet(t.dataset.tab)));
+
+        // Aller à un onglet depuis une carte ou une tâche, en remontant jusqu'aux onglets
+        function aller(nom) {
+            ouvrirOnglet(nom);
+            const tabs = document.querySelector('.tabs');
+            if (tabs.getBoundingClientRect().top > 120 || tabs.getBoundingClientRect().top < 0)
+                window.scrollTo({ top: tabs.getBoundingClientRect().top + scrollY - 90, behavior: 'smooth' });
+        }
+        document.querySelectorAll('[data-aller]').forEach(c => c.addEventListener('click', () => aller(c.dataset.aller)));
+
+        // ---------- à faire ----------
+        const ICONES = {
+            alerte: '<path d="M12 8v5M12 17h.01"/><circle cx="12" cy="12" r="9"/>',
+            message: '<path d="M4 5h16v11H8l-4 4z"/>',
+            cal: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+            coupe: '<path d="M6 4h12v4a6 6 0 0 1-12 0V4zM9 20h6M12 14v6"/>',
+            save: '<path d="M12 3v12M7 10l5 5 5-5M4 19h16"/>',
+            dodo: '<path d="M20 14A8 8 0 1 1 10 4a6 6 0 0 0 10 10z"/>'
+        };
+        function tache(urgent, icone, titre, detail, action) {
+            const attr = action.startsWith('/') ? `onclick="location.href='${action}'"` : `onclick="aller('${action}')"`;
+            return `<button class="tache${urgent ? ' urgent' : ''}" type="button" ${attr}>
+                <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONES[icone]}</svg></span>
+                <span><b>${titre}</b><small>${detail}</small></span><span class="fleche">→</span></button>`;
+        }
+        const pl = (n, mot) => `${n} ${mot}${n > 1 ? 's' : ''}`;
+        function afficherAFaire(stats) {
+            const a = stats.a_faire || {}, t = [];
+            if (stats.messages_non_traites) t.push(tache(true, 'message', pl(stats.messages_non_traites, 'message') + ' à traiter', 'Contact, mot de passe perdu, signalement…', 'messages'));
+            if (a.en_retard) t.push(tache(true, 'alerte', pl(a.en_retard, 'résultat') + ' en retard', 'Match prévu passé, score pas encore saisi', 'calendrier'));
+            for (const tr of a.tournois || []) {
+                const etat = { inscriptions: `${Number(tr.inscrits)}/${Number(tr.places)} inscrits`, poules: 'Phase de poules en cours', bracket: 'Phase finale en cours' }[tr.statut] || escapeHtml(tr.statut);
+                t.push(tache(tr.statut !== 'inscriptions', 'coupe', escapeHtml(tr.nom), etat, '/tournois/' + Number(tr.id)));
+            }
+            if (a.sans_date) t.push(tache(false, 'cal', pl(a.sans_date, 'match') + ' sans date', 'À caler dans le calendrier', 'calendrier'));
+            else if (!a.prevus && stats.teams > 1) t.push(tache(false, 'cal', 'Pas de calendrier', 'Génère les matchs de la saison en 1 clic', 'calendrier'));
+            if (a.teams_inactives) t.push(tache(false, 'dodo', pl(a.teams_inactives, 'team') + ' sans match', `Saison ${Number(stats.saison)} : à relancer, sinon retirées à la clôture`, 'saison'));
+            if (a.sauvegarde_jours === null || a.sauvegarde_jours === undefined) t.push(tache(true, 'save', 'Aucune sauvegarde', 'Télécharge-en une et active la tâche quotidienne', 'sauvegardes'));
+            else if (a.sauvegarde_jours > 2) t.push(tache(true, 'save', `Dernière sauvegarde il y a ${Number(a.sauvegarde_jours)} jours`, 'La tâche automatique ne tourne peut-être plus', 'sauvegardes'));
+            document.getElementById('taches').innerHTML = t.length ? t.join('') : '<div class="a-jour">Tout est à jour. Rien à faire pour l\'instant.</div>';
+            const semaine = a.cette_semaine ? ` · ${pl(a.cette_semaine, 'match')} prévu${a.cette_semaine > 1 ? 's' : ''} cette semaine` : '';
+            document.getElementById('a-faire-resume').textContent = (t.length ? pl(t.length, 'point') + ' à voir' : 'Saison ' + stats.saison) + semaine;
+        }
 
         // ---------- stats ----------
         async function chargerStats() {
@@ -362,6 +420,7 @@
             const pastille = document.getElementById('pastille');
             pastille.textContent = data.messages_non_traites;
             pastille.hidden = data.messages_non_traites === 0;
+            afficherAFaire(data);
         }
 
         // ---------- matchs ----------
@@ -655,10 +714,26 @@
                     <td><span class="tag">L${Number(r.ligue_num)} · ${escapeHtml(r.poule)}</span> <span class="muted">J${Number(r.journee) || '—'}</span></td>
                     <td><strong>${escapeHtml(r.team1_nom)}</strong> <span class="muted">vs</span> <strong>${escapeHtml(r.team2_nom)}</strong></td>
                     <td><div class="actions">
-                        <button class="btn petit secondaire" type="button" onclick="dateRencontre(${Number(r.id)})">Enregistrer</button>
+                        ${r.en_retard ? `<button class="btn petit" type="button" onclick="saisirResultat(${Number(r.ligue_num)}, '${escapeHtml(r.poule)}', ${Number(r.team1_id)}, ${Number(r.team2_id)})">Saisir le résultat</button>` : ''}
+                        <button class="btn petit secondaire" type="button" onclick="dateRencontre(${Number(r.id)})">Enregistrer la date</button>
                         <button class="btn-mini" type="button" onclick="supprimerRencontre(${Number(r.id)})">Retirer</button>
                     </div></td>
                 </tr>`).join('');
+        }
+
+        // Pré-remplit le formulaire « Enregistrer un résultat » avec un match prévu
+        function saisirResultat(ligue, poule, t1, t2) {
+            aller('matchs');
+            document.getElementById('m-ligue').value = ligue;
+            remplirPoules();
+            document.getElementById('m-poule').value = poule;
+            remplirTeamsMatch();
+            document.getElementById('m-team1').value = t1;
+            document.getElementById('m-team2').value = t2;
+            const form = document.getElementById('form-match');
+            form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            form.classList.remove('surligne'); void form.offsetWidth; form.classList.add('surligne');
+            document.getElementById('m-score1').focus();
         }
 
         async function genererCalendrier() {
@@ -687,8 +762,14 @@
             const { ok, data } = await api('/api/admin/sauvegardes');
             const box = document.getElementById('liste-sauvegardes');
             if (!ok) return;
+            const quand = nom => {
+                const m = /xhq-(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})/.exec(nom);
+                return m ? `${m[3]}/${m[2]}/${m[1]} à ${m[4]}h${m[5]}` : nom;
+            };
+            const taille = ko => ko >= 1024 ? (ko / 1024).toFixed(1).replace('.', ',') + ' Mo' : ko + ' Ko';
+            box.className = data.length ? 'svg-liste' : 'muted';
             box.innerHTML = data.length
-                ? data.map(f => `<div>${escapeHtml(f.nom)} <span class="muted">· ${Number(f.taille_ko)} Ko</span></div>`).join('')
+                ? data.map(f => `<div class="svg-ligne" title="${escapeHtml(f.nom)}">${escapeHtml(quand(f.nom))}<span>${taille(Number(f.taille_ko))}</span></div>`).join('')
                 : 'Aucune sauvegarde sur le serveur pour l\'instant.';
         }
 
@@ -774,7 +855,12 @@
         
         // ---------- démarrage ----------
         chargerStats();
-        chargerTeams();
+        function ongletDepuisUrl() {
+            const h = location.hash.slice(1);
+            if (h && document.querySelector(`.tab[data-tab="${CSS.escape(h)}"]`)) ouvrirOnglet(h);
+        }
+        window.addEventListener('hashchange', ongletDepuisUrl);
+        chargerTeams().then(ongletDepuisUrl);
         chargerMatchs();
     </script>
 </body>

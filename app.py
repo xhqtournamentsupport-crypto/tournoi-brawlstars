@@ -1930,7 +1930,38 @@ def api_admin_stats():
         'matchs': compter('SELECT COUNT(*) FROM matchs WHERE jeu_id = ? AND saison = ?', jeu['id'], saison),
         'saison': saison,
         'messages_non_traites': compter('SELECT COUNT(*) FROM contact_messages WHERE traite = 0 OR traite IS NULL'),
+        'a_faire': a_faire_admin(db, jeu['id'], saison),
     }), 200
+
+
+def a_faire_admin(db, jeu_id, saison):
+    """Ce qui attend l'organisateur : résultats en retard, matchs sans date, teams inactives, tournois, sauvegarde."""
+    maintenant = datetime.now()
+    compter = lambda req, *p: db.execute(req, p).fetchone()[0]
+    base = ('FROM rencontres r JOIN teams t1 ON t1.id = r.team1_id JOIN teams t2 ON t2.id = r.team2_id '
+            'WHERE r.jeu_id = ? AND r.saison = ? AND r.match_id IS NULL')
+    dans7 = (maintenant + timedelta(days=7)).strftime('%Y-%m-%dT%H:%M')
+    ici = maintenant.strftime('%Y-%m-%dT%H:%M')
+    tournois = [dict(r) for r in db.execute(
+        """SELECT t.id, t.nom, t.statut, t.places, (SELECT COUNT(*) FROM tournoi_inscriptions i WHERE i.tournoi_id = t.id) AS inscrits
+           FROM tournois t WHERE t.jeu_id = ? AND t.statut != 'termine' ORDER BY t.id""", (jeu_id,))]
+    derniere = None
+    if os.path.isdir(SAUVEGARDE_DIR):
+        zips = [os.path.join(SAUVEGARDE_DIR, f) for f in os.listdir(SAUVEGARDE_DIR) if f.startswith('xhq-') and f.endswith('.zip')]
+        if zips:
+            derniere = (maintenant - datetime.fromtimestamp(max(os.path.getmtime(z) for z in zips))).days
+    return {
+        'en_retard': compter(f'SELECT COUNT(*) {base} AND r.date IS NOT NULL AND r.date < ?', jeu_id, saison, ici),
+        'sans_date': compter(f'SELECT COUNT(*) {base} AND r.date IS NULL', jeu_id, saison),
+        'cette_semaine': compter(f'SELECT COUNT(*) {base} AND r.date >= ? AND r.date <= ?', jeu_id, saison, ici, dans7),
+        'prevus': compter(f'SELECT COUNT(*) {base}', jeu_id, saison),
+        'teams_inactives': compter("""SELECT COUNT(*) FROM teams t JOIN ligue l ON l.team_id = t.id WHERE t.jeu_id = ? AND NOT EXISTS (
+                                        SELECT 1 FROM matchs m WHERE m.saison = ? AND (m.team1_id = t.id OR m.team2_id = t.id))""",
+                                   jeu_id, saison),
+        'suspendus': compter('SELECT COUNT(*) FROM users WHERE bloque = 1'),
+        'tournois': tournois,
+        'sauvegarde_jours': derniere,
+    }
 
 
 @app.route('/api/admin/matchs', methods=['POST'])
