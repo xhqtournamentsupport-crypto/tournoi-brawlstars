@@ -237,6 +237,11 @@
                 <button class="btn" type="button" onclick="logout()">Se déconnecter</button>
                 <button class="btn btn-danger" type="button" onclick="deleteAccount()">Supprimer mon compte</button>
             </div>
+            <div class="form-group" id="suppr-zone" hidden style="margin-top:1rem;max-width:360px">
+                <label for="suppr-mdp">Pour confirmer, tape ton mot de passe</label>
+                <input type="password" id="suppr-mdp" autocomplete="current-password">
+                <button class="btn btn-danger" type="button" style="margin-top:0.6rem" onclick="confirmerSuppression()">Supprimer définitivement</button>
+            </div>
         </div>
     </div>
     </main>
@@ -520,9 +525,16 @@
 
         async function deleteAccount() {
             if (!confirm('Supprimer ton compte ? Cette action est définitive.')) return;
-            const mot_de_passe = prompt('Pour confirmer, tape ton mot de passe :');
+            // Le mot de passe se tape dans un champ masqué (pas dans une fenêtre qui l'afficherait en clair)
+            document.getElementById('suppr-zone').hidden = false;
+            document.getElementById('suppr-mdp').focus();
+        }
+
+        async function confirmerSuppression() {
+            const mot_de_passe = document.getElementById('suppr-mdp').value;
             if (!mot_de_passe) return;
             const { ok, data } = await api('/api/profil/delete', { method: 'POST', body: { mot_de_passe } });
+            document.getElementById('suppr-mdp').value = '';
             if (ok && data.success) {
                 alert('Compte supprimé.');
                 window.location.href = '/login';

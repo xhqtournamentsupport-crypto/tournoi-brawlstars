@@ -13,7 +13,7 @@ Durée : environ 15 minutes. Tes données (comptes, teams, matchs) sont conserv�
    ```
    git clone https://github.com/xhqtournamentsupport-crypto/tournoi-brawlstars.git
    cd tournoi-brawlstars
-   pip3.10 install --user -r requirements.txt
+   pip3.10 install --user -U -r requirements.txt
    ```
 
 ## 3. Créer l'application web

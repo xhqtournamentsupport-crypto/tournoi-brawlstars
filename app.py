@@ -1287,6 +1287,8 @@ def api_login():
     frais = etat_compte()
     if frais['echecs_connexion'] >= ESSAIS_MAX and (frais['verrou_niveau'] or 0) >= 1:
         db.execute('UPDATE users SET verrou_definitif = 1, echecs_connexion = 0 WHERE id = ?', (user['id'],))
+        prevenir_par_mail(db, user['id'], 'Ton compte est verrouillé',
+                          'Encore trop d\'essais de mot de passe ratés : ton compte est verrouillé. Écris à l\'orga (page Contact) pour le débloquer.')
         notifier(db, [r[0] for r in db.execute('SELECT id FROM users WHERE is_admin = 1').fetchall()],
                  f"Compte verrouillé (trop d'essais de mot de passe) : {user['id']}. À vérifier dans Admin → Joueurs.", '/admin#joueurs')
         db.commit()
@@ -1296,6 +1298,9 @@ def api_login():
         db.execute("""UPDATE users SET verrou_niveau = 1, echecs_connexion = 0, bloque_jusqua = datetime('now', ?)
                       WHERE id = ?""", (f'+{BLOCAGE_JOURS} days', user['id']))
         db.commit()
+        prevenir_par_mail(db, user['id'], 'Ton compte est bloqué 7 jours',
+                          f'Quelqu\'un a raté {ESSAIS_MAX} fois ton mot de passe : ton compte est bloqué {BLOCAGE_JOURS} jours pour le protéger. '
+                          'Si c\'était toi, « Mot de passe oublié » le débloque tout de suite.')
         return jsonify({'success': False, 'verrou': 'temporaire',
                         'error': f'Trop d\'essais ratés : compte bloqué {BLOCAGE_JOURS} jours. Si c\'est bien ton compte, utilise « Mot de passe oublié » pour le débloquer tout de suite.'}), 423
     db.commit()
@@ -1404,6 +1409,8 @@ def api_profil_password():
     invalider_sessions(db, session['user_id'])
     db.commit()
     connecter(session['user_id'])
+    prevenir_par_mail(db, session['user_id'], 'Ton mot de passe a été changé',
+                      'Le mot de passe de ton compte XHQ League vient d\'être changé. Tes autres appareils ont été déconnectés.')
     return jsonify({'success': True}), 200
 
 
@@ -2389,6 +2396,23 @@ def api_admin_stats():
     }), 200
 
 
+VERSIONS_SURES = {'flask': (3, 1, 1), 'werkzeug': (3, 0, 6), 'pillow': (10, 3, 0)}
+
+
+def outils_a_mettre_a_jour():
+    """Outils installés sur le serveur plus vieux que les versions qui corrigent les failles connues."""
+    from importlib.metadata import version, PackageNotFoundError
+    vieux = []
+    for nom, mini in VERSIONS_SURES.items():
+        try:
+            v = tuple(int(x) for x in re.findall(r'\d+', version(nom))[:3])
+        except (PackageNotFoundError, ValueError):
+            continue
+        if v < mini:
+            vieux.append(f"{nom} {version(nom)}")
+    return vieux
+
+
 def a_faire_admin(db, jeu_id, saison):
     """Ce qui attend l'organisateur : résultats en retard, matchs sans date, teams inactives, tournois, sauvegarde."""
     maintenant = datetime.now()
@@ -2416,6 +2440,7 @@ def a_faire_admin(db, jeu_id, saison):
         'suspendus': compter('SELECT COUNT(*) FROM users WHERE bloque = 1'),
         'tournois': tournois,
         'sauvegarde_jours': derniere,
+        'outils_vieux': outils_a_mettre_a_jour(),
     }
 
 
@@ -3720,6 +3745,26 @@ L'équipe XHQ""")
     return envoye
 
 
+def prevenir_par_mail(db, user_id, sujet, message):
+    """Alerte de sécurité envoyée au joueur (si l'envoi d'emails est configuré). Ne bloque jamais l'action."""
+    u = db.execute('SELECT username, email FROM users WHERE id = ?', (user_id,)).fetchone()
+    if not u or not config_mail():
+        return
+    try:
+        envoyer_mail(u['email'], f'XHQ League · {sujet}', f"""Salut {u['username']},
+
+{message}
+
+Si ce n'est pas toi : utilise tout de suite « Mot de passe oublié » sur le site, puis préviens l'orga (page Contact).
+
+L'équipe XHQ""")
+    except Exception as e:   # un souci d'email ne doit jamais empêcher l'action
+        app.logger.warning('Alerte de sécurité non envoyée : %s', e)
+
+
+_duree_envoi = {'moyenne': 1.5}   # durée habituelle d'un envoi de mail (mise à jour à chaque envoi)
+
+
 @app.route('/api/mot-de-passe/demande', methods=['POST'])
 def api_demande_reinitialisation():
     email = texte(donnees_json(), 'email', 120).lower()
@@ -3730,13 +3775,22 @@ def api_demande_reinitialisation():
     if not conf:
         return jsonify({'success': False, 'mail': False,
                         'error': "L'envoi d'emails n'est pas encore activé : écris-nous via la page Contact."}), 503
+    import time
+    import random
+    debut = time.time()
     db = get_db()
     user = db.execute('SELECT id, username, email FROM users WHERE lower(email) = ? AND COALESCE(bloque, 0) = 0 AND COALESCE(verrou_definitif, 0) = 0', (email,)).fetchone()
+    envoye = False
     if user:
         recentes = db.execute("""SELECT COUNT(*) FROM reinitialisations WHERE user_id = ?
                                   AND created_at > datetime('now', '-1 hour')""", (user['id'],)).fetchone()[0]
         if recentes < REINIT_MAX_PAR_HEURE:
-            envoyer_lien_reinitialisation(db, user['id'])
+            envoye = envoyer_lien_reinitialisation(db, user['id'])
+    # Même durée de réponse que l'email existe ou non : sinon, en chronométrant, on saurait qui est inscrit
+    if envoye:
+        _duree_envoi['moyenne'] = 0.5 * _duree_envoi['moyenne'] + 0.5 * (time.time() - debut)
+    else:
+        time.sleep(max(0.0, _duree_envoi['moyenne'] * random.uniform(0.85, 1.15) - (time.time() - debut)))
     # Même réponse que le compte existe ou non (on ne révèle pas quels emails sont inscrits)
     return jsonify({'success': True, 'mail': True}), 200
 
@@ -3769,6 +3823,8 @@ def api_reinitialiser():
     db.execute('UPDATE users SET echecs_connexion = 0, verrou_niveau = 0, bloque_jusqua = NULL WHERE id = ?', (r['user_id'],))
     invalider_sessions(db, r['user_id'])
     db.commit()
+    prevenir_par_mail(db, r['user_id'], 'Ton mot de passe a été réinitialisé',
+                      'Le mot de passe de ton compte XHQ League vient d\'être réinitialisé avec le lien reçu par email.')
     connecter(r['user_id'])
     return jsonify({'success': True}), 200
 
@@ -4010,7 +4066,7 @@ def api_calendrier():
     jeu, erreur = jeu_ou_erreur(db)
     if erreur:
         return erreur
-    return jsonify(rencontres_a_venir(db, jeu['id'], limite=request.args.get('limit', 50, type=int),
+    return jsonify(rencontres_a_venir(db, jeu['id'], limite=max(1, min(request.args.get('limit', 50, type=int), 300)),
                                       team_id=request.args.get('team_id', type=int))), 200
 
 

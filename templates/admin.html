@@ -422,6 +422,7 @@
         function afficherAFaire(stats) {
             const a = stats.a_faire || {}, t = [];
             if (stats.messages_non_traites) t.push(tache(true, 'message', pl(stats.messages_non_traites, 'message') + ' à traiter', 'Contact, mot de passe perdu, signalement…', 'messages'));
+            if ((a.outils_vieux || []).length) t.push(tache(true, 'alerte', 'Mettre à jour le serveur', 'Versions avec failles connues : ' + a.outils_vieux.map(escapeHtml).join(', ') + '. Console : pip3.10 install --user -U -r tournoi-brawlstars/requirements.txt', 'sauvegardes'));
             if (stats.verrouilles) t.push(tache(true, 'alerte', pl(stats.verrouilles, 'compte') + ' verrouillé' + (stats.verrouilles > 1 ? 's' : ''), 'Trop d\'essais de mot de passe : tentative de piratage ?', 'joueurs'));
             if (stats.litiges) t.push(tache(true, 'alerte', pl(stats.litiges, 'litige') + ' à trancher', 'Score contesté par une équipe', 'matchs'));
             if (a.en_retard) t.push(tache(true, 'alerte', pl(a.en_retard, 'résultat') + ' en retard', 'Match prévu passé, score pas encore saisi', 'calendrier'));

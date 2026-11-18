@@ -1,2 +1,4 @@
-Flask>=3.0
-Pillow>=10.0
+# Versions minimales qui corrigent les failles connues (Pillow : images WebP piégées ; Werkzeug : envois de formulaires géants)
+Flask>=3.1.1
+Werkzeug>=3.0.6
+Pillow>=10.3.0
