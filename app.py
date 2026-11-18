@@ -42,6 +42,10 @@ app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SESSION_COOKIE_SECURE'] = True
 MOT_DE_PASSE_MIN = 8
+ESSAIS_MAX = 10          # essais de mot de passe ratés avant blocage
+BLOCAGE_JOURS = 7        # 1er blocage : 7 jours ; 10 essais ratés de plus = verrouillage définitif (admin)
+from werkzeug.security import generate_password_hash as _gph
+HASH_FACTICE = _gph('compte-inexistant')
 SITE_URL_DEFAUT = 'https://xhqtounament.pythonanywhere.com'
 LIMITES_ACTIVES = True   # limites anti-spam / anti-force brute (coupées sur le serveur de test local)
 
@@ -533,8 +537,16 @@ def init_db():
     migrer_multi_jeux(c)
     creer_tables_tournois(c)
     c.execute('CREATE TABLE IF NOT EXISTS limites (cle TEXT NOT NULL, created_at TEXT NOT NULL)')
+    c.execute('CREATE TABLE IF NOT EXISTS team_exclusions (team_id INTEGER, user_id INTEGER, created_at TEXT)')
+    # Un objet ne peut être possédé qu'une fois (deux clics simultanés ne le donnent pas deux fois)
+    c.execute('DELETE FROM inventory WHERE id NOT IN (SELECT MIN(id) FROM inventory GROUP BY user_id, item_id)')
+    c.execute('CREATE UNIQUE INDEX IF NOT EXISTS inventory_unique ON inventory (user_id, item_id)')
     c.execute('CREATE INDEX IF NOT EXISTS limites_cle ON limites (cle, created_at)')
     ajouter_colonne(c, 'users', 'session_v', 'INTEGER DEFAULT 0')
+    ajouter_colonne(c, 'users', 'echecs_connexion', 'INTEGER DEFAULT 0')
+    ajouter_colonne(c, 'users', 'verrou_niveau', 'INTEGER DEFAULT 0')
+    ajouter_colonne(c, 'users', 'verrou_definitif', 'INTEGER DEFAULT 0')
+    ajouter_colonne(c, 'users', 'bloque_jusqua', 'TEXT')
     c.execute("""CREATE TABLE IF NOT EXISTS declarations (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         jeu_id INTEGER NOT NULL,
@@ -575,7 +587,7 @@ def init_db():
                       (code, nom, description, prix, type_))
 
     # Le badge Admin suit les droits admin
-    c.execute("""INSERT INTO inventory (user_id, item_id, bought_at)
+    c.execute("""INSERT OR IGNORE INTO inventory (user_id, item_id, bought_at)
                  SELECT u.id, s.id, datetime('now') FROM users u, shop_items s
                  WHERE u.is_admin = 1 AND s.code = 'admin'
                  AND NOT EXISTS (SELECT 1 FROM inventory i WHERE i.user_id = u.id AND i.item_id = s.id)""")
@@ -592,7 +604,7 @@ def init_db():
                     for code in ('cadre_or', 'pack_rare')}
         for uid in anciens_skins:
             for code, item_id in nouveaux.items():
-                c.execute("INSERT INTO inventory (user_id, item_id, bought_at) VALUES (?, ?, datetime('now'))", (uid, item_id))
+                c.execute("INSERT OR IGNORE INTO inventory (user_id, item_id, bought_at) VALUES (?, ?, datetime('now'))", (uid, item_id))
             c.execute("UPDATE users SET cadre_equipe = 'cadre_or' WHERE id = ?", (uid,))
         c.execute('DELETE FROM inventory WHERE item_id IN (SELECT id FROM shop_items WHERE code IS NULL)')
         c.execute('DELETE FROM shop_items WHERE code IS NULL')   # Badge Officiel, Skin Premium, Boost 2x
@@ -799,6 +811,20 @@ def page_admin(f):
     return wrapper
 
 
+def est_protege(db, user_id):
+    """Compte admin ou fondateur : seul un fondateur peut y toucher (mot de passe, suspension, droits…)."""
+    u = db.execute('SELECT is_admin FROM users WHERE id = ?', (user_id,)).fetchone()
+    return bool(u and (u['is_admin'] or possede(db, user_id, 'fondateur')))
+
+
+def fondateur_requis(db):
+    """Message d'erreur si l'admin connecté n'est pas fondateur (alors qu'il existe des fondateurs), sinon None.
+    Tant que personne n'a le badge Fondateur, n'importe quel admin peut le donner (mise en route)."""
+    if porteurs(db, 'fondateur') == 0 or possede(db, session['user_id'], 'fondateur'):
+        return None
+    return 'Réservé aux fondateurs (les comptes admin et fondateurs sont protégés)'
+
+
 def api_admin(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
@@ -815,10 +841,32 @@ def donnees_json():
     return data if isinstance(data, dict) else {}
 
 
+def sans_invisibles(t):
+    """Retire les caractères invisibles ou de contrôle (espaces de largeur nulle, inversion de sens
+    d'écriture…) qui servent à imiter un autre nom. Garde les retours à la ligne."""
+    import unicodedata
+    return ''.join(ch for ch in t if ch in '\n\t' or unicodedata.category(ch) not in ('Cc', 'Cf', 'Co', 'Cs'))
+
+
 def texte(data, cle, max_len=None):
     valeur = data.get(cle)
-    valeur = valeur.strip() if isinstance(valeur, str) else ''
+    valeur = sans_invisibles(valeur).strip() if isinstance(valeur, str) else ''
     return valeur[:max_len] if max_len else valeur
+
+
+# Noms (pseudos, teams) : alphabet latin seulement, pour empêcher les sosies (Η grec, а cyrillique…)
+NOM_AUTORISE = re.compile(r"^[0-9A-Za-zÀ-ÖØ-öø-ÿŒœ _.'\-!?&#]+$")
+
+
+def nom_refuse(nom, quoi, admin=False):
+    """Message d'erreur si ce nom (pseudo ou team) n'est pas acceptable, sinon None."""
+    if not NOM_AUTORISE.match(nom):
+        return f"{quoi} : lettres, chiffres, espaces et . _ - ' ! ? & # seulement"
+    import unicodedata
+    simple = re.sub(r'[^a-z]', '', unicodedata.normalize('NFKD', nom).encode('ascii', 'ignore').decode().lower())
+    if not admin and simple.startswith('xhq'):
+        return f"{quoi} réservé à l'équipe d'orga XHQ"
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -1024,8 +1072,10 @@ def connecter(user_id):
 
 
 def invalider_sessions(db, user_id):
-    """Après un changement de mot de passe : toutes les sessions ouvertes de ce compte sont fermées."""
+    """Après un changement de mot de passe : toutes les sessions ouvertes de ce compte sont fermées,
+    et les liens « mot de passe oublié » encore valables ne marchent plus."""
     db.execute('UPDATE users SET session_v = COALESCE(session_v, 0) + 1 WHERE id = ?', (user_id,))
+    db.execute('UPDATE reinitialisations SET utilise = 1 WHERE user_id = ?', (user_id,))
 
 
 def autres_comptes(db, user_id):
@@ -1054,6 +1104,10 @@ def api_basculer_compte():
 @app.route('/logout')
 def logout():
     """Déconnecte le compte actuel ; s'il en reste un autre sur ce navigateur, on bascule dessus."""
+    from urllib.parse import urlparse
+    venant_de = request.headers.get('Referer')
+    if venant_de and urlparse(venant_de).netloc != request.host:
+        return redirect('/')   # lien piégé sur un autre site : on ne déconnecte pas
     restants = [c for c in session.get('comptes', []) if isinstance(c, int) and c != session.get('user_id')]
     session.clear()
     if restants:
@@ -1107,21 +1161,58 @@ def api_signup():
 
 @app.route('/api/login', methods=['POST'])
 def api_login():
+    """Connexion. Protection contre la force brute, compte par compte :
+    10 essais ratés -> compte bloqué 7 jours (débloquable par « Mot de passe oublié ») ;
+    10 essais ratés de plus -> verrouillage définitif, seul un admin peut le lever."""
     data = donnees_json()
     email = texte(data, 'email').lower()
     password = data.get('password') if isinstance(data.get('password'), str) else ''
-
-    if limite_atteinte('login:' + email, 10, 15) or limite_atteinte('login-ip:' + ip_client(), 40, 15):
-        return jsonify({'success': False, 'error': 'Trop d\'essais ratés : réessaie dans 15 minutes (ou utilise « Mot de passe oublié »).'}), 429
-    user = get_db().execute('SELECT id, password, bloque FROM users WHERE lower(email) = ?', (email,)).fetchone()
-    if not (user and password and check_password_hash(user['password'], password)):
-        noter_action('login:' + email)
+    if limite_atteinte('login-ip:' + ip_client(), 40, 15):
+        return jsonify({'success': False, 'error': 'Trop d\'essais depuis ta connexion : réessaie dans 15 minutes.'}), 429
+    db = get_db()
+    user = db.execute("""SELECT id, password, bloque, echecs_connexion, verrou_niveau, verrou_definitif,
+                                bloque_jusqua > datetime('now') AS bloque_temp, bloque_jusqua
+                         FROM users WHERE lower(email) = ?""", (email,)).fetchone()
+    # Même temps de calcul que le compte existe ou non (on ne révèle pas quels emails sont inscrits)
+    bon = check_password_hash(user['password'] if user else HASH_FACTICE, password or ' ') and bool(user)
+    if not user:
         noter_action('login-ip:' + ip_client())
-    if user and password and check_password_hash(user['password'], password):
+        return jsonify({'success': False, 'error': 'Email ou mot de passe incorrect'}), 401
+    if user['verrou_definitif']:
+        return jsonify({'success': False, 'verrou': 'definitif',
+                        'error': 'Compte verrouillé après trop d\'essais ratés. Écris à l\'orga (page Contact) pour le débloquer.'}), 423
+    if bon and not user['bloque_temp']:
         if user['bloque']:
             return jsonify({'success': False, 'error': 'Ce compte est suspendu. Contacte l\'organisation sur le Discord.'}), 403
+        db.execute('UPDATE users SET echecs_connexion = 0, verrou_niveau = 0, bloque_jusqua = NULL WHERE id = ?', (user['id'],))
+        db.commit()
         connecter(user['id'])
         return jsonify({'success': True}), 200
+    if bon and user['bloque_temp']:
+        # Bon mot de passe pendant le blocage : refusé, mais ne compte pas comme un essai raté
+        return jsonify({'success': False, 'verrou': 'temporaire',
+                        'error': f'Compte bloqué {BLOCAGE_JOURS} jours après trop d\'essais ratés. Utilise « Mot de passe oublié » pour le débloquer tout de suite.'}), 423
+    # Essai raté : on compte (y compris pendant le blocage)
+    noter_action('login-ip:' + ip_client())
+    echecs = (user['echecs_connexion'] or 0) + 1
+    if echecs >= ESSAIS_MAX and (user['verrou_niveau'] or 0) >= 1:
+        db.execute('UPDATE users SET verrou_definitif = 1, echecs_connexion = 0 WHERE id = ?', (user['id'],))
+        notifier(db, [r[0] for r in db.execute('SELECT id FROM users WHERE is_admin = 1').fetchall()],
+                 f"Compte verrouillé (trop d'essais de mot de passe) : {user['id']}. À vérifier dans Admin → Joueurs.", '/admin#joueurs')
+        db.commit()
+        return jsonify({'success': False, 'verrou': 'definitif',
+                        'error': 'Compte verrouillé après trop d\'essais ratés. Écris à l\'orga (page Contact) pour le débloquer.'}), 423
+    if echecs >= ESSAIS_MAX:
+        db.execute("""UPDATE users SET verrou_niveau = 1, echecs_connexion = 0, bloque_jusqua = datetime('now', ?)
+                      WHERE id = ?""", (f'+{BLOCAGE_JOURS} days', user['id']))
+        db.commit()
+        return jsonify({'success': False, 'verrou': 'temporaire',
+                        'error': f'Trop d\'essais ratés : compte bloqué {BLOCAGE_JOURS} jours. Si c\'est bien ton compte, utilise « Mot de passe oublié » pour le débloquer tout de suite.'}), 423
+    db.execute('UPDATE users SET echecs_connexion = ? WHERE id = ?', (echecs, user['id']))
+    db.commit()
+    if user['bloque_temp']:
+        return jsonify({'success': False, 'verrou': 'temporaire',
+                        'error': f'Compte bloqué jusqu\'au {date_fr(user["bloque_jusqua"][:16].replace(" ", "T"))} (heure UTC) après trop d\'essais ratés. Utilise « Mot de passe oublié » pour le débloquer.'}), 423
     return jsonify({'success': False, 'error': 'Email ou mot de passe incorrect'}), 401
 
 
@@ -1338,6 +1429,9 @@ def media(dossier, nom):
 def remplacer_image(colonne, dossier, mode, table='users', ligne_id=None):
     """Enregistre l'image envoyée dans la colonne voulue (profil ou team) et supprime l'ancienne."""
     ligne_id = ligne_id or session['user_id']
+    if limite_atteinte(f"upload:{session['user_id']}", 20, 60):
+        return jsonify({'success': False, 'error': 'Trop d\'images envoyées : réessaie dans une heure'}), 429
+    noter_action(f"upload:{session['user_id']}")
     nom, erreur = enregistrer_image(request.files.get('fichier'), dossier, mode)
     if erreur:
         return jsonify({'success': False, 'error': erreur}), 400
@@ -1421,8 +1515,9 @@ def pseudo_refuse(db, pseudo, user_id=None):
     if not 3 <= len(pseudo) <= 20:
         return 'Le pseudo doit faire entre 3 et 20 caractères'
     est_admin_ = bool(user_id and db.execute('SELECT is_admin FROM users WHERE id = ?', (user_id,)).fetchone()['is_admin'])
-    if not est_admin_ and re.sub(r'[^a-z]', '', pseudo.lower()).startswith('xhq'):
-        return "Ce pseudo est réservé à l'équipe d'orga XHQ"
+    erreur = nom_refuse(pseudo, 'Pseudo', est_admin_)
+    if erreur:
+        return erreur
     if db.execute('SELECT 1 FROM users WHERE lower(username) = lower(?) AND id != ?', (pseudo, user_id or 0)).fetchone():
         return 'Ce pseudo est déjà pris'
     return None
@@ -1566,6 +1661,8 @@ def api_create_team():
     bio = texte(data, 'bio', 300)
     if not 2 <= len(nom) <= 30:
         return jsonify({'success': False, 'error': 'Le nom de la team doit faire entre 2 et 30 caractères'}), 400
+    if nom_refuse(nom, 'Nom de team', est_admin()):
+        return jsonify({'success': False, 'error': nom_refuse(nom, 'Nom de team', est_admin())}), 400
 
     db = get_db()
     jeu, erreur = jeu_ou_erreur(db)
@@ -1601,6 +1698,9 @@ def api_join_team(team_id):
         return jsonify({'success': False, 'error': 'Team introuvable'}), 404
     if db.execute('SELECT 1 FROM team_members WHERE user_id = ? AND jeu_id = ?', (uid, jeu_id)).fetchone():
         return jsonify({'success': False, 'error': 'Vous êtes déjà dans une team pour ce jeu'}), 400
+    if db.execute("""SELECT 1 FROM team_exclusions WHERE team_id = ? AND user_id = ?
+                     AND created_at > datetime('now', '-7 days')""", (team_id, uid)).fetchone():
+        return jsonify({'success': False, 'error': 'Le capitaine t\'a retiré de cette team il y a moins de 7 jours'}), 403
     if db.execute('SELECT COUNT(*) FROM team_members WHERE team_id = ?', (team_id,)).fetchone()[0] >= MAX_MEMBRES:
         return jsonify({'success': False, 'error': f'Cette team est complète ({MAX_MEMBRES} joueurs maximum)'}), 400
     try:
@@ -1665,6 +1765,7 @@ def api_kick_member(team_id, user_id):
     if not db.execute('SELECT 1 FROM team_members WHERE team_id = ? AND user_id = ?', (team_id, user_id)).fetchone():
         return jsonify({'success': False, 'error': "Ce joueur n'est pas dans votre team"}), 404
     retirer_membre(db.cursor(), user_id, jeu_de_team(db, team_id))
+    db.execute("INSERT INTO team_exclusions (team_id, user_id, created_at) VALUES (?, ?, datetime('now'))", (team_id, user_id))
     notifier(db, [user_id], f"Tu as été retiré de la team {team['nom']}", '/teams')
     db.commit()
     return jsonify({'success': True}), 200
@@ -1715,6 +1816,8 @@ def api_update_team(team_id):
     nom = texte(data, 'nom') if 'nom' in data else team['nom']
     if not 2 <= len(nom) <= 30:
         return jsonify({'success': False, 'error': 'Le nom de la team doit faire entre 2 et 30 caractères'}), 400
+    if nom_refuse(nom, 'Nom de team', est_admin()):
+        return jsonify({'success': False, 'error': nom_refuse(nom, 'Nom de team', est_admin())}), 400
     if db.execute('SELECT 1 FROM teams WHERE lower(nom) = lower(?) AND id != ?', (nom, team_id)).fetchone():
         return jsonify({'success': False, 'error': 'Ce nom de team est déjà pris'}), 400
     actuelle = db.execute('SELECT bio FROM teams WHERE id = ?', (team_id,)).fetchone()['bio'] or ''
@@ -1981,7 +2084,8 @@ def api_shop_buy(item_id):
     dispo, raison = disponibilite(db, uid, item['code'])
     if not dispo:
         return jsonify({'success': False, 'error': raison}), 400
-    db.execute("INSERT INTO inventory (user_id, item_id, bought_at) VALUES (?, ?, datetime('now'))", (uid, item_id))
+    if not db.execute("INSERT OR IGNORE INTO inventory (user_id, item_id, bought_at) VALUES (?, ?, datetime('now'))", (uid, item_id)).rowcount:
+        return jsonify({'success': False, 'error': 'Tu as déjà cet objet'}), 400
     # Premier badge / premier cadre : équipé automatiquement
     if item['type'] in ('badge', 'cadre'):
         db.execute(f"UPDATE users SET {item['type']}_equipe = ? WHERE id = ? AND {item['type']}_equipe IS NULL",
@@ -2111,6 +2215,7 @@ def api_admin_stats():
         'saison': saison,
         'messages_non_traites': compter('SELECT COUNT(*) FROM contact_messages WHERE traite = 0 OR traite IS NULL'),
         'litiges': compter("SELECT COUNT(*) FROM declarations WHERE jeu_id = ? AND statut = 'conteste'", jeu['id']),
+        'verrouilles': compter("SELECT COUNT(*) FROM users WHERE verrou_definitif = 1"),
         'a_faire': a_faire_admin(db, jeu['id'], saison),
     }), 200
 
@@ -2226,6 +2331,10 @@ def valider_declaration(c, db, d, score1=None, score2=None, reponse='confirme'):
     """Transforme une déclaration en match. Renvoie un message d'erreur ou None."""
     s1 = d['score1'] if score1 is None else score1
     s2 = d['score2'] if score2 is None else score2
+    # On « réserve » la déclaration d'abord : deux clics simultanés ne créent jamais deux matchs
+    if not c.execute("UPDATE declarations SET statut = 'traitement' WHERE id = ? AND statut IN ('attente', 'conteste')",
+                     (d['id'],)).rowcount:
+        return 'Ce résultat a déjà été traité'
     infos, erreur = enregistrer_resultat(c, db, d['team1_id'], d['team2_id'], s1, s2, d['par_user_id'])
     if erreur:
         c.execute("UPDATE declarations SET statut = 'annule', motif = ?, traite_at = datetime('now') WHERE id = ?",
@@ -2318,6 +2427,14 @@ def api_resultats_declarer():
     l2 = c.execute('SELECT l.ligue_num, l.poule, t.nom, t.jeu_id FROM ligue l JOIN teams t ON t.id = l.team_id WHERE t.id = ?', (adv_id,)).fetchone()
     if not l1 or not l2 or l2['jeu_id'] != jeu['id'] or (l1['ligue_num'], l1['poule']) != (l2['ligue_num'], l2['poule']) or adv_id == team['id']:
         return jsonify({'success': False, 'error': 'Cette équipe n\'est pas dans ta poule'}), 400
+    saison = saison_actuelle(db, jeu['id'])
+    paire = (team['id'], adv_id, adv_id, team['id'])
+    joues = c.execute("""SELECT COUNT(*) FROM matchs WHERE jeu_id = ? AND saison = ?
+                         AND ((team1_id = ? AND team2_id = ?) OR (team1_id = ? AND team2_id = ?))""", (jeu['id'], saison, *paire)).fetchone()[0]
+    prevus = c.execute("""SELECT COUNT(*) FROM rencontres WHERE jeu_id = ? AND saison = ?
+                          AND ((team1_id = ? AND team2_id = ?) OR (team1_id = ? AND team2_id = ?))""", (jeu['id'], saison, *paire)).fetchone()[0]
+    if joues >= max(1, prevus):
+        return jsonify({'success': False, 'error': 'Vous vous êtes déjà affrontés cette saison : demande à un admin si un match doit être rejoué'}), 400
     deja = c.execute("""SELECT 1 FROM declarations WHERE statut IN ('attente', 'conteste')
                         AND ((team1_id = ? AND team2_id = ?) OR (team1_id = ? AND team2_id = ?))""",
                      (team['id'], adv_id, adv_id, team['id'])).fetchone()
@@ -2326,7 +2443,7 @@ def api_resultats_declarer():
     c.execute("""INSERT INTO declarations (jeu_id, saison, team1_id, team2_id, score1, score2, par_user_id, statut, created_at)
                  VALUES (?, ?, ?, ?, ?, ?, ?, 'attente', datetime('now'))""",
               (jeu['id'], saison_actuelle(db, jeu['id']), team['id'], adv_id, pour, contre, session['user_id']))
-    notifier(c, [capitaine_de(c, adv_id)],
+    notifier(c, membres_de(c, adv_id),
              f"{team['nom']} déclare {contre}-{pour} pour vous ({'défaite' if pour > contre else 'victoire'}). "
              f"Confirme ou conteste sous {DELAI_CONFIRMATION_H} h.", '/teams#resultats')
     db.commit()
@@ -2524,6 +2641,8 @@ def api_admin_users():
         u['is_admin'] = bool(u['is_admin'])
         u['bloque'] = bool(u['bloque'])
         u['fondateur'] = possede(get_db(), u['id'], 'fondateur')
+        v = get_db().execute("SELECT verrou_definitif, bloque_jusqua > datetime('now') AS temp FROM users WHERE id = ?", (u['id'],)).fetchone()
+        u['verrou'] = 'definitif' if v['verrou_definitif'] else ('temporaire' if v['temp'] else None)
         u['is_me'] = u['id'] == session['user_id']
         u['photo'] = url_media('avatars', u['photo'])
         u['banniere'] = url_media('bannieres', u['banniere'])
@@ -2535,6 +2654,8 @@ def api_admin_users():
 @api_admin
 def api_admin_reset_password(user_id):
     db = get_db()
+    if est_protege(db, user_id) and user_id != session['user_id'] and fondateur_requis(db):
+        return jsonify({'success': False, 'error': fondateur_requis(db)}), 403
     user = db.execute('SELECT username, email FROM users WHERE id = ?', (user_id,)).fetchone()
     if not user:
         return jsonify({'success': False, 'error': 'Joueur introuvable'}), 404
@@ -2559,6 +2680,8 @@ def api_admin_set_admin(user_id):
     u = c.execute('SELECT is_admin FROM users WHERE id = ?', (user_id,)).fetchone()
     if not u:
         return jsonify({'success': False, 'error': 'Joueur introuvable'}), 404
+    if fondateur_requis(db):
+        return jsonify({'success': False, 'error': 'Seuls les fondateurs peuvent nommer ou retirer un admin'}), 403
     if valeur and not u['is_admin'] and c.execute('SELECT COUNT(*) FROM users WHERE is_admin = 1').fetchone()[0] >= ADMINS_MAX:
         return jsonify({'success': False, 'error': f'Il y a déjà {ADMINS_MAX} admins (le maximum). Retire les droits à quelqu\'un d\'abord.'}), 400
     c.execute('UPDATE users SET is_admin = ? WHERE id = ?', (1 if valeur else 0, user_id))
@@ -2567,6 +2690,21 @@ def api_admin_set_admin(user_id):
         notifier(c, [user_id], "Tu fais maintenant partie de l'équipe d'orga : badge Admin débloqué.", '/admin')
     else:
         retirer_objet(c, user_id, 'admin')
+    db.commit()
+    return jsonify({'success': True}), 200
+
+
+@app.route('/api/admin/users/<int:user_id>/deverrouiller', methods=['POST'])
+@api_admin
+def api_admin_deverrouiller(user_id):
+    """Lève le blocage (7 jours ou définitif) d'un compte après trop d'essais de mot de passe ratés."""
+    db = get_db()
+    if est_protege(db, user_id) and user_id != session['user_id'] and fondateur_requis(db):
+        return jsonify({'success': False, 'error': fondateur_requis(db)}), 403
+    if not db.execute("""UPDATE users SET verrou_definitif = 0, verrou_niveau = 0, echecs_connexion = 0, bloque_jusqua = NULL
+                         WHERE id = ?""", (user_id,)).rowcount:
+        return jsonify({'success': False, 'error': 'Joueur introuvable'}), 404
+    notifier(db, [user_id], 'Ton compte a été débloqué par un admin. Pense à choisir un mot de passe solide.', '/profil')
     db.commit()
     return jsonify({'success': True}), 200
 
@@ -2582,6 +2720,10 @@ def api_admin_set_fondateur(user_id):
     c = db.cursor()
     if not c.execute('SELECT 1 FROM users WHERE id = ?', (user_id,)).fetchone():
         return jsonify({'success': False, 'error': 'Joueur introuvable'}), 404
+    if fondateur_requis(db):
+        return jsonify({'success': False, 'error': 'Seuls les fondateurs peuvent donner ou retirer ce badge'}), 403
+    if not valeur and porteurs(db, 'fondateur') <= 1 and possede(db, user_id, 'fondateur'):
+        return jsonify({'success': False, 'error': 'Il doit toujours rester au moins un fondateur'}), 400
     if valeur:
         if possede(db, user_id, 'fondateur'):
             return jsonify({'success': True}), 200
@@ -2871,7 +3013,7 @@ def donner_objet(c, user_id, code, equiper=True):
     if not item:
         return
     if not c.execute('SELECT 1 FROM inventory WHERE user_id = ? AND item_id = ?', (user_id, item['id'])).fetchone():
-        c.execute("INSERT INTO inventory (user_id, item_id, bought_at) VALUES (?, ?, datetime('now'))", (user_id, item['id']))
+        c.execute("INSERT OR IGNORE INTO inventory (user_id, item_id, bought_at) VALUES (?, ?, datetime('now'))", (user_id, item['id']))
     if equiper and item['type'] in ('badge', 'cadre'):
         c.execute(f"UPDATE users SET {item['type']}_equipe = ? WHERE id = ?", (code, user_id))
 
@@ -2892,7 +3034,7 @@ def donner_badge_champion(c, team_id):
     for m in c.execute('SELECT user_id FROM team_members WHERE team_id = ?', (team_id,)).fetchall():
         deja = c.execute('SELECT 1 FROM inventory WHERE user_id = ? AND item_id = ?', (m['user_id'], item['id'])).fetchone()
         if not deja:
-            c.execute("INSERT INTO inventory (user_id, item_id, bought_at) VALUES (?, ?, datetime('now'))",
+            c.execute("INSERT OR IGNORE INTO inventory (user_id, item_id, bought_at) VALUES (?, ?, datetime('now'))",
                       (m['user_id'], item['id']))
             c.execute("UPDATE users SET badge_equipe = 'champion_tournoi' WHERE id = ?", (m['user_id'],))
 
@@ -3337,7 +3479,7 @@ def api_demande_reinitialisation():
         return jsonify({'success': False, 'mail': False,
                         'error': "L'envoi d'emails n'est pas encore activé : écris-nous via la page Contact."}), 503
     db = get_db()
-    user = db.execute('SELECT id, username, email FROM users WHERE lower(email) = ? AND COALESCE(bloque, 0) = 0', (email,)).fetchone()
+    user = db.execute('SELECT id, username, email FROM users WHERE lower(email) = ? AND COALESCE(bloque, 0) = 0 AND COALESCE(verrou_definitif, 0) = 0', (email,)).fetchone()
     if user:
         recentes = db.execute("""SELECT COUNT(*) FROM reinitialisations WHERE user_id = ?
                                   AND created_at > datetime('now', '-1 hour')""", (user['id'],)).fetchone()[0]
@@ -3367,7 +3509,8 @@ L'équipe XHQ""")
 
 def reinitialisation_valide(db, jeton):
     return db.execute("""SELECT r.id, r.user_id FROM reinitialisations r JOIN users u ON u.id = r.user_id
-                         WHERE r.jeton_hash = ? AND r.utilise = 0 AND r.expire_at > ? AND COALESCE(u.bloque, 0) = 0""",
+                         WHERE r.jeton_hash = ? AND r.utilise = 0 AND r.expire_at > ? AND COALESCE(u.bloque, 0) = 0
+                         AND COALESCE(u.verrou_definitif, 0) = 0""",
                       (hash_jeton(jeton), datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'))).fetchone()
 
 
@@ -3389,6 +3532,7 @@ def api_reinitialiser():
         return jsonify({'success': False, 'error': f'Le mot de passe doit faire au moins {MOT_DE_PASSE_MIN} caractères'}), 400
     db.execute('UPDATE users SET password = ? WHERE id = ?', (generate_password_hash(nouveau), r['user_id']))
     db.execute('UPDATE reinitialisations SET utilise = 1 WHERE user_id = ?', (r['user_id'],))
+    db.execute('UPDATE users SET echecs_connexion = 0, verrou_niveau = 0, bloque_jusqua = NULL WHERE id = ?', (r['user_id'],))
     invalider_sessions(db, r['user_id'])
     db.commit()
     connecter(r['user_id'])
@@ -3425,7 +3569,8 @@ def api_notifications_lues():
 # Sauvegardes : base de données + images dans un fichier .zip
 # ---------------------------------------------------------------------------
 SAUVEGARDE_DIR = os.path.join(BASE_DIR, 'sauvegardes')
-SAUVEGARDES_GARDEES = 14   # on garde les 14 dernières (2 semaines si une par jour)
+SAUVEGARDES_GARDEES = 7    # on garde les 7 dernières (une semaine)
+SAUVEGARDES_MAX_MO = 150   # et jamais plus de 150 Mo au total (le compte gratuit n'a que 512 Mo)
 
 
 def creer_sauvegarde():
@@ -3452,6 +3597,9 @@ def creer_sauvegarde():
     anciennes = sorted(f for f in os.listdir(SAUVEGARDE_DIR) if f.startswith('xhq-') and f.endswith('.zip'))
     for f in anciennes[:-SAUVEGARDES_GARDEES]:
         os.remove(os.path.join(SAUVEGARDE_DIR, f))
+    restantes = sorted(f for f in os.listdir(SAUVEGARDE_DIR) if f.startswith('xhq-') and f.endswith('.zip'))
+    while len(restantes) > 1 and sum(os.path.getsize(os.path.join(SAUVEGARDE_DIR, f)) for f in restantes) > SAUVEGARDES_MAX_MO * 1024 * 1024:
+        os.remove(os.path.join(SAUVEGARDE_DIR, restantes.pop(0)))
     return chemin
 
 
@@ -3473,6 +3621,11 @@ def sauvegarde_auto_si_besoin():
             derniere = max((os.path.getmtime(z) for z in zips), default=0)
         if maintenant - derniere > 24 * 3600:
             creer_sauvegarde()
+            # Ménage quotidien : vieilles notifications (plus de 90 jours)
+            with app.app_context():
+                db = get_db()
+                db.execute("DELETE FROM notifications WHERE created_at < datetime('now', '-90 days')")
+                db.commit()
     except Exception as e:   # une sauvegarde ratée ne doit jamais casser le site
         app.logger.warning('Sauvegarde automatique impossible : %s', e)
 
@@ -3536,6 +3689,8 @@ def api_admin_bloquer(user_id):
         return jsonify({'success': False, 'error': 'Tu ne peux pas suspendre ton propre compte'}), 400
     bloque = bool(donnees_json().get('bloque'))
     db = get_db()
+    if est_protege(db, user_id) and fondateur_requis(db):
+        return jsonify({'success': False, 'error': fondateur_requis(db)}), 403
     if not db.execute('UPDATE users SET bloque = ? WHERE id = ?', (int(bloque), user_id)).rowcount:
         return jsonify({'success': False, 'error': 'Joueur introuvable'}), 404
     db.commit()

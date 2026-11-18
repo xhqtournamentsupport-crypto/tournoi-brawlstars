@@ -404,6 +404,7 @@
         function afficherAFaire(stats) {
             const a = stats.a_faire || {}, t = [];
             if (stats.messages_non_traites) t.push(tache(true, 'message', pl(stats.messages_non_traites, 'message') + ' à traiter', 'Contact, mot de passe perdu, signalement…', 'messages'));
+            if (stats.verrouilles) t.push(tache(true, 'alerte', pl(stats.verrouilles, 'compte') + ' verrouillé' + (stats.verrouilles > 1 ? 's' : ''), 'Trop d\'essais de mot de passe : tentative de piratage ?', 'joueurs'));
             if (stats.litiges) t.push(tache(true, 'alerte', pl(stats.litiges, 'litige') + ' à trancher', 'Score contesté par une équipe', 'matchs'));
             if (a.en_retard) t.push(tache(true, 'alerte', pl(a.en_retard, 'résultat') + ' en retard', 'Match prévu passé, score pas encore saisi', 'calendrier'));
             for (const tr of a.tournois || []) {
@@ -714,7 +715,7 @@
             tbody.innerHTML = data.map(u => `
                 <tr>
                     <td><span class="mini-av">${u.photo ? `<img src="${escapeHtml(u.photo)}" alt="">` : '👤'}</span><a href="/u/${encodeURIComponent(u.handle || '')}" target="_blank"><strong>${escapeHtml(u.username)}</strong></a>
-                        ${u.is_admin ? '<span class="tag or">ADMIN</span>' : ''}${u.fondateur ? ' <span class="tag or">FONDATEUR</span>' : ''}${u.bloque ? ' <span class="tag suspendu">SUSPENDU</span>' : ''}<div class="muted">@${escapeHtml(u.handle || '')}</div></td>
+                        ${u.is_admin ? '<span class="tag or">ADMIN</span>' : ''}${u.fondateur ? ' <span class="tag or">FONDATEUR</span>' : ''}${u.verrou === 'definitif' ? ' <span class="tag suspendu">VERROUILLÉ</span>' : u.verrou === 'temporaire' ? ' <span class="tag suspendu">BLOQUÉ 7 J</span>' : ''}${u.bloque ? ' <span class="tag suspendu">SUSPENDU</span>' : ''}<div class="muted">@${escapeHtml(u.handle || '')}</div></td>
                     <td class="muted">${htmlEmail(u.email)}</td>
                     <td>${u.team_name ? escapeHtml(u.team_name) : '<span class="muted">—</span>'}</td>
                     <td class="muted">${dateCourte(u.created_at)}</td>
@@ -727,10 +728,18 @@
                         ${u.is_me ? '' : (u.is_admin
                             ? `<button class="btn petit danger" type="button" onclick="changerAdmin(${Number(u.id)}, false)">Retirer admin</button>`
                             : `<button class="btn petit or" type="button" onclick="changerAdmin(${Number(u.id)}, true)">Rendre admin</button>`)}
+                        ${u.verrou ? `<button class="btn petit or" type="button" onclick="deverrouiller(${Number(u.id)})">Déverrouiller</button>` : ''}
                         <button class="btn-mini" type="button" onclick="changerFondateur(${Number(u.id)}, ${!u.fondateur})">${u.fondateur ? 'Retirer Fondateur' : 'Donner Fondateur'}</button>
                         ${u.is_me || u.is_admin ? '' : `<button class="btn-mini" type="button" onclick="supprimerJoueur(${Number(u.id)}, '${escapeHtml(u.username).replace(/'/g, '&#39;')}')">Supprimer le compte</button>`}
                     </div></td>
                 </tr>`).join('');
+        }
+
+        async function deverrouiller(id) {
+            if (!confirm('Débloquer ce compte ? Vérifie d\'abord que c\'est bien le vrai joueur qui le demande (par exemple sur le Discord).')) return;
+            const { ok, data } = await api(`/api/admin/users/${id}/deverrouiller`, { method: 'POST' });
+            showMessage(ok ? 'Compte débloqué.' : (data.error || 'Erreur'), ok ? 'success' : 'error');
+            chargerJoueurs(); chargerStats();
         }
 
         async function changerFondateur(id, valeur) {
