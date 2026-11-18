@@ -67,6 +67,24 @@
         .item-btn { padding: 0.55rem 1.05rem; font-size: 0.9rem; }
         .equip-btn { padding: 0.55rem 1rem; font-size: 0.9rem; }
 
+        /* Objets rares : reflet holographique qui balaie l'aperçu */
+        .item-card.rare .item-image::after { content: ''; position: absolute; inset: 0; pointer-events: none; mix-blend-mode: screen;
+            background: linear-gradient(115deg, transparent 25%, rgba(124, 108, 255, 0.28) 40%, rgba(255, 255, 255, 0.3) 48%, rgba(171, 159, 255, 0.32) 56%, transparent 72%);
+            background-size: 260% 100%; animation: holo 4.5s linear infinite; }
+        .item-card.rare:hover .item-image::after { animation-duration: 1.6s; }
+        @keyframes holo { from { background-position: 130% 0; } to { background-position: -130% 0; } }
+        .item-card.rare .item-image { background: radial-gradient(circle at 50% 60%, rgba(124, 108, 255, 0.3), transparent 62%), conic-gradient(from 0deg at 50% 60%, rgba(124, 108, 255, 0.08), transparent 25%, rgba(171, 159, 255, 0.08) 50%, transparent 75%, rgba(124, 108, 255, 0.08)), var(--bg-2); }
+        .etincelle { position: absolute; color: #fff; font-size: 0.8rem; opacity: 0; pointer-events: none; animation: etincelle 2.8s ease-in-out infinite; text-shadow: 0 0 8px var(--violet); }
+        .etincelle.e1 { left: 20%; top: 26%; } .etincelle.e2 { right: 22%; top: 60%; animation-delay: 0.9s; } .etincelle.e3 { left: 36%; bottom: 14%; animation-delay: 1.8s; }
+        @keyframes etincelle { 0%, 100% { opacity: 0; transform: scale(0.4) rotate(0); } 50% { opacity: 1; transform: scale(1) rotate(90deg); } }
+        /* Barre de collection : éclat quand elle avance */
+        .barre-coll i { position: relative; overflow: hidden; }
+        .barre-coll i::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.7), transparent); transform: translateX(-100%); }
+        .barre-coll.eclat i::after { animation: barre-eclat 0.9s ease-out 0.3s; }
+        @keyframes barre-eclat { to { transform: translateX(100%); } }
+        .item-card.nouveau { animation: nouveau 0.8s var(--courbe); }
+        @keyframes nouveau { 30% { transform: scale(1.03); box-shadow: 0 0 0 2px var(--violet), 0 0 50px rgba(124, 108, 255, 0.5); } }
+
         @media (max-width: 760px) { .vitrine { grid-template-columns: 1fr; } }
     </style>
 </head>
@@ -121,6 +139,8 @@
         const RARETE = { champion_tournoi: ['exclusif', 'Exclusif'], fondateur: ['limite', 'Limité'], saison1: ['limite', 'Saison 1'] };
         let objets = [];
         let filtre = 'tout';
+        let dernier = null;   // code du dernier objet récupéré (petite animation sur sa carte)
+        const RARES = ['champion_tournoi', 'fondateur', 'pack_rare'];
 
         function visage() {
             return maPhoto ? `<img src="${escapeHtml(maPhoto)}" alt="">` : escapeHtml(monAvatar);
@@ -148,6 +168,9 @@
 
         function majCollection() {
             const total = objets.length, eus = objets.filter(o => o.possede).length;
+            const barreColl = document.querySelector('.barre-coll');
+            if (majCollection.avant !== undefined && eus > majCollection.avant) { barreColl.classList.remove('eclat'); void barreColl.offsetWidth; barreColl.classList.add('eclat'); }
+            majCollection.avant = eus;
             document.getElementById('coll-chiffre').innerHTML = `${eus} <span>/ ${total} objets</span>`;
             document.getElementById('coll-barre').style.width = total ? Math.round(100 * eus / total) + '%' : '0';
         }
@@ -168,7 +191,7 @@
             let bouton;
             if (item.possede) bouton = '<button class="item-btn" type="button" disabled>Récupéré</button>';
             else if (!item.disponible) bouton = `<button class="item-btn" type="button" disabled>${escapeHtml(item.raison || 'Indisponible')}</button>`;
-            else bouton = `<button class="item-btn" type="button" onclick="recuperer(${Number(item.id)})">Récupérer</button>`;
+            else bouton = `<button class="item-btn" type="button" onclick="recuperer(${Number(item.id)}, this)">Récupérer</button>`;
             let equiper = '';
             if (item.possede && (item.type === 'badge' || item.type === 'cadre')) {
                 equiper = item.equipe
@@ -186,8 +209,8 @@
             const rarete = RARETE[item.code];
             const etat = item.equipe ? '<span class="etat equipe">Équipé</span>' : item.possede ? '<span class="etat recupere">Récupéré</span>' : '';
             return `
-                <div class="item-card ${item.possede ? 'possede' : ''} ${item.equipe ? 'equipe-carte' : ''}">
-                    <div class="item-image">${apercu(item)}${rarete ? `<span class="rarete ${rarete[0]}">${rarete[1]}</span>` : ''}${etat}</div>
+                <div class="item-card ${item.possede ? 'possede' : ''} ${item.equipe ? 'equipe-carte' : ''} ${RARES.includes(item.code) ? 'rare' : ''} ${item.code === dernier ? 'nouveau' : ''}">
+                    <div class="item-image">${apercu(item)}${RARES.includes(item.code) ? '<i class="etincelle e1">✦</i><i class="etincelle e2">✦</i><i class="etincelle e3">✦</i>' : ''}${rarete ? `<span class="rarete ${rarete[0]}">${rarete[1]}</span>` : ''}${etat}</div>
                     <div class="item-content">
                         <div class="item-type">${TYPES[item.type] || escapeHtml(item.type)}</div>
                         <div class="item-name">${escapeHtml(item.nom)}</div>
@@ -213,6 +236,7 @@
             objets = data;
             majCollection();
             afficher();
+            dernier = null;
         }
 
         document.querySelectorAll('.filtre').forEach(b => b.addEventListener('click', () => {
@@ -221,9 +245,15 @@
             afficher();
         }));
 
-        async function recuperer(itemId) {
+        async function recuperer(itemId, bouton) {
             const { ok, data } = await api(`/api/shop/recuperer/${itemId}`, { method: 'POST' });
             if (ok && data.success) {
+                // L'objet s'envole vers « Ton look » dans une explosion de particules
+                const item = objets.find(o => o.id === itemId);
+                dernier = item ? item.code : null;
+                const carteEl = bouton && bouton.closest('.item-card');
+                if (window.xhqEclatSur && bouton) xhqEclatSur(bouton, 50);
+                if (window.xhqVoler && carteEl) xhqVoler(carteEl.querySelector('.item-image > :first-child'), document.getElementById('look-av'));
                 showMessage(`${data.item} ajouté à ta collection.`, 'success');
                 majLook(data);
                 loadShop();

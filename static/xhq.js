@@ -43,7 +43,7 @@ async function api(url, options = {}) {
     document.documentElement.classList.add('anim');
 
     const CIBLES = '.reveal-auto, .section, .poule, .resultat, .team-card, .item-card, .inv-item, .stat, .carte-tournoi, '
-        + '.bm, .inscrit, .vedette, .boite, .carte-match, .etape, .chiffres > div, .tuile, .discord, .profil-card, .info-section';
+        + '.bm, .bracket-wrap, .inscrit, .vedette, .boite, .carte-match, .etape, .chiffres > div, .tuile, .discord, .profil-card, .info-section';
 
     const vus = new IntersectionObserver(entrees => {
         entrees.forEach(e => {
@@ -237,3 +237,228 @@ function editeurBanniere(racine, { url, pos = 50, zoom = 100, routes, message })
     img.addEventListener('touchmove', e => { e.preventDefault(); bouge(e.touches[0].clientY); }, { passive: false });
     img.addEventListener('touchend', fin);
 }
+
+// ---------------------------------------------------------------------------
+// Effets : lueur et inclinaison 3D des cartes, onde sur les boutons, barre de
+// lecture, bulle qui glisse dans la barre du haut, éclats de particules,
+// confettis. Tout est coupé si l'appareil demande moins d'animations ;
+// les effets de survol ne concernent que la souris (pas le tactile).
+// ---------------------------------------------------------------------------
+(function () {
+    const calme = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const souris = window.matchMedia && matchMedia('(hover: hover) and (pointer: fine)').matches;
+    const VIOLETS = ['#7c6cff', '#ab9fff', '#ffffff', '#8e80ff'];
+
+    // ---- Particules (un seul canvas, créé à la demande) ----
+    let toile = null, ctx = null, parts = [], anneaux = [], enCours = false;
+    function preparerToile() {
+        if (toile) return;
+        toile = document.createElement('canvas');
+        toile.className = 'fx-toile';
+        toile.setAttribute('aria-hidden', 'true');
+        document.body.appendChild(toile);
+        ctx = toile.getContext('2d');
+        const taille = () => {
+            const r = window.devicePixelRatio || 1;
+            toile.width = innerWidth * r; toile.height = innerHeight * r;
+            ctx.setTransform(r, 0, 0, r, 0, 0);
+        };
+        taille();
+        window.addEventListener('resize', taille);
+    }
+    function boucle() {
+        ctx.clearRect(0, 0, innerWidth, innerHeight);
+        anneaux = anneaux.filter(a => (a.vie -= 1) > 0);
+        for (const a of anneaux) {
+            const p = 1 - a.vie / a.max;
+            ctx.globalAlpha = (1 - p) * 0.8;
+            ctx.strokeStyle = '#ab9fff';
+            ctx.lineWidth = 3 * (1 - p) + 0.5;
+            ctx.beginPath(); ctx.arc(a.x, a.y, a.r * (1 - Math.pow(1 - p, 3)), 0, Math.PI * 2); ctx.stroke();
+        }
+        parts = parts.filter(p => (p.vie -= 1) > 0 && p.y < innerHeight + 40);
+        for (const p of parts) {
+            p.vx *= p.frein; p.vy = p.vy * p.frein + p.g; p.x += p.vx + Math.sin(p.vie / 9 + p.phase) * p.ondule; p.y += p.vy; p.rot += p.vr;
+            ctx.globalAlpha = Math.min(1, p.vie / 25);
+            ctx.fillStyle = p.c;
+            ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+            if (p.forme === 'rect') ctx.fillRect(-p.t, -p.t / 2.5, p.t * 2, p.t / 1.25);
+            else { ctx.beginPath(); ctx.arc(0, 0, p.t / 1.6, 0, Math.PI * 2); ctx.fill(); }
+            ctx.restore();
+        }
+        ctx.globalAlpha = 1;
+        if (parts.length || anneaux.length) requestAnimationFrame(boucle);
+        else { enCours = false; ctx.clearRect(0, 0, innerWidth, innerHeight); }
+    }
+    function lancer() { if (!enCours) { enCours = true; requestAnimationFrame(boucle); } }
+
+    // Explosion de particules violettes à un point de l'écran (x, y en pixels de la fenêtre)
+    window.xhqEclat = function (x, y, nombre = 46) {
+        if (calme) return;
+        preparerToile();
+        anneaux.push({ x, y, r: 90, vie: 34, max: 34 });
+        for (let i = 0; i < nombre; i++) {
+            const a = Math.random() * Math.PI * 2, v = 2.5 + Math.random() * 7.5;
+            parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 2, g: 0.16, frein: 0.95, ondule: 0, phase: 0,
+                rot: Math.random() * 6, vr: (Math.random() - 0.5) * 0.4, t: 2.5 + Math.random() * 3.5,
+                c: VIOLETS[i % VIOLETS.length], forme: i % 3 ? 'rond' : 'rect', vie: 55 + Math.random() * 35 });
+        }
+        lancer();
+    };
+    window.xhqEclatSur = function (el, nombre) {
+        if (!el) return;
+        const r = el.getBoundingClientRect();
+        xhqEclat(r.left + r.width / 2, r.top + r.height / 2, nombre);
+    };
+
+    // Pluie de confettis sur tout l'écran (victoire, champion…)
+    window.xhqConfettis = function (nombre = 150) {
+        if (calme) return;
+        preparerToile();
+        for (let i = 0; i < nombre; i++) {
+            parts.push({ x: Math.random() * innerWidth, y: -20 - Math.random() * innerHeight * 0.6,
+                vx: (Math.random() - 0.5) * 2, vy: 2 + Math.random() * 3, g: 0.03, frein: 0.995, ondule: 0.8 + Math.random(), phase: Math.random() * 6,
+                rot: Math.random() * 6, vr: (Math.random() - 0.5) * 0.25, t: 3 + Math.random() * 4,
+                c: VIOLETS[i % VIOLETS.length], forme: 'rect', vie: 260 + Math.random() * 120 });
+        }
+        lancer();
+    };
+
+    // Un objet « vole » d'un élément à un autre (copie visuelle), puis la cible pulse
+    window.xhqVoler = function (depuis, vers) {
+        if (calme || !depuis || !vers || !depuis.animate) return;
+        const a = depuis.getBoundingClientRect(), b = vers.getBoundingClientRect();
+        if (!a.width || !b.width) return;
+        const copie = depuis.cloneNode(true);
+        copie.removeAttribute('id');
+        Object.assign(copie.style, { position: 'fixed', left: a.left + 'px', top: a.top + 'px', width: a.width + 'px', height: a.height + 'px',
+            margin: 0, zIndex: 9998, pointerEvents: 'none' });
+        copie.classList.add('fx-vol');
+        document.body.appendChild(copie);
+        const dx = b.left + b.width / 2 - (a.left + a.width / 2), dy = b.top + b.height / 2 - (a.top + a.height / 2);
+        copie.animate([
+            { transform: 'translate(0, 0) scale(1)', opacity: 1 },
+            { transform: `translate(${dx * 0.45}px, ${dy * 0.45 - 90}px) scale(1.15) rotate(-6deg)`, opacity: 1, offset: 0.45 },
+            { transform: `translate(${dx}px, ${dy}px) scale(0.25)`, opacity: 0.2 }
+        ], { duration: 820, easing: 'cubic-bezier(.5,0,.3,1)' }).onfinish = () => {
+            copie.remove();
+            vers.classList.remove('fx-pouls'); void vers.offsetWidth; vers.classList.add('fx-pouls');
+            xhqEclatSur(vers, 22);
+        };
+    };
+
+    if (calme) return;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // ---- Barre de lecture en haut de la page ----
+        const barre = document.createElement('div');
+        barre.className = 'fx-progression';
+        barre.setAttribute('aria-hidden', 'true');
+        document.body.appendChild(barre);
+        let attente = false;
+        const majBarre = () => {
+            attente = false;
+            const max = document.documentElement.scrollHeight - innerHeight;
+            barre.style.transform = `scaleX(${max > 40 ? Math.min(1, scrollY / max) : 0})`;
+        };
+        window.addEventListener('scroll', () => { if (!attente) { attente = true; requestAnimationFrame(majBarre); } }, { passive: true });
+        majBarre();
+
+        // ---- Onde violette au clic sur les boutons ----
+        const BOUTONS = '.btn, .item-btn, .tab, .filtre, .xhq-nav-btn, .tache, .dropdown-item, .equip-btn';
+        document.addEventListener('pointerdown', e => {
+            const b = e.target.closest(BOUTONS);
+            if (!b || b.disabled) return;
+            const r = b.getBoundingClientRect();
+            if (getComputedStyle(b).position === 'static') b.classList.add('fx-relatif');
+            b.classList.add('fx-hote');
+            const onde = document.createElement('span');
+            const t = Math.max(r.width, r.height) * 2.2;
+            onde.className = 'fx-onde';
+            Object.assign(onde.style, { width: t + 'px', height: t + 'px', left: (e.clientX - r.left - t / 2) + 'px', top: (e.clientY - r.top - t / 2) + 'px' });
+            b.appendChild(onde);
+            setTimeout(() => onde.remove(), 650);
+        });
+
+        // ---- Bulle qui glisse sous les liens de la barre du haut ----
+        const capsule = document.getElementById('nav-capsule');
+        if (capsule && souris && capsule.querySelector('.fx-bulle')) {
+            const bulle = capsule.querySelector('.fx-bulle');
+            const placer = (lien, instant) => {
+                if (!lien || capsule.offsetParent === null || getComputedStyle(capsule).flexDirection === 'column') { bulle.style.opacity = 0; return; }
+                if (instant) bulle.style.transition = 'none';
+                bulle.style.opacity = 1;
+                bulle.style.width = lien.offsetWidth + 'px';
+                bulle.style.height = lien.offsetHeight + 'px';
+                bulle.style.transform = `translate(${lien.offsetLeft}px, ${lien.offsetTop}px)`;
+                if (instant) { void bulle.offsetWidth; bulle.style.transition = ''; }
+            };
+            const actif = () => capsule.querySelector('.xhq-nav-btn.active');
+            capsule.classList.add('fx-capsule');
+            placer(actif(), true);
+            capsule.querySelectorAll('.xhq-nav-btn').forEach(l => l.addEventListener('mouseenter', () => { capsule.classList.add('survol'); placer(l); }));
+            capsule.addEventListener('mouseleave', () => { capsule.classList.remove('survol'); const a = actif(); if (a) placer(a); else bulle.style.opacity = 0; });
+            window.addEventListener('resize', () => placer(actif(), true));
+            if (document.fonts) document.fonts.ready.then(() => placer(actif(), true));
+        }
+
+        if (!souris) return;
+
+        // ---- Halo qui suit la souris dans toute la page ----
+        const halo = document.createElement('div');
+        halo.className = 'fx-curseur';
+        halo.setAttribute('aria-hidden', 'true');
+        document.body.appendChild(halo);
+        let hx = innerWidth / 2, hy = innerHeight / 3, cx = hx, cy = hy, haloActif = false;
+        const suivre = () => {
+            cx += (hx - cx) * 0.12; cy += (hy - cy) * 0.12;
+            halo.style.transform = `translate(${cx - 300}px, ${cy - 300}px)`;
+            if (Math.abs(hx - cx) + Math.abs(hy - cy) > 0.5) requestAnimationFrame(suivre); else haloActif = false;
+        };
+
+        // ---- Lueur sur le bord des cartes + inclinaison 3D ----
+        const LUEUR = '.item-card, .team-card, .carte-tournoi, .stat, .tache, .look, .collection, .bm, .carte-match, .vedette, .profil-card, .a-faire, .ma-banniere';
+        const TILT = '.item-card, .team-card, .carte-tournoi, .look, .vedette';
+        let carte = null, inclinee = null, ev = null, prevu = false;
+        const quitter = () => {
+            if (carte) carte.classList.remove('fx-on');
+            if (inclinee) { inclinee.style.transform = ''; inclinee.style.transition = ''; }
+            carte = inclinee = null;
+        };
+        const appliquer = () => {
+            prevu = false;
+            const e = ev;
+            const c = e.target.closest ? e.target.closest(LUEUR) : null;
+            if (c !== carte) {
+                quitter();
+                carte = c;
+                if (c) {
+                    if (!c.querySelector(':scope > .fx-lueur')) {
+                        if (getComputedStyle(c).position === 'static') c.classList.add('fx-relatif');
+                        const l = document.createElement('span'); l.className = 'fx-lueur'; l.setAttribute('aria-hidden', 'true'); c.appendChild(l);
+                    }
+                    c.classList.add('fx-on');
+                    if (c.matches(TILT) && !c.closest('.edition, form') && !c.querySelector('input, textarea, select')) inclinee = c;
+                }
+            }
+            if (!carte) return;
+            const r = carte.getBoundingClientRect();
+            const x = e.clientX - r.left, y = e.clientY - r.top;
+            carte.style.setProperty('--mx', x + 'px');
+            carte.style.setProperty('--my', y + 'px');
+            if (inclinee && r.width < 700) {
+                const px = x / r.width - 0.5, py = y / r.height - 0.5;
+                inclinee.style.transition = 'transform 0.12s ease-out, border-color 0.25s, box-shadow 0.25s';
+                inclinee.style.transform = `perspective(900px) translateY(-4px) rotateX(${(-py * 7).toFixed(2)}deg) rotateY(${(px * 8).toFixed(2)}deg)`;
+            }
+        };
+        document.addEventListener('pointermove', e => {
+            if (e.pointerType !== 'mouse') return;
+            ev = e;
+            hx = e.clientX; hy = e.clientY;
+            if (!haloActif) { haloActif = true; halo.classList.add('vu'); requestAnimationFrame(suivre); }
+            if (!prevu) { prevu = true; requestAnimationFrame(appliquer); }
+        }, { passive: true });
+        document.addEventListener('mouseleave', () => { quitter(); halo.classList.remove('vu'); });
+    });
+})();

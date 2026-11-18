@@ -719,6 +719,83 @@ tbody tr:hover td { background: rgba(255, 255, 255, 0.025); }
 .team-card, .item-card, .stat, .carte-tournoi { transition: transform 0.25s var(--courbe), border-color 0.25s, box-shadow 0.25s; }
 .team-card:hover, .item-card:hover, .carte-tournoi:hover { transform: translateY(-4px); border-color: rgba(124, 108, 255, 0.45); box-shadow: var(--ombre); }
 
+/* ---------------------------------------------------------------------
+   Effets (voir la fin de xhq.js)
+   --------------------------------------------------------------------- */
+/* Transitions entre les pages (navigateurs récents) : la barre du haut reste, le contenu glisse */
+@view-transition { navigation: auto; }
+.xhq-nav { view-transition-name: xhq-nav; }
+.fx-bulle { view-transition-name: xhq-bulle; }
+::view-transition-old(root) { animation: fx-page-sort 0.22s ease-in both; }
+::view-transition-new(root) { animation: fx-page-entre 0.45s var(--courbe) both; }
+::view-transition-group(xhq-bulle) { animation-duration: 0.45s; animation-timing-function: var(--courbe); }
+@keyframes fx-page-sort { to { opacity: 0; transform: translateY(-10px); filter: blur(5px); } }
+@keyframes fx-page-entre { from { opacity: 0; transform: translateY(16px); filter: blur(6px); } }
+
+.fx-relatif { position: relative; }
+.fx-hote { overflow: hidden; isolation: isolate; }
+.fx-onde { position: absolute; z-index: -1; border-radius: 50%; pointer-events: none; background: radial-gradient(circle, rgba(255, 255, 255, 0.35), rgba(171, 159, 255, 0.18) 40%, transparent 70%); transform: scale(0); animation: fx-onde 0.6s var(--courbe) forwards; }
+@keyframes fx-onde { to { transform: scale(1); opacity: 0; } }
+.btn:active:not(:disabled), .item-btn:active:not(:disabled), .filtre:active, .tab:active { transform: scale(0.96); }
+
+/* Barre de lecture */
+.fx-progression { position: fixed; top: 0; left: 0; right: 0; z-index: 1001; height: 2px; transform: scaleX(0); transform-origin: left; pointer-events: none;
+    background: linear-gradient(90deg, transparent, var(--violet) 30%, #fff); box-shadow: 0 0 12px var(--violet); view-transition-name: none; }
+
+/* Bulle qui glisse dans la capsule de navigation */
+.fx-capsule { position: relative; }
+.fx-capsule .xhq-nav-btn { position: relative; z-index: 1; }
+.fx-capsule .xhq-nav-btn.active, .fx-capsule .xhq-nav-btn:hover { background: transparent; box-shadow: none; }
+.fx-capsule.survol .xhq-nav-btn.active:not(:hover) { color: var(--text-soft); }
+.fx-bulle { position: absolute; left: 0; top: 0; z-index: 0; border-radius: 999px; background: var(--violet); box-shadow: 0 6px 20px rgba(124, 108, 255, 0.45); opacity: 0; pointer-events: none;
+    transition: transform 0.4s var(--courbe), width 0.4s var(--courbe), height 0.4s var(--courbe), opacity 0.25s; }
+
+/* Halo qui suit la souris */
+.fx-curseur { position: fixed; left: 0; top: 0; z-index: -1; width: 600px; height: 600px; border-radius: 50%; pointer-events: none; opacity: 0; transition: opacity 0.6s;
+    background: radial-gradient(circle, rgba(124, 108, 255, 0.11), transparent 62%); }
+.fx-curseur.vu { opacity: 1; }
+
+/* Lueur des cartes : un projecteur à l'intérieur et un liseré lumineux qui suit la souris */
+.fx-lueur { position: absolute; inset: 0; z-index: 2; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity 0.35s;
+    background: radial-gradient(360px circle at var(--mx, 50%) var(--my, 50%), rgba(124, 108, 255, 0.1), transparent 45%); }
+.fx-lueur::before { content: ''; position: absolute; inset: 0; border-radius: inherit; padding: 1px;
+    background: radial-gradient(240px circle at var(--mx, 50%) var(--my, 50%), rgba(196, 188, 255, 0.95), rgba(124, 108, 255, 0.35) 40%, transparent 70%);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
+.fx-on > .fx-lueur { opacity: 1; }
+
+/* Toile des particules et objet qui vole */
+.fx-toile { position: fixed; inset: 0; z-index: 9999; width: 100vw; height: 100vh; pointer-events: none; }
+.fx-vol { filter: drop-shadow(0 0 18px rgba(124, 108, 255, 0.8)); }
+.fx-pouls { animation: fx-pouls 0.6s var(--courbe); }
+@keyframes fx-pouls { 40% { transform: scale(1.12); box-shadow: 0 0 0 6px rgba(124, 108, 255, 0.35), 0 0 40px rgba(124, 108, 255, 0.6); } }
+
+/* Messages : arrivée avec un rebond et un éclat */
+.message.show { animation: fx-toast 0.5s var(--courbe); }
+@keyframes fx-toast { from { opacity: 0; transform: translateY(-10px) scale(0.97); box-shadow: 0 0 0 0 rgba(124, 108, 255, 0.5); } 60% { box-shadow: 0 0 0 8px rgba(124, 108, 255, 0); } }
+
+/* Badges qui brillent, cadre violet qui respire */
+.badge-joueur { position: relative; overflow: hidden; }
+.badge-joueur::after { content: ''; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.55) 50%, transparent 70%); transform: translateX(-120%); animation: fx-reflet 4.5s ease-in-out 1s infinite; }
+@keyframes fx-reflet { 0%, 70% { transform: translateX(-120%); } 100% { transform: translateX(120%); } }
+.cadre-or { animation: fx-anneau 3.2s ease-in-out infinite; }
+@keyframes fx-anneau { 50% { box-shadow: 0 0 0 4px rgba(124, 108, 255, 0.28), 0 0 22px 2px rgba(124, 108, 255, 0.55); } }
+
+/* Classements : lignes en cascade, podium mis en valeur */
+.anim .poule.vu .leaderboard-item { animation: fx-ligne 0.55s var(--courbe) both; }
+.anim .poule.vu .leaderboard-item:nth-child(2) { animation-delay: 0.04s; } .anim .poule.vu .leaderboard-item:nth-child(3) { animation-delay: 0.08s; }
+.anim .poule.vu .leaderboard-item:nth-child(4) { animation-delay: 0.12s; } .anim .poule.vu .leaderboard-item:nth-child(5) { animation-delay: 0.16s; }
+.anim .poule.vu .leaderboard-item:nth-child(6) { animation-delay: 0.2s; } .anim .poule.vu .leaderboard-item:nth-child(7) { animation-delay: 0.24s; }
+.anim .poule.vu .leaderboard-item:nth-child(8) { animation-delay: 0.28s; } .anim .poule.vu .leaderboard-item:nth-child(n+9) { animation-delay: 0.32s; }
+@keyframes fx-ligne { from { opacity: 0; transform: translateX(-14px); } }
+.leaderboard-item:not(.vide) .rank.top1 { animation: fx-top1 2.6s ease-in-out infinite; }
+@keyframes fx-top1 { 50% { box-shadow: 0 0 0 4px rgba(124, 108, 255, 0.2), 0 0 26px rgba(124, 108, 255, 0.8); } }
+.leaderboard-item:has(.rank.top1):not(.vide) { background: linear-gradient(100deg, rgba(124, 108, 255, 0.16), transparent 60%); }
+
+@media (prefers-reduced-motion: reduce) {
+    @view-transition { navigation: none; }
+    .fx-progression, .fx-curseur, .fx-bulle, .fx-lueur { display: none; }
+}
+
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; }
     .anim .reveal { opacity: 1; transform: none; }

@@ -76,6 +76,22 @@
         .bm-team.p { color: var(--muted); }
         .bm-team.tbd { color: var(--dim); font-style: italic; }
         .bm-team .s { font-weight: 700; font-variant-numeric: tabular-nums; }
+        /* Le bracket se dessine : les traits partent tour après tour */
+        .anim .bracket-wrap .paire::after { transform-origin: left center; transform: scaleX(0); clip-path: inset(0 0 0 0); }
+        .anim .bracket-wrap.vu .paire::after { animation: trace 0.5s var(--courbe) forwards; animation-delay: calc(0.35s + var(--t, 0) * 0.45s); }
+        .anim .bracket-wrap .tour:not(:first-child) .case::before { transform-origin: left center; transform: scaleX(0); }
+        .anim .bracket-wrap.vu .tour:not(:first-child) .case::before { animation: trace 0.35s var(--courbe) forwards; animation-delay: calc(0.6s + (var(--t, 1) - 1) * 0.45s); }
+        .tour:nth-child(2) { --t: 1; } .tour:nth-child(3) { --t: 2; } .tour:nth-child(4) { --t: 3; } .tour:nth-child(5) { --t: 4; } .tour:nth-child(6) { --t: 5; }
+        @keyframes trace { to { transform: scaleX(1); } }
+        /* Chemin des vainqueurs : leurs traits s'illuminent */
+        .paire:has(.bm-team.g)::after { border-color: rgba(124, 108, 255, 0.7); filter: drop-shadow(0 0 4px rgba(124, 108, 255, 0.6)); }
+        .tour:not(:first-child) .case:has(.bm-team.g)::before { border-top-color: rgba(124, 108, 255, 0.7); }
+        .bm.finale { animation: finale 2.8s ease-in-out infinite; }
+        @keyframes finale { 50% { box-shadow: 0 0 46px rgba(124, 108, 255, 0.55), 0 0 0 1px rgba(124, 108, 255, 0.6); } }
+        /* Bannière du champion : reflet qui passe + trophée */
+        .champion-banniere::after { content: ''; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 35%, rgba(255, 255, 255, 0.18) 50%, transparent 65%); transform: translateX(-100%); animation: reflet-champion 3.5s ease-in-out 0.8s infinite; pointer-events: none; }
+        @keyframes reflet-champion { 0%, 60% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+        .champion-banniere strong { text-shadow: 0 0 30px rgba(124, 108, 255, 0.7); }
         .bm-saisie { display: flex; justify-content: center; padding: 0.45rem; border-top: 1px dashed var(--line); background: var(--bg-2); }
 
         @media (max-width: 560px) {
@@ -255,6 +271,8 @@
             let html = '';
             if (t.statut === 'termine' && t.champion) {
                 html += `<div class="champion-banniere"><small>Vainqueur du tournoi</small><strong>${escapeHtml(t.champion)}</strong></div>`;
+                // Pluie de confettis à la première ouverture de la page du champion
+                if (!window.confettisFaits && window.xhqConfettis) { window.confettisFaits = true; setTimeout(() => xhqConfettis(), 350); }
             }
             html += htmlEtapes(t.statut);
             if (t.description) html += `<p class="description">${escapeHtml(t.description)}</p>`;
