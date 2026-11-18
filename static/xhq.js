@@ -76,8 +76,12 @@ async function api(url, options = {}) {
         if (racine.matches && racine.matches(CIBLES)) liste.push(racine);
         if (racine.querySelectorAll) liste.push(...racine.querySelectorAll(CIBLES));
         // Décalage entre éléments voisins pour un effet « cascade »
+        // Zones redessinées pendant qu'on les modifie (ex. la carte « Ma team » après un changement de logo) :
+        // une fois la page affichée, on ne rejoue pas l'animation, sinon tout « sauterait » à chaque modification.
+        const pageDejaAffichee = performance.now() > 1500;
         liste.forEach(el => {
             if (el.classList.contains('reveal')) return;
+            if (pageDejaAffichee && el.closest('[data-sans-animation]')) return;
             const freres = el.parentElement ? [...el.parentElement.children].filter(x => x.matches(CIBLES)) : [];
             const i = Math.max(0, freres.indexOf(el));
             el.style.setProperty('--d', Math.min(i, 8) * 0.06 + 's');

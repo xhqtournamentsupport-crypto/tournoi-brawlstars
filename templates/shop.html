@@ -119,8 +119,6 @@
         <div class="filtres" id="filtres">
             <button class="filtre actif" type="button" data-filtre="tout">Tout</button>
             <button class="filtre" type="button" data-filtre="badge">Badges</button>
-            <button class="filtre" type="button" data-filtre="cadre">Cadres</button>
-            <button class="filtre" type="button" data-filtre="avatars">Avatars</button>
             <button class="filtre" type="button" data-filtre="manquants">À récupérer</button>
         </div>
 
@@ -133,7 +131,7 @@
     {% include '_footer.html' %}
 
     <script>
-        const TYPES = { badge: 'Badge', cadre: "Cadre d'avatar", avatars: 'Avatars' };
+        const TYPES = { badge: 'Badge' };
         const monAvatar = {{ current_user.logo | tojson }};
         const maPhoto = {{ (current_user.photo or '') | tojson }};
         const RARETE = { champion_tournoi: ['exclusif', 'Exclusif'], fondateur: ['exclusif', '3 au monde'], admin: ['exclusif', 'Staff'], pionnier: ['limite', 'Limité'], saison1: ['limite', 'Saison 1'] };

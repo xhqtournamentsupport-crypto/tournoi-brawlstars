@@ -186,15 +186,15 @@ SOLDE_DEPART = 0
 
 # Objets exclusifs, gratuits et purement cosmétiques : (code, nom, description, prix, type)
 SHOP_DEFAUT = [
-    ('pionnier', 'Badge OG', "Réservé aux 100 premiers inscrits. Une fois les 100 places prises, il ne revient pas.", 0, 'badge'),
-    ('saison1', 'Badge Saison 1', "Disponible pendant la saison 1 uniquement. À la fin de la saison, il disparaît du shop.", 0, 'badge'),
-    ('cadre_or', 'Cadre Violet', "Contour violet autour de ton avatar : profil, menu et liste des membres de ta team.", 0, 'cadre'),
-    ('cadre_carbone', 'Cadre Carbone', "Contour indigo mat avec liseré, plus discret que le violet.", 0, 'cadre'),
-    ('pack_rare', 'Avatars rares', "Quatre avatars en plus dans le sélecteur du profil, introuvables autrement.", 0, 'avatars'),
-    ('champion_tournoi', 'Badge Champion', "Donné à chaque joueur de la team qui gagne un tournoi XHQ. Impossible à récupérer autrement.", 0, 'badge'),
-    ('fondateur', 'Badge Fondateur', "Porté uniquement par les 3 fondateurs de la XHQ League. Donné par l'orga, impossible à récupérer.", 0, 'badge'),
-    ('admin', 'Badge Admin', "Porté par l'équipe d'organisation (10 admins maximum). Donné avec les droits admin.", 0, 'badge'),
+    ('pionnier', 'OG', "Réservé aux 100 premiers inscrits. Une fois les 100 places prises, il ne revient pas.", 0, 'badge'),
+    ('saison1', 'Saison 1', "Disponible pendant la saison 1 uniquement. À la fin de la saison, il disparaît du shop.", 0, 'badge'),
+    ('champion_tournoi', 'Champion', "Donné à chaque joueur de la team qui gagne un tournoi XHQ. Impossible à récupérer autrement.", 0, 'badge'),
+    ('fondateur', 'Fondateur', "Porté uniquement par les 3 fondateurs de la XHQ League. Donné par l'orga, impossible à récupérer.", 0, 'badge'),
+    ('admin', 'Admin', "Porté par l'équipe d'organisation (10 admins maximum). Donné avec les droits admin.", 0, 'badge'),
 ]
+# Plus de cadres ni d'avatars au choix : tout le monde a le contour violet, et l'avatar par défaut
+OBJETS_RETIRES = ('cadre_or', 'cadre_carbone', 'pack_rare')
+CADRE_POUR_TOUS = 'cadre_or'
 PIONNIERS_MAX = 100   # badge Pionnier : les 100 premiers inscrits
 FONDATEURS_MAX = 3    # badge Fondateur : donné à la main par un admin
 ADMINS_MAX = 10       # nombre maximum de comptes admin (ils portent le badge Admin)
@@ -664,6 +664,13 @@ def init_db():
             c.execute('INSERT INTO shop_items (code, nom, description, prix, type) VALUES (?, ?, ?, ?, ?)',
                       (code, nom, description, prix, type_))
 
+    # Migration unique : cadres et avatars au choix supprimés (contour violet pour tout le monde)
+    if not c.execute("SELECT 1 FROM parametres WHERE cle = 'cosmetiques_v4'").fetchone():
+        c.execute('DELETE FROM inventory WHERE item_id IN (SELECT id FROM shop_items WHERE code IN (%s))' % ','.join('?' * len(OBJETS_RETIRES)), OBJETS_RETIRES)
+        c.execute('DELETE FROM shop_items WHERE code IN (%s)' % ','.join('?' * len(OBJETS_RETIRES)), OBJETS_RETIRES)
+        c.execute('UPDATE users SET cadre_equipe = NULL, profile_pic = ?', (AVATAR_DEFAUT,))
+        c.execute("INSERT OR REPLACE INTO parametres (cle, valeur) VALUES ('cosmetiques_v4', '1')")
+
     # Le badge Admin suit les droits admin
     c.execute("""INSERT OR IGNORE INTO inventory (user_id, item_id, bought_at)
                  SELECT u.id, s.id, datetime('now') FROM users u, shop_items s
@@ -678,8 +685,8 @@ def init_db():
         # Les anciens « Skin Premium » gardent leurs avantages (cadre or + avatars rares)
         anciens_skins = [r[0] for r in c.execute(
             "SELECT DISTINCT i.user_id FROM inventory i JOIN shop_items s ON s.id = i.item_id WHERE s.nom = 'Skin Premium'")]
-        nouveaux = {code: c.execute('SELECT id FROM shop_items WHERE code = ?', (code,)).fetchone()[0]
-                    for code in ('cadre_or', 'pack_rare')}
+        nouveaux = {code: r[0] for code in ('cadre_or', 'pack_rare')
+                    for r in [c.execute('SELECT id FROM shop_items WHERE code = ?', (code,)).fetchone()] if r}
         for uid in anciens_skins:
             for code, item_id in nouveaux.items():
                 c.execute("INSERT OR IGNORE INTO inventory (user_id, item_id, bought_at) VALUES (?, ?, datetime('now'))", (uid, item_id))
@@ -813,10 +820,10 @@ def apparence(db, user_id):
     """Badge et cadre équipés (seulement s'ils sont bien possédés)."""
     u = db.execute('SELECT badge_equipe, cadre_equipe FROM users WHERE id = ?', (user_id,)).fetchone()
     badge = u['badge_equipe'] if u and u['badge_equipe'] and possede(db, user_id, u['badge_equipe']) else None
-    cadre = u['cadre_equipe'] if u and u['cadre_equipe'] and possede(db, user_id, u['cadre_equipe']) else None
+    cadre = CADRE_POUR_TOUS     # contour violet pour tout le monde
     nom_badge = None
     if badge:
-        nom_badge = db.execute('SELECT nom FROM shop_items WHERE code = ?', (badge,)).fetchone()['nom'].replace('Badge ', '')
+        nom_badge = db.execute('SELECT nom FROM shop_items WHERE code = ?', (badge,)).fetchone()['nom']
     return {'badge': nom_badge, 'badge_code': badge, 'cadre': cadre}
 
 
@@ -1143,8 +1150,7 @@ def signup_page():
 @app.route('/profil')
 @page_connectee
 def profil_page():
-    return render_template('profil.html', avatars=AVATARS, avatars_premium=AVATARS_PREMIUM,
-                           avatars_rares=possede(get_db(), session['user_id'], 'pack_rare'))
+    return render_template('profil.html')
 
 
 @app.route('/teams')
@@ -1401,7 +1407,7 @@ def inventaire(db, user_id):
     objets = [dict(r) for r in db.execute("""
         SELECT s.code, s.nom, s.type FROM inventory i JOIN shop_items s ON s.id = i.item_id
         WHERE i.user_id = ? AND s.code IS NOT NULL ORDER BY i.id""", (user_id,))]
-    return {'objets': objets, 'avatars_rares': possede(db, user_id, 'pack_rare'), **apparence(db, user_id)}
+    return {'objets': objets, **apparence(db, user_id)}
 
 
 @app.route('/api/profil/equiper', methods=['POST'])
@@ -1410,8 +1416,8 @@ def api_profil_equiper():
     data = donnees_json()
     type_ = data.get('type')
     code = data.get('code')
-    if type_ not in ('badge', 'cadre'):
-        return jsonify({'success': False, 'error': 'Type invalide'}), 400
+    if type_ != 'badge':
+        return jsonify({'success': False, 'error': 'Seuls les badges se choisissent'}), 400
     db = get_db()
     uid = session['user_id']
     if code is not None:
@@ -1435,11 +1441,7 @@ def api_profil_update():
         return jsonify({'success': False, 'error': 'Bio invalide'}), 400
     bio = sans_invisibles(bio).strip()[:500]
 
-    logo = data.get('logo', user['profile_pic'])
-    if logo in AVATARS_PREMIUM and not possede(db, session['user_id'], 'pack_rare'):
-        return jsonify({'success': False, 'error': 'Cet avatar se débloque avec « Avatars rares » (shop)'}), 403
-    if logo not in AVATARS and logo not in AVATARS_PREMIUM:
-        return jsonify({'success': False, 'error': 'Logo invalide'}), 400
+    logo = AVATAR_DEFAUT   # l'avatar ne se choisit plus : photo de profil ou avatar par défaut
 
     db.execute('UPDATE users SET bio = ?, profile_pic = ? WHERE id = ?', (bio, logo, session['user_id']))
     db.commit()

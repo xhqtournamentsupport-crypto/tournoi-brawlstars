@@ -148,29 +148,13 @@
 
             <!-- Photo de profil -->
             <div class="ed-photo">
-                <div class="profil-pic{% if current_user.cadre %} cadre-{{ current_user.cadre | replace('cadre_', '') }}{% endif %}" id="profil-pic-display" onclick="openLogoSelector()" title="Choisir un avatar">{{ current_user.logo }}</div>
+                <div class="profil-pic{% if current_user.cadre %} cadre-{{ current_user.cadre | replace('cadre_', '') }}{% endif %}" id="profil-pic-display">{{ current_user.logo }}</div>
                 <div>
                     <div class="ed-photo-boutons">
                         <label class="btn secondaire">Ajouter une photo<input type="file" id="photo-fichier" accept="image/png,image/jpeg,image/webp,image/gif" hidden></label>
-                        <button class="btn secondaire" type="button" onclick="openLogoSelector()">Choisir un avatar</button>
                         <button class="btn-mini" type="button" id="photo-suppr" hidden onclick="retirerPhoto()">Retirer la photo</button>
                     </div>
-                    <p class="hint">Une photo carrée et nette rend ton profil plus reconnaissable. Sans photo, c'est ton avatar qui s'affiche : clique dessus pour en choisir un.</p>
-                </div>
-            </div>
-
-            <div id="logo-selector" style="display: none;">
-                <label>Avatar (affiché quand tu n'as pas de photo)</label>
-                <div class="logo-selector">
-                    {% for avatar in avatars %}
-                    <div class="logo-option{% if avatar == current_user.logo %} active{% endif %}" data-logo="{{ avatar }}" onclick="selectLogo(this.dataset.logo)">{{ avatar }}</div>
-                    {% endfor %}
-                </div>
-                <label class="logo-premium-titre">Avatars rares{% if not avatars_rares %} · à récupérer gratuitement dans le shop{% endif %}</label>
-                <div class="logo-selector">
-                    {% for avatar in avatars_premium %}
-                    <div class="logo-option premium-opt{% if not avatars_rares %} verrou{% endif %}{% if avatar == current_user.logo %} active{% endif %}" data-logo="{{ avatar }}" onclick="selectLogo(this.dataset.logo)">{{ avatar }}</div>
-                    {% endfor %}
+                    <p class="hint">Une photo carrée et nette rend ton profil plus reconnaissable. Sans photo, c'est l'avatar par défaut qui s'affiche.</p>
                 </div>
             </div>
 
@@ -206,7 +190,7 @@
             <h2 class="section-title">Mon inventaire</h2>
             <div class="success-message" id="inv-success"></div>
             <div class="error-message" id="inv-error"></div>
-            <p class="hint">Tes objets récupérés dans le shop. Un seul badge et un seul cadre affichés à la fois.</p>
+            <p class="hint">Tes objets récupérés dans le shop. Un seul badge affiché à la fois.</p>
             <div class="inventaire" id="inventaire"></div>
         </div>
         
@@ -249,10 +233,6 @@
     {% include '_footer.html' %}
 
     <script>
-        const AVATARS = {{ avatars | tojson }};
-        const AVATARS_PREMIUM = {{ avatars_premium | tojson }};
-        let avatarsRares = {{ avatars_rares | tojson }};
-        let currentLogo = {{ current_user.logo | tojson }};
 
         function flash(id, text) {
             const el = document.getElementById(id);
@@ -280,22 +260,6 @@
             document.getElementById('solde-display').textContent = (Number(data.solde) || 0) + ' €';
             document.getElementById('bio-input').value = data.bio || '';
             renderInventaire(data);
-            if (AVATARS.includes(data.logo) || AVATARS_PREMIUM.includes(data.logo)) {
-                currentLogo = data.logo;
-                if (!data.photo) document.getElementById('profil-pic-display').textContent = currentLogo;
-                updateLogoSelector();
-            }
-        }
-
-        function openLogoSelector() {
-            const selector = document.getElementById('logo-selector');
-            selector.style.display = selector.style.display === 'none' ? 'block' : 'none';
-        }
-
-        function updateLogoSelector() {
-            document.querySelectorAll('.logo-option').forEach(opt => {
-                opt.classList.toggle('active', opt.dataset.logo === currentLogo);
-            });
         }
 
         const TYPES = { badge: 'Badge', cadre: "Cadre d'avatar", avatars: 'Avatars' };
@@ -312,15 +276,13 @@
         }
         
         function renderInventaire(d) {
-            avatarsRares = d.avatars_rares;
-            document.querySelectorAll('.logo-option.premium-opt').forEach(o => o.classList.toggle('verrou', !avatarsRares));
             appliquerApparence(d);
             const box = document.getElementById('inventaire');
             if (!d.objets.length) {
                 box.innerHTML = '<p class="inventaire-vide">Rien pour l\'instant. Les objets du <a href="/shop">shop</a> sont gratuits.</p>';
                 return;
             }
-            box.innerHTML = d.objets.map(o => {
+            box.innerHTML = d.objets.filter(o => o.type === 'badge').map(o => {
                 const equipe = (o.type === 'badge' && o.code === d.badge_code) || (o.type === 'cadre' && o.code === d.cadre);
                 let action = '<div class="inv-etat">Débloqués dans le sélecteur d\'avatar.</div>';
                 if (o.type === 'badge' || o.type === 'cadre') {
@@ -346,16 +308,6 @@
             }
         }
         
-        function selectLogo(logo) {
-            if (AVATARS_PREMIUM.includes(logo) && !avatarsRares) {
-                flash('error-message', 'Cet avatar se débloque avec « Avatars rares », gratuit dans le shop.');
-                return;
-            }
-            if (!AVATARS.includes(logo) && !AVATARS_PREMIUM.includes(logo)) return;
-            currentLogo = logo;
-            if (!profil || !profil.photo) document.getElementById('profil-pic-display').textContent = logo;
-            updateLogoSelector();
-        }
 
         async function updateProfil() {
             // 1. Pseudo (seulement s'il a changé) : le lien @ suit automatiquement
@@ -373,13 +325,10 @@
                 if (btnCompte) { btnCompte.setAttribute('aria-label', 'Mon compte : ' + r.data.username); btnCompte.title = r.data.username; }
                 document.querySelectorAll('.compte-tete span, .compte-tete small').forEach(el => { if (/^@/.test(el.textContent.trim())) el.textContent = '@' + r.data.handle; });
             }
-            // 2. Bio et avatar
+            // 2. Bio
             const bio = document.getElementById('bio-input').value;
-            const { ok, data } = await api('/api/profil/update', { method: 'POST', body: { bio, logo: currentLogo } });
+            const { ok, data } = await api('/api/profil/update', { method: 'POST', body: { bio } });
             if (ok && data.success) {
-                document.getElementById('logo-selector').style.display = 'none';
-                const navAvatar = document.getElementById('nav-avatar');
-                if (navAvatar && !(profil && profil.photo)) navAvatar.textContent = data.logo;
                 flash('success-message', 'Profil enregistré.');
             } else {
                 flash('error-message', data.error || 'Erreur lors de la sauvegarde');
@@ -425,7 +374,7 @@
                 if (!cible) continue;
                 cible.classList.toggle('a-photo', !!url);
                 if (url) { cible.innerHTML = ''; const img = document.createElement('img'); img.src = url; img.alt = ''; cible.appendChild(img); }
-                else cible.textContent = currentLogo;
+                else cible.textContent = {{ current_user.logo | tojson }};
             }
         }
 

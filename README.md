@@ -56,14 +56,13 @@ saison d'avant, plafond −15. Réglages en haut de `app.py` (`PENALITE_PAR_MATC
 
 ## Shop
 Tout est **gratuit** et **purement cosmétique** (aucun avantage en jeu). Tout le monde démarre à 0 €.
-- **Badge OG** : réservé aux 100 premiers inscrits.
-- **Badge Fondateur** : 3 comptes seulement, donné par un admin (Admin → Joueurs → « Donner Fondateur »).
-- **Badge Admin** : donné automatiquement avec les droits admin (10 admins maximum).
-- **Badge Saison 1** : récupérable uniquement pendant la saison 1.
-- **Cadre Violet / Cadre Carbone** : contour autour de l'avatar (profil, menu, liste des membres).
-- **Avatars rares** : 4 avatars en plus dans le sélecteur du profil.
+- **OG** : réservé aux 100 premiers inscrits.
+- **Fondateur** : 3 comptes seulement, donné par un admin (Admin → Joueurs → « Donner Fondateur »).
+- **Admin** : donné automatiquement avec les droits admin (10 admins maximum).
+- **Saison 1** : récupérable uniquement pendant la saison 1.
+- **Contour violet** : affiché autour de l'avatar de tout le monde (plus de cadre ni d'avatar à choisir).
 
-Un badge et un cadre équipés à la fois, à choisir dans *Profil → Mon inventaire*.
+Un badge équipé à la fois, à choisir dans *Profil → Mon inventaire*.
 
 ## Tournois
 Page **Tournois** (menu) : un tournoi par jeu, à côté des ligues. L'admin le crée depuis `/tournois`
