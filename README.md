@@ -56,7 +56,7 @@ saison d'avant, plafond −15. Réglages en haut de `app.py` (`PENALITE_PAR_MATC
 
 ## Shop
 Tout est **gratuit** et **purement cosmétique** (aucun avantage en jeu). Tout le monde démarre à 0 €.
-- **Badge Pionnier** : réservé aux 100 premiers inscrits.
+- **Badge OG** : réservé aux 100 premiers inscrits.
 - **Badge Fondateur** : 3 comptes seulement, donné par un admin (Admin → Joueurs → « Donner Fondateur »).
 - **Badge Admin** : donné automatiquement avec les droits admin (10 admins maximum).
 - **Badge Saison 1** : récupérable uniquement pendant la saison 1.

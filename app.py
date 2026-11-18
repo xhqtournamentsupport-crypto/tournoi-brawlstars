@@ -91,7 +91,7 @@ SOLDE_DEPART = 0
 
 # Objets exclusifs, gratuits et purement cosmétiques : (code, nom, description, prix, type)
 SHOP_DEFAUT = [
-    ('pionnier', 'Badge Pionnier', "Réservé aux 100 premiers inscrits. Une fois les 100 places prises, il ne revient pas.", 0, 'badge'),
+    ('pionnier', 'Badge OG', "Réservé aux 100 premiers inscrits. Une fois les 100 places prises, il ne revient pas.", 0, 'badge'),
     ('saison1', 'Badge Saison 1', "Disponible pendant la saison 1 uniquement. À la fin de la saison, il disparaît du shop.", 0, 'badge'),
     ('cadre_or', 'Cadre Violet', "Contour violet autour de ton avatar : profil, menu et liste des membres de ta team.", 0, 'cadre'),
     ('cadre_carbone', 'Cadre Carbone', "Contour indigo mat avec liseré, plus discret que le violet.", 0, 'cadre'),
