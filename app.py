@@ -74,6 +74,10 @@ def _entetes_securite(reponse):
     reponse.headers.setdefault('Referrer-Policy', 'same-origin')          # les liens secrets (mot de passe) ne fuitent pas
     reponse.headers.setdefault('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
     reponse.headers.setdefault('Content-Security-Policy', CSP)
+    if request.headers.get('X-Forwarded-Proto', '').lower() == 'https' or request.is_secure:
+        reponse.headers.setdefault('Strict-Transport-Security', 'max-age=31536000')   # le navigateur n'essaie plus jamais http://
+    if session.get('user_id') and reponse.mimetype == 'text/html':
+        reponse.headers.setdefault('Cache-Control', 'private, no-store')
     if request.path.startswith(('/api/', '/admin', '/reinitialiser', '/profil')):
         reponse.headers.setdefault('Cache-Control', 'no-store')            # données perso jamais gardées en cache
     return reponse
@@ -582,7 +586,8 @@ def init_db():
         match_id INTEGER,
         created_at TEXT,
         traite_at TEXT)""")
-    ajouter_colonne(c, 'tournois', 'debut', 'TEXT')   # 'AAAA-MM-JJTHH:MM' (heure de France)
+    ajouter_colonne(c, 'tournois', 'debut', 'TEXT')
+    ajouter_colonne(c, 'tournois', 'lance_at', 'TEXT')   # début réel (lancement des poules)   # 'AAAA-MM-JJTHH:MM' (heure de France)
     c.execute("UPDATE users SET created_at = datetime('now') WHERE created_at IS NULL")
     c.execute("UPDATE teams SET created_at = datetime('now') WHERE created_at IS NULL")
     tous_avatars = AVATARS + AVATARS_PREMIUM
@@ -1382,7 +1387,8 @@ def supprimer_compte(db, c, uid):
     if fichiers:
         supprimer_media('avatars', fichiers['photo'])
         supprimer_media('bannieres', fichiers['banniere'])
-    c.execute('UPDATE contact_messages SET user_id = NULL WHERE user_id = ?', (uid,))
+    email = c.execute('SELECT email FROM users WHERE id = ?', (uid,)).fetchone()
+    c.execute('DELETE FROM contact_messages WHERE user_id = ? OR lower(email) = lower(?)', (uid, email['email'] if email else ''))
     c.execute('DELETE FROM notifications WHERE user_id = ?', (uid,))
     ancien = c.execute('SELECT handle FROM users WHERE id = ?', (uid,)).fetchone()
     if ancien and ancien['handle']:
@@ -1419,6 +1425,11 @@ def api_profil_delete():
     erreur = verifier_mot_de_passe_actuel(db, mdp if isinstance(mdp, str) else '')
     if erreur:
         return erreur
+    for t in db.execute('SELECT team_id FROM team_members WHERE user_id = ?', (uid,)).fetchall():
+        seul = db.execute('SELECT COUNT(*) FROM team_members WHERE team_id = ?', (t['team_id'],)).fetchone()[0] == 1
+        tournoi = en_tournoi_actif(db, t['team_id'])
+        if seul and tournoi:
+            return jsonify({'success': False, 'error': f"Tu es le dernier membre d'une team qui joue « {tournoi['nom']} » : attends la fin du tournoi"}), 400
     supprimer_compte(db, db.cursor(), uid)
     db.commit()
     restants = [x for x in session.get('comptes', []) if x != uid]
@@ -1490,15 +1501,34 @@ def media(dossier, nom):
     return send_from_directory(os.path.join(UPLOAD_DIR, dossier), nom, max_age=31536000)
 
 
+UPLOADS_MAX_MO = 200
+_taille_uploads = {'t': 0.0, 'octets': 0}
+
+
+def taille_uploads():
+    """Taille du dossier des images (recalculée au plus une fois par minute)."""
+    import time
+    if time.time() - _taille_uploads['t'] > 60:
+        total = 0
+        for dossier, _, fichiers in os.walk(UPLOAD_DIR):
+            total += sum(os.path.getsize(os.path.join(dossier, f)) for f in fichiers)
+        _taille_uploads.update(t=time.time(), octets=total)
+    return _taille_uploads['octets']
+
+
 def remplacer_image(colonne, dossier, mode, table='users', ligne_id=None):
     """Enregistre l'image envoyée dans la colonne voulue (profil ou team) et supprime l'ancienne."""
     ligne_id = ligne_id or session['user_id']
     if limite_atteinte(f"upload:{session['user_id']}", 20, 60):
         return jsonify({'success': False, 'error': 'Trop d\'images envoyées : réessaie dans une heure'}), 429
     noter_action(f"upload:{session['user_id']}")
+    if taille_uploads() > UPLOADS_MAX_MO * 1024 * 1024:
+        app.logger.error('Stockage des images plein (%s Mo)', UPLOADS_MAX_MO)
+        return jsonify({'success': False, 'error': 'Stockage plein pour le moment : préviens l\'orga (page Contact)'}), 507
     nom, erreur = enregistrer_image(request.files.get('fichier'), dossier, mode)
     if erreur:
         return jsonify({'success': False, 'error': erreur}), 400
+    _taille_uploads['t'] = 0     # recalcul au prochain envoi
     db = get_db()
     ancien = db.execute(f'SELECT {colonne} FROM {table} WHERE id = ?', (ligne_id,)).fetchone()[0]
     extra = ', banniere_pos = 50, banniere_zoom = 100' if colonne == 'banniere' else ''
@@ -1766,6 +1796,9 @@ def api_join_team(team_id):
     if db.execute("""SELECT 1 FROM team_exclusions WHERE team_id = ? AND user_id = ?
                      AND created_at > datetime('now', '-7 days')""", (team_id, uid)).fetchone():
         return jsonify({'success': False, 'error': 'Le capitaine t\'a retiré de cette team il y a moins de 7 jours'}), 403
+    tournoi = en_tournoi_actif(db, team_id)
+    if tournoi:
+        return jsonify({'success': False, 'error': f"Effectif bloqué : cette team joue le tournoi « {tournoi['nom']} ». Reviens après la fin."}), 400
     if limite_atteinte(f'rejoindre:{uid}', 10, 60):
         return jsonify({'success': False, 'error': TROP}), 429
     noter_action(f'rejoindre:{uid}')
@@ -2499,6 +2532,9 @@ def api_resultats_declarer():
     team = ma_team_dans_jeu(db, jeu['id'])
     if not team or not team['capitaine']:
         return jsonify({'success': False, 'error': 'Seul le capitaine peut déclarer un résultat'}), 403
+    if limite_atteinte(f"declarer:{session['user_id']}", 10, 60):
+        return jsonify({'success': False, 'error': TROP}), 429
+    noter_action(f"declarer:{session['user_id']}")
     data = donnees_json()
     adv_id = entier(data.get('adversaire_id'))
     pour, contre = entier(data.get('score_pour')), entier(data.get('score_contre'))
@@ -3142,11 +3178,13 @@ def retirer_objet(c, user_id, code):
         c.execute(f"UPDATE users SET {item['type']}_equipe = NULL WHERE id = ? AND {item['type']}_equipe = ?", (user_id, code))
 
 
-def donner_badge_champion(c, team_id):
+def donner_badge_champion(c, team_id, depuis=None):
+    """Badge Champion pour les joueurs de la team gagnante présents AVANT le début du tournoi."""
     item = c.execute("SELECT id FROM shop_items WHERE code = 'champion_tournoi'").fetchone()
     if not item:
         return
-    for m in c.execute('SELECT user_id FROM team_members WHERE team_id = ?', (team_id,)).fetchall():
+    for m in c.execute('SELECT user_id FROM team_members WHERE team_id = ? AND (? IS NULL OR joined_at <= ?)',
+                       (team_id, depuis, depuis)).fetchall():
         deja = c.execute('SELECT 1 FROM inventory WHERE user_id = ? AND item_id = ?', (m['user_id'], item['id'])).fetchone()
         if not deja:
             c.execute("INSERT OR IGNORE INTO inventory (user_id, item_id, bought_at) VALUES (?, ?, datetime('now'))",
@@ -3156,7 +3194,7 @@ def donner_badge_champion(c, team_id):
 
 def faire_avancer(c, match):
     """Envoie le vainqueur d'un match de bracket dans le match suivant (ou le sacre champion)."""
-    t = c.execute('SELECT id FROM tournois WHERE id = ?', (match['tournoi_id'],)).fetchone()
+    t = c.execute('SELECT id, lance_at FROM tournois WHERE id = ?', (match['tournoi_id'],)).fetchone()
     suivant = c.execute("""SELECT * FROM tournoi_matchs WHERE tournoi_id = ? AND phase = 'bracket'
                            AND tour = ? AND position = ?""",
                         (match['tournoi_id'], match['tour'] + 1, match['position'] // 2)).fetchone()
@@ -3168,7 +3206,7 @@ def faire_avancer(c, match):
                        WHERE i.tournoi_id = ? AND i.team_id = ?""", (t['id'], match['vainqueur_id'])).fetchone()[0]
     c.execute("""UPDATE tournois SET statut = 'termine', champion_team_id = ?, champion_nom = ?,
                  termine_at = datetime('now') WHERE id = ?""", (match['vainqueur_id'], nom, t['id']))
-    donner_badge_champion(c, match['vainqueur_id'])
+    donner_badge_champion(c, match['vainqueur_id'], t['lance_at'])
     notifier(c, membres_de(c, match['vainqueur_id']), f"Ta team remporte {nom_tournoi(c, t['id'])} ! Badge Champion débloqué",
              f"/tournois/{t['id']}")
 
@@ -3379,6 +3417,7 @@ def api_admin_creer_tournoi():
     c.execute("""INSERT INTO tournois (jeu_id, nom, description, quand, places, created_at, debut)
                  VALUES (?, ?, ?, ?, ?, datetime('now'), ?)""",
               (jeu['id'], nom, texte(data, 'description', 500), quand, places, debut))
+    journaliser(db, 'Tournoi créé', nom)
     capitaines = [r[0] for r in db.execute('SELECT createur_id FROM teams WHERE jeu_id = ?', (jeu['id'],))]
     notifier(db, capitaines, f"Nouveau tournoi : {nom}{' (' + quand + ')' if quand else ''}, inscriptions ouvertes", f'/tournois/{c.lastrowid}')
     db.commit()
@@ -3409,7 +3448,7 @@ def api_admin_tournoi_poules(tournoi_id):
         for a, b in journees_poule(membres):
             c.execute("""INSERT INTO tournoi_matchs (tournoi_id, phase, poule, team1_id, team2_id)
                          VALUES (?, 'poule', ?, ?, ?)""", (t['id'], lettre, a, b))
-    c.execute("UPDATE tournois SET statut = 'poules' WHERE id = ?", (t['id'],))
+    c.execute("UPDATE tournois SET statut = 'poules', lance_at = datetime('now') WHERE id = ?", (t['id'],))
     for tid in teams:
         notifier(c, membres_de(c, tid), f"{t['nom']} : les poules sont tirées, à vous de jouer", f"/tournois/{t['id']}")
     db.commit()
@@ -3517,6 +3556,7 @@ def api_admin_supprimer_tournoi(tournoi_id):
         return erreur
     for table in ('tournoi_matchs', 'tournoi_inscriptions'):
         db.execute(f'DELETE FROM {table} WHERE tournoi_id = ?', (t['id'],))
+    journaliser(db, 'Tournoi supprimé', t['nom'])
     db.execute('DELETE FROM tournois WHERE id = ?', (t['id'],))
     db.commit()
     return jsonify({'success': True}), 200
@@ -3951,6 +3991,7 @@ def api_admin_generer_calendrier():
     for tid, n in par_team.items():
         notifier(db, membres_de(db, tid), f"Calendrier publié : {n} match{'s' if n > 1 else ''} de ta team au programme",
                  '/calendrier?team=moi')
+    journaliser(db, 'Calendrier généré', f'{crees} match(s)')
     db.commit()
     return jsonify({'success': True, 'crees': crees}), 200
 
@@ -4077,6 +4118,18 @@ if __name__ == '__main__':
         else:
             print(f"Erreur : aucun compte avec l'email {sys.argv[2]}. Inscris-toi d'abord sur le site.")
             sys.exit(1)
+    elif len(sys.argv) >= 2 and sys.argv[1] == 'debloquer':
+        # python app.py debloquer email@exemple.fr  -> lève le blocage (7 jours ou définitif) d'un compte, même admin
+        if len(sys.argv) != 3:
+            print('Usage : python app.py debloquer email@exemple.fr')
+            sys.exit(1)
+        conn = sqlite3.connect(DB_PATH)
+        n = conn.execute("""UPDATE users SET verrou_definitif = 0, verrou_niveau = 0, echecs_connexion = 0, bloque_jusqua = NULL
+                            WHERE lower(email) = lower(?)""", (sys.argv[2].strip(),)).rowcount
+        conn.execute("INSERT INTO journal_admin (admin_nom, action, cible, created_at) VALUES ('console', 'Compte déverrouillé', ?, datetime('now'))", (sys.argv[2],))
+        conn.commit()
+        conn.close()
+        print(f'OK : {sys.argv[2]} est débloqué.' if n else f"Erreur : aucun compte avec l'email {sys.argv[2]}")
     elif len(sys.argv) >= 2 and sys.argv[1] == 'sauvegarde':
         # python app.py sauvegarde  -> crée sauvegardes/xhq-AAAAMMJJ-HHMMSS.zip (à lancer chaque jour)
         print('OK : sauvegarde créée :', os.path.relpath(creer_sauvegarde(), BASE_DIR))

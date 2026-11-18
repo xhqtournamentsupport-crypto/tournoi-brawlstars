@@ -77,3 +77,12 @@ Tant que ce n'est pas fait, « Mot de passe oublié » renvoie vers le formulair
         }
 
 3. **Reload** dans l'onglet Web. Ce fichier n'est jamais envoyé sur GitHub.
+
+## Compte bloqué (même un admin) : commande de secours
+Après 10 essais de mot de passe ratés, un compte est bloqué 7 jours (« Mot de passe oublié » le débloque) ;
+10 essais de plus = verrouillage définitif, levé par un admin (Admin → Joueurs → « Déverrouiller »).
+Si ce sont les admins eux-mêmes qui sont verrouillés, onglet **Consoles** → console Bash :
+
+    cd ~/tournoi-brawlstars && python3.10 app.py debloquer ton-email@gmail.com
+
+Conseil : pour ton compte admin, utilise un email **différent** de l'email de contact public du site.
