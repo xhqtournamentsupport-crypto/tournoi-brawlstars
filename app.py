@@ -270,6 +270,12 @@ def supprimer_team(c, team_id):
     except sqlite3.OperationalError:
         pass
     c.execute('DELETE FROM ligue WHERE team_id = ?', (team_id,))
+    try:   # une team supprimée ne reste pas inscrite à un tournoi qui n'a pas commencé (sinon : équipe fantôme)
+        c.execute("""DELETE FROM tournoi_inscriptions WHERE team_id = ? AND tournoi_id IN
+                     (SELECT id FROM tournois WHERE statut = 'inscriptions')""", (team_id,))
+        c.execute('DELETE FROM rencontres WHERE match_id IS NULL AND (team1_id = ? OR team2_id = ?)', (team_id, team_id))
+    except sqlite3.OperationalError:
+        pass
     c.execute('DELETE FROM team_members WHERE team_id = ?', (team_id,))
     c.execute('UPDATE users SET team_id = NULL WHERE team_id = ?', (team_id,))
     c.execute('DELETE FROM teams WHERE id = ?', (team_id,))
@@ -705,6 +711,10 @@ def init_db():
         date TEXT,
         match_id INTEGER,
         created_at TEXT)""")
+    # Calendrier : jamais deux fois la même rencontre dans une saison (double clic sur « Générer »)
+    if not c.execute(
+            'SELECT 1 FROM rencontres GROUP BY jeu_id, saison, min(team1_id, team2_id), max(team1_id, team2_id) HAVING COUNT(*) > 1').fetchone():
+        c.execute('CREATE UNIQUE INDEX IF NOT EXISTS rencontres_unique ON rencontres (jeu_id, saison, min(team1_id, team2_id), max(team1_id, team2_id))')
     for r in c.execute('SELECT id, username FROM users WHERE handle IS NULL').fetchall():
         attribuer_handle(c, r['id'], r['username'])
     c.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_handle ON users(handle)')
@@ -3485,6 +3495,10 @@ def api_admin_tournoi_poules(tournoi_id):
     teams = [r['team_id'] for r in db.execute('SELECT team_id FROM tournoi_inscriptions WHERE tournoi_id = ?', (t['id'],))]
     if len(teams) < TOURNOI_MIN_TEAMS:
         return jsonify({'success': False, 'error': f'Il faut au moins {TOURNOI_MIN_TEAMS} teams inscrites'}), 400
+    # On « prend » le tournoi d'abord : un double clic ne crée jamais deux fois les poules
+    if not db.execute("UPDATE tournois SET statut = 'poules', lance_at = datetime('now') WHERE id = ? AND statut = 'inscriptions'",
+                      (t['id'],)).rowcount:
+        return jsonify({'success': False, 'error': 'Les poules sont déjà lancées'}), 400
     random.shuffle(teams)                                   # tirage au sort
     nb_poules = max(1, round(len(teams) / TOURNOI_TAILLE_POULE))
     lettres = 'ABCDEFGHIJKLMNOP'[:nb_poules]
@@ -3516,6 +3530,8 @@ def api_admin_tournoi_bracket(tournoi_id):
                      AND vainqueur_id IS NULL""", (t['id'],)).fetchone():
         return jsonify({'success': False, 'error': 'Tous les matchs de poule doivent être joués'}), 400
 
+    if not db.execute("UPDATE tournois SET statut = 'bracket' WHERE id = ? AND statut = 'poules'", (t['id'],)).rowcount:
+        return jsonify({'success': False, 'error': 'La phase finale est déjà lancée'}), 400
     noms = noms_teams_tournoi(db, t['id'])
     lettres = sorted({r['poule'] for r in db.execute(
         'SELECT DISTINCT poule FROM tournoi_inscriptions WHERE tournoi_id = ? AND poule IS NOT NULL', (t['id'],))})
@@ -3579,6 +3595,8 @@ def api_admin_tournoi_score(tournoi_id, match_id):
         return jsonify({'success': False, 'error': 'Pas de match nul : il faut un gagnant'}), 400
     if not m['team1_id'] or not m['team2_id'] or m['bye']:
         return jsonify({'success': False, 'error': "Ce match n'a pas encore ses deux teams"}), 400
+    if t['statut'] == 'termine':
+        return jsonify({'success': False, 'error': 'Tournoi terminé : le résultat est définitif'}), 400
     if m['phase'] == 'poule' and t['statut'] != 'poules':
         return jsonify({'success': False, 'error': 'La phase de poules est terminée'}), 400
     if m['phase'] == 'bracket':
@@ -4029,7 +4047,7 @@ def api_admin_generer_calendrier():
                 for a, b in tour:
                     if frozenset((a, b)) in deja:
                         continue
-                    db.execute("""INSERT INTO rencontres (jeu_id, saison, ligue_num, poule, journee, team1_id, team2_id, date, created_at)
+                    db.execute("""INSERT OR IGNORE INTO rencontres (jeu_id, saison, ligue_num, poule, journee, team1_id, team2_id, date, created_at)
                                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))""",
                                (jeu['id'], saison, ligue_num, poule, n + 1, a, b, date))
                     deja.add(frozenset((a, b)))
