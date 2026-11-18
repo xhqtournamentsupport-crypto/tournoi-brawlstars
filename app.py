@@ -67,6 +67,22 @@ def _securite_requete():
             return jsonify({'success': False, 'error': 'Requête refusée (origine inconnue)'}), 403
 
 
+@app.errorhandler(OverflowError)
+def _nombre_geant(_e):
+    """Un identifiant énorme dans l'adresse (/team/99999999999999999999) = « introuvable », pas une panne."""
+    if request.path.startswith('/api/'):
+        return jsonify({'success': False, 'error': 'Introuvable'}), 404
+    return 'Page introuvable', 404
+
+
+@app.errorhandler(500)
+def _erreur_interne(_e):
+    # Jamais de détail technique montré au visiteur (le détail reste dans le journal d'erreurs de PythonAnywhere)
+    if request.path.startswith('/api/'):
+        return jsonify({'success': False, 'error': 'Erreur du serveur, réessaie dans un instant'}), 500
+    return 'Erreur du serveur, réessaie dans un instant.', 500
+
+
 @app.after_request
 def _entetes_securite(reponse):
     reponse.headers.setdefault('X-Frame-Options', 'DENY')                 # pas d'affichage du site dans un cadre (clickjacking)
@@ -586,6 +602,14 @@ def init_db():
         match_id INTEGER,
         created_at TEXT,
         traite_at TEXT)""")
+    # Garde-fous dans la base elle-même (même en cas de clics simultanés) :
+    # une seule déclaration en cours par paire d'équipes, pas deux pseudos / noms de team identiques à la casse près
+    c.execute("""CREATE UNIQUE INDEX IF NOT EXISTS declarations_en_cours ON declarations
+                 (min(team1_id, team2_id), max(team1_id, team2_id)) WHERE statut IN ('attente', 'conteste', 'traitement')""")
+    for table, colonne, index in (('users', 'username', 'users_pseudo_unique'), ('teams', 'nom', 'teams_nom_unique')):
+        doublons = c.execute(f'SELECT 1 FROM {table} GROUP BY lower({colonne}) HAVING COUNT(*) > 1').fetchone()
+        if not doublons:
+            c.execute(f'CREATE UNIQUE INDEX IF NOT EXISTS {index} ON {table} (lower({colonne}))')
     ajouter_colonne(c, 'tournois', 'debut', 'TEXT')
     ajouter_colonne(c, 'tournois', 'lance_at', 'TEXT')   # début réel (lancement des poules)   # 'AAAA-MM-JJTHH:MM' (heure de France)
     c.execute("UPDATE users SET created_at = datetime('now') WHERE created_at IS NULL")
@@ -1227,38 +1251,47 @@ def api_login():
     if user['verrou_definitif']:
         return jsonify({'success': False, 'verrou': 'definitif',
                         'error': 'Compte verrouillé après trop d\'essais ratés. Écris à l\'orga (page Contact) pour le débloquer.'}), 423
-    if bon and not user['bloque_temp']:
-        if user['bloque']:
+    etat_compte = lambda: db.execute("""SELECT bloque, echecs_connexion, verrou_niveau, verrou_definitif,
+                                               bloque_jusqua > datetime('now') AS bloque_temp, bloque_jusqua
+                                        FROM users WHERE id = ?""", (user['id'],)).fetchone()
+    if bon:
+        # On relit l'état APRÈS le calcul du mot de passe : si des essais ratés lancés en même temps
+        # ont bloqué le compte entre-temps, même le bon mot de passe est refusé.
+        frais = etat_compte()
+        if frais['verrou_definitif']:
+            return jsonify({'success': False, 'verrou': 'definitif',
+                            'error': 'Compte verrouillé après trop d\'essais ratés. Écris à l\'orga (page Contact) pour le débloquer.'}), 423
+        if frais['bloque_temp']:
+            # Bon mot de passe pendant le blocage : refusé, mais ne compte pas comme un essai raté
+            return jsonify({'success': False, 'verrou': 'temporaire',
+                            'error': f'Compte bloqué {BLOCAGE_JOURS} jours après trop d\'essais ratés. Utilise « Mot de passe oublié » pour le débloquer tout de suite.'}), 423
+        if frais['bloque']:
             return jsonify({'success': False, 'error': 'Ce compte est suspendu. Contacte l\'organisation sur le Discord.'}), 403
         db.execute('UPDATE users SET echecs_connexion = 0, verrou_niveau = 0, bloque_jusqua = NULL WHERE id = ?', (user['id'],))
         db.commit()
         connecter(user['id'])
         return jsonify({'success': True}), 200
-    if bon and user['bloque_temp']:
-        # Bon mot de passe pendant le blocage : refusé, mais ne compte pas comme un essai raté
-        return jsonify({'success': False, 'verrou': 'temporaire',
-                        'error': f'Compte bloqué {BLOCAGE_JOURS} jours après trop d\'essais ratés. Utilise « Mot de passe oublié » pour le débloquer tout de suite.'}), 423
-    # Essai raté : on compte (y compris pendant le blocage)
+    # Essai raté : compteur augmenté en une seule opération (des essais simultanés comptent tous)
     noter_action('login-ip:' + ip_client())
-    echecs = (user['echecs_connexion'] or 0) + 1
-    if echecs >= ESSAIS_MAX and (user['verrou_niveau'] or 0) >= 1:
+    db.execute('UPDATE users SET echecs_connexion = COALESCE(echecs_connexion, 0) + 1 WHERE id = ?', (user['id'],))
+    frais = etat_compte()
+    if frais['echecs_connexion'] >= ESSAIS_MAX and (frais['verrou_niveau'] or 0) >= 1:
         db.execute('UPDATE users SET verrou_definitif = 1, echecs_connexion = 0 WHERE id = ?', (user['id'],))
         notifier(db, [r[0] for r in db.execute('SELECT id FROM users WHERE is_admin = 1').fetchall()],
                  f"Compte verrouillé (trop d'essais de mot de passe) : {user['id']}. À vérifier dans Admin → Joueurs.", '/admin#joueurs')
         db.commit()
         return jsonify({'success': False, 'verrou': 'definitif',
                         'error': 'Compte verrouillé après trop d\'essais ratés. Écris à l\'orga (page Contact) pour le débloquer.'}), 423
-    if echecs >= ESSAIS_MAX:
+    if frais['echecs_connexion'] >= ESSAIS_MAX:
         db.execute("""UPDATE users SET verrou_niveau = 1, echecs_connexion = 0, bloque_jusqua = datetime('now', ?)
                       WHERE id = ?""", (f'+{BLOCAGE_JOURS} days', user['id']))
         db.commit()
         return jsonify({'success': False, 'verrou': 'temporaire',
                         'error': f'Trop d\'essais ratés : compte bloqué {BLOCAGE_JOURS} jours. Si c\'est bien ton compte, utilise « Mot de passe oublié » pour le débloquer tout de suite.'}), 423
-    db.execute('UPDATE users SET echecs_connexion = ? WHERE id = ?', (echecs, user['id']))
     db.commit()
-    if user['bloque_temp']:
+    if frais['bloque_temp']:
         return jsonify({'success': False, 'verrou': 'temporaire',
-                        'error': f'Compte bloqué jusqu\'au {date_fr(user["bloque_jusqua"][:16].replace(" ", "T"))} (heure UTC) après trop d\'essais ratés. Utilise « Mot de passe oublié » pour le débloquer.'}), 423
+                        'error': f'Compte bloqué jusqu\'au {date_fr(frais["bloque_jusqua"][:16].replace(" ", "T"))} (heure UTC) après trop d\'essais ratés. Utilise « Mot de passe oublié » pour le débloquer.'}), 423
     return jsonify({'success': False, 'error': 'Email ou mot de passe incorrect'}), 401
 
 
@@ -1633,7 +1666,10 @@ def api_profil_pseudo():
     c = db.cursor()
     if pseudo.lower() == actuel['username'].lower():
         # Simple changement de majuscules : gratuit, le lien ne change pas
-        c.execute('UPDATE users SET username = ? WHERE id = ?', (pseudo, uid))
+        try:
+            c.execute('UPDATE users SET username = ? WHERE id = ?', (pseudo, uid))
+        except sqlite3.IntegrityError:
+            return jsonify({'success': False, 'error': 'Ce pseudo est déjà pris'}), 400
         db.commit()
         return jsonify({'success': True, 'username': pseudo, 'handle': actuel['handle'], 'handle_info': info_handle(db, uid)}), 200
     info = info_handle(db, uid)
@@ -1641,9 +1677,13 @@ def api_profil_pseudo():
         return jsonify({'success': False, 'error': 'Tu as déjà utilisé tous tes changements de pseudo'}), 400
     if info['prochain']:
         return jsonify({'success': False, 'error': f"Tu pourras changer de pseudo à partir du {info['prochain']}"}), 400
+    try:
+        c.execute("""UPDATE users SET username = ?, handle = NULL, handle_changements = COALESCE(handle_changements, 0) + 1,
+                     handle_modifie_at = datetime('now') WHERE id = ?""", (pseudo, uid))
+    except sqlite3.IntegrityError:
+        db.rollback()
+        return jsonify({'success': False, 'error': 'Ce pseudo est déjà pris'}), 400
     c.execute("INSERT INTO anciens_handles (handle, user_id, libere_at) VALUES (?, ?, datetime('now'))", (actuel['handle'], uid))
-    c.execute("""UPDATE users SET username = ?, handle = NULL, handle_changements = COALESCE(handle_changements, 0) + 1,
-                 handle_modifie_at = datetime('now') WHERE id = ?""", (pseudo, uid))
     handle = attribuer_handle(c, uid, pseudo)
     db.commit()
     return jsonify({'success': True, 'username': pseudo, 'handle': handle, 'handle_info': info_handle(db, uid)}), 200
@@ -1937,7 +1977,10 @@ def api_update_team(team_id):
         return jsonify({'success': False, 'error': 'Ce nom de team est déjà pris'}), 400
     actuelle = db.execute('SELECT bio FROM teams WHERE id = ?', (team_id,)).fetchone()['bio'] or ''
     bio = texte(data, 'bio', 300) if 'bio' in data else actuelle
-    db.execute('UPDATE teams SET nom = ?, bio = ? WHERE id = ?', (nom, bio, team_id))
+    try:
+        db.execute('UPDATE teams SET nom = ?, bio = ? WHERE id = ?', (nom, bio, team_id))
+    except sqlite3.IntegrityError:
+        return jsonify({'success': False, 'error': 'Ce nom de team est déjà pris'}), 400
     db.commit()
     return jsonify({'success': True, 'nom': nom, 'bio': bio}), 200
 
@@ -2303,12 +2346,13 @@ def admin_page():
 
 
 def entier(valeur):
+    """Nombre entier « raisonnable » envoyé par le navigateur, sinon None (jamais d'erreur)."""
     if isinstance(valeur, bool):
         return None
-    if isinstance(valeur, int):
+    if isinstance(valeur, str) and valeur.strip().lstrip('-').isdigit() and len(valeur.strip()) <= 18:
+        valeur = int(valeur.strip())
+    if isinstance(valeur, int) and -2**62 < valeur < 2**62:
         return valeur
-    if isinstance(valeur, str) and valeur.strip().lstrip('-').isdigit():
-        return int(valeur.strip())
     return None
 
 
@@ -2562,9 +2606,13 @@ def api_resultats_declarer():
                      (team['id'], adv_id, adv_id, team['id'])).fetchone()
     if deja:
         return jsonify({'success': False, 'error': 'Un résultat est déjà en attente entre vos deux équipes'}), 400
-    c.execute("""INSERT INTO declarations (jeu_id, saison, team1_id, team2_id, score1, score2, par_user_id, statut, created_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, 'attente', datetime('now'))""",
-              (jeu['id'], saison_actuelle(db, jeu['id']), team['id'], adv_id, pour, contre, session['user_id']))
+    try:
+        c.execute("""INSERT INTO declarations (jeu_id, saison, team1_id, team2_id, score1, score2, par_user_id, statut, created_at)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, 'attente', datetime('now'))""",
+                  (jeu['id'], saison_actuelle(db, jeu['id']), team['id'], adv_id, pour, contre, session['user_id']))
+    except sqlite3.IntegrityError:
+        db.rollback()
+        return jsonify({'success': False, 'error': 'Un résultat est déjà en attente entre vos deux équipes'}), 400
     notifier(c, membres_de(c, adv_id),
              f"{team['nom']} déclare {contre}-{pour} pour vous ({'défaite' if pour > contre else 'victoire'}). "
              f"Confirme ou conteste sous {DELAI_CONFIRMATION_H} h.", '/teams#resultats')
@@ -4142,4 +4190,4 @@ if __name__ == '__main__':
         # Serveur de test local (http://localhost) : cookie sans HTTPS et limites coupées
         app.config['SESSION_COOKIE_SECURE'] = False
         LIMITES_ACTIVES = False
-        app.run(debug=True)
+        app.run(debug=os.environ.get('XHQ_DEBUG') == '1')
