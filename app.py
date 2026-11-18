@@ -36,6 +36,62 @@ def charger_secret_key():
 app = Flask(__name__)
 app.secret_key = charger_secret_key()
 app.config['MAX_CONTENT_LENGTH'] = 9 * 1024 * 1024   # taille max d'une requête (images comprises)
+# Cookie de session : illisible par JavaScript, jamais envoyé depuis un autre site, HTTPS seulement en ligne
+# (le serveur de test local « python app.py » repasse SECURE à False, voir tout en bas).
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = True
+MOT_DE_PASSE_MIN = 8
+SITE_URL_DEFAUT = 'https://xhqtounament.pythonanywhere.com'
+LIMITES_ACTIVES = True   # limites anti-spam / anti-force brute (coupées sur le serveur de test local)
+
+
+@app.before_request
+def _securite_requete():
+    # Site en ligne : on force HTTPS (le proxy de PythonAnywhere indique le protocole d'origine)
+    if request.headers.get('X-Forwarded-Proto', '').lower() == 'http':
+        return redirect(request.url.replace('http://', 'https://', 1), code=301)
+    # Anti-CSRF : une action (POST) doit venir d'une page de ce site, jamais d'un autre site
+    if request.method == 'POST':
+        from urllib.parse import urlparse
+        origine = request.headers.get('Origin') or request.headers.get('Referer')
+        if origine and urlparse(origine).netloc != request.host:
+            return jsonify({'success': False, 'error': 'Requête refusée (origine inconnue)'}), 403
+
+
+@app.after_request
+def _entetes_securite(reponse):
+    reponse.headers.setdefault('X-Frame-Options', 'DENY')                 # pas d'affichage du site dans un cadre (clickjacking)
+    reponse.headers.setdefault('X-Content-Type-Options', 'nosniff')
+    reponse.headers.setdefault('Referrer-Policy', 'same-origin')          # les liens secrets (mot de passe) ne fuitent pas
+    reponse.headers.setdefault('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
+    if request.path.startswith(('/api/', '/admin', '/reinitialiser', '/profil')):
+        reponse.headers.setdefault('Cache-Control', 'no-store')            # données perso jamais gardées en cache
+    return reponse
+
+
+def ip_client():
+    return (request.headers.get('X-Real-IP') or request.remote_addr or '?')[:64]
+
+
+def limite_atteinte(cle, maximum, minutes):
+    """Vrai si cette action a déjà été faite `maximum` fois dans les `minutes` dernières minutes."""
+    if not LIMITES_ACTIVES:
+        return False
+    return get_db().execute("SELECT COUNT(*) FROM limites WHERE cle = ? AND created_at > datetime('now', ?)",
+                            (cle, f'-{int(minutes)} minutes')).fetchone()[0] >= maximum
+
+
+def noter_action(cle):
+    if not LIMITES_ACTIVES:
+        return
+    db = get_db()
+    db.execute("INSERT INTO limites (cle, created_at) VALUES (?, datetime('now'))", (cle,))
+    db.execute("DELETE FROM limites WHERE created_at < datetime('now', '-1 day')")
+    db.commit()
+
+
+TROP = 'Trop d\'essais : réessaie dans quelques minutes.'
 
 # Photos de profil et bannières : stockées dans uploads/ (ignoré par Git), servies par /media/...
 UPLOAD_DIR = os.path.join(BASE_DIR, 'uploads')
@@ -476,6 +532,9 @@ def init_db():
     c.execute('CREATE TABLE IF NOT EXISTS parametres (cle TEXT PRIMARY KEY, valeur TEXT)')
     migrer_multi_jeux(c)
     creer_tables_tournois(c)
+    c.execute('CREATE TABLE IF NOT EXISTS limites (cle TEXT NOT NULL, created_at TEXT NOT NULL)')
+    c.execute('CREATE INDEX IF NOT EXISTS limites_cle ON limites (cle, created_at)')
+    ajouter_colonne(c, 'users', 'session_v', 'INTEGER DEFAULT 0')
     c.execute("""CREATE TABLE IF NOT EXISTS declarations (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         jeu_id INTEGER NOT NULL,
@@ -605,8 +664,9 @@ def utilisateur_connecte():
     if uid is None:
         return None
     if 'user' not in g:
-        g.user = get_db().execute('SELECT id, username, email, profile_pic, is_admin, photo, handle, bloque FROM users WHERE id = ?', (uid,)).fetchone()
-        if g.user is None or g.user['bloque']:  # compte supprimé ou suspendu entre-temps
+        g.user = get_db().execute('SELECT id, username, email, profile_pic, is_admin, photo, handle, bloque, session_v FROM users WHERE id = ?', (uid,)).fetchone()
+        # Compte supprimé, suspendu, ou mot de passe changé depuis l'ouverture de cette session : on déconnecte
+        if g.user is None or g.user['bloque'] or version_session(uid) != (g.user['session_v'] or 0):
             session.clear()
             g.user = None
     return g.user
@@ -947,12 +1007,25 @@ def contact_page():
 COMPTES_MAX = 5   # comptes mémorisés sur un même navigateur
 
 
+def version_session(user_id):
+    return session.get('v', {}).get(str(user_id), 0)
+
+
 def connecter(user_id):
     """Ouvre la session sur ce compte en gardant les autres comptes déjà connectés sur ce navigateur."""
     comptes = [c for c in session.get('comptes', []) if isinstance(c, int) and c != user_id]
+    versions = dict(session.get('v', {}))
     session.clear()
+    row = get_db().execute('SELECT session_v FROM users WHERE id = ?', (user_id,)).fetchone()
+    versions[str(user_id)] = (row['session_v'] or 0) if row else 0
     session['user_id'] = user_id
     session['comptes'] = [user_id] + comptes[:COMPTES_MAX - 1]
+    session['v'] = {k: v for k, v in versions.items() if int(k) in session['comptes']}
+
+
+def invalider_sessions(db, user_id):
+    """Après un changement de mot de passe : toutes les sessions ouvertes de ce compte sont fermées."""
+    db.execute('UPDATE users SET session_v = COALESCE(session_v, 0) + 1 WHERE id = ?', (user_id,))
 
 
 def autres_comptes(db, user_id):
@@ -970,8 +1043,10 @@ def autres_comptes(db, user_id):
 @api_connectee
 def api_basculer_compte():
     cible = entier(donnees_json().get('user_id'))
-    if cible not in session.get('comptes', []) or not get_db().execute('SELECT 1 FROM users WHERE id = ?', (cible,)).fetchone():
-        return jsonify({'success': False, 'error': 'Ce compte n\'est pas connecté sur cet appareil'}), 403
+    row = get_db().execute('SELECT session_v, bloque FROM users WHERE id = ?', (cible,)).fetchone()
+    if cible not in session.get('comptes', []) or not row or row['bloque'] or (row['session_v'] or 0) != version_session(cible):
+        session['comptes'] = [c for c in session.get('comptes', []) if c != cible]
+        return jsonify({'success': False, 'error': 'Reconnecte-toi à ce compte (session expirée)'}), 403
     connecter(cible)
     return jsonify({'success': True}), 200
 
@@ -1005,10 +1080,12 @@ def api_signup():
     username = re.sub(r'\s+', ' ', username).strip()
     if not 3 <= len(username) <= 20:
         return jsonify({'success': False, 'error': 'Le pseudo doit faire entre 3 et 20 caractères'}), 400
-    if len(password) < 6:
-        return jsonify({'success': False, 'error': 'Le mot de passe doit faire au moins 6 caractères'}), 400
+    if len(password) < MOT_DE_PASSE_MIN:
+        return jsonify({'success': False, 'error': f'Le mot de passe doit faire au moins {MOT_DE_PASSE_MIN} caractères'}), 400
 
     db = get_db()
+    if limite_atteinte('signup:' + ip_client(), 20, 60):
+        return jsonify({'success': False, 'error': TROP}), 429
     if db.execute('SELECT 1 FROM users WHERE lower(email) = ?', (email,)).fetchone():
         return jsonify({'success': False, 'error': 'Cet email est déjà utilisé'}), 400
     if pseudo_refuse(db, username):
@@ -1019,6 +1096,7 @@ def api_signup():
             "VALUES (?, ?, ?, '', ?, ?, datetime('now'))",
             (email, username, generate_password_hash(password), AVATAR_DEFAUT, SOLDE_DEPART))
         attribuer_handle(db, cur.lastrowid, username)
+        noter_action('signup:' + ip_client())
         db.commit()
     except sqlite3.IntegrityError:
         return jsonify({'success': False, 'error': 'Email ou nom d\'utilisateur déjà pris'}), 400
@@ -1033,7 +1111,12 @@ def api_login():
     email = texte(data, 'email').lower()
     password = data.get('password') if isinstance(data.get('password'), str) else ''
 
+    if limite_atteinte('login:' + email, 10, 15) or limite_atteinte('login-ip:' + ip_client(), 40, 15):
+        return jsonify({'success': False, 'error': 'Trop d\'essais ratés : réessaie dans 15 minutes (ou utilise « Mot de passe oublié »).'}), 429
     user = get_db().execute('SELECT id, password, bloque FROM users WHERE lower(email) = ?', (email,)).fetchone()
+    if not (user and password and check_password_hash(user['password'], password)):
+        noter_action('login:' + email)
+        noter_action('login-ip:' + ip_client())
     if user and password and check_password_hash(user['password'], password):
         if user['bloque']:
             return jsonify({'success': False, 'error': 'Ce compte est suspendu. Contacte l\'organisation sur le Discord.'}), 403
@@ -1135,10 +1218,12 @@ def api_profil_password():
     user = db.execute('SELECT password FROM users WHERE id = ?', (session['user_id'],)).fetchone()
     if not ancien or not check_password_hash(user['password'], ancien):
         return jsonify({'success': False, 'error': 'Mot de passe actuel incorrect'}), 400
-    if len(nouveau) < 6:
-        return jsonify({'success': False, 'error': 'Le nouveau mot de passe doit faire au moins 6 caractères'}), 400
+    if len(nouveau) < MOT_DE_PASSE_MIN:
+        return jsonify({'success': False, 'error': f'Le nouveau mot de passe doit faire au moins {MOT_DE_PASSE_MIN} caractères'}), 400
     db.execute('UPDATE users SET password = ? WHERE id = ?', (generate_password_hash(nouveau), session['user_id']))
+    invalider_sessions(db, session['user_id'])
     db.commit()
+    connecter(session['user_id'])
     return jsonify({'success': True}), 200
 
 
@@ -1209,8 +1294,10 @@ def supprimer_media(dossier, nom):
 
 def enregistrer_image(fichier, dossier, mode):
     """Vérifie, recadre et enregistre une image envoyée. Renvoie (nom_du_fichier, erreur)."""
+    import warnings
     from PIL import Image, ImageOps
     Image.MAX_IMAGE_PIXELS = 40_000_000
+    warnings.simplefilter('error', Image.DecompressionBombWarning)   # image géante = refusée, pas seulement signalée
     if not fichier or not fichier.filename:
         return None, 'Aucune image reçue'
     contenu = fichier.read(IMAGE_MAX_OCTETS + 1)
@@ -1917,6 +2004,9 @@ def api_contact():
         return jsonify({'success': False, 'error': 'Tous les champs sont requis'}), 400
     if '@' not in email:
         return jsonify({'success': False, 'error': 'Email invalide'}), 400
+    if limite_atteinte('contact:' + ip_client(), 5, 60):
+        return jsonify({'success': False, 'error': TROP}), 429
+    noter_action('contact:' + ip_client())
     db = get_db()
     db.execute("INSERT INTO contact_messages (user_id, nom, email, sujet, message, created_at) "
                "VALUES (?, ?, ?, ?, ?, datetime('now'))", (session.get('user_id'), nom, email, sujet, message))
@@ -2450,6 +2540,7 @@ def api_admin_reset_password(user_id):
         return jsonify({'success': False, 'error': 'Joueur introuvable'}), 404
     temporaire = secrets.token_urlsafe(8)
     db.execute('UPDATE users SET password = ? WHERE id = ?', (generate_password_hash(temporaire), user_id))
+    invalider_sessions(db, user_id)
     db.commit()
     return jsonify({'success': True, 'username': user['username'], 'email': user['email'],
                     'mot_de_passe': temporaire}), 200
@@ -3238,6 +3329,9 @@ def mot_de_passe_oublie_page():
 @app.route('/api/mot-de-passe/demande', methods=['POST'])
 def api_demande_reinitialisation():
     email = texte(donnees_json(), 'email', 120).lower()
+    if limite_atteinte('reinit:' + ip_client(), 10, 60):
+        return jsonify({'success': False, 'error': TROP}), 429
+    noter_action('reinit:' + ip_client())
     conf = config_mail()
     if not conf:
         return jsonify({'success': False, 'mail': False,
@@ -3253,7 +3347,7 @@ def api_demande_reinitialisation():
             cur = db.execute("""INSERT INTO reinitialisations (user_id, jeton_hash, expire_at, created_at)
                                 VALUES (?, ?, ?, datetime('now'))""", (user['id'], hash_jeton(jeton), expire))
             db.commit()
-            site = (conf.get('site') or request.host_url).rstrip('/')
+            site = (conf.get('site') or SITE_URL_DEFAUT).rstrip('/')
             envoye = envoyer_mail(user['email'], 'XHQ League · Réinitialiser ton mot de passe', f"""Salut {user['username']},
 
 Tu as demandé à changer ton mot de passe XHQ League. Clique sur ce lien (valable {REINIT_DUREE_MINUTES} minutes) :
@@ -3291,10 +3385,11 @@ def api_reinitialiser():
     if not r:
         return jsonify({'success': False, 'error': 'Ce lien a expiré ou a déjà servi. Refais une demande.'}), 400
     nouveau = data.get('nouveau') if isinstance(data.get('nouveau'), str) else ''
-    if len(nouveau) < 6:
-        return jsonify({'success': False, 'error': 'Le mot de passe doit faire au moins 6 caractères'}), 400
+    if len(nouveau) < MOT_DE_PASSE_MIN:
+        return jsonify({'success': False, 'error': f'Le mot de passe doit faire au moins {MOT_DE_PASSE_MIN} caractères'}), 400
     db.execute('UPDATE users SET password = ? WHERE id = ?', (generate_password_hash(nouveau), r['user_id']))
     db.execute('UPDATE reinitialisations SET utilise = 1 WHERE user_id = ?', (r['user_id'],))
+    invalider_sessions(db, r['user_id'])
     db.commit()
     connecter(r['user_id'])
     return jsonify({'success': True}), 200
@@ -3700,4 +3795,7 @@ if __name__ == '__main__':
         print(f"OK : {os.path.relpath(chemin, BASE_DIR)} mis à jour ({donnees['chiffres']['teams']} teams, "
               f"{donnees['chiffres']['matchs']} matchs). Envoie-le en ligne avec : git add docs && git commit -m \"Mise à jour\" && git push")
     else:
+        # Serveur de test local (http://localhost) : cookie sans HTTPS et limites coupées
+        app.config['SESSION_COOKIE_SECURE'] = False
+        LIMITES_ACTIVES = False
         app.run(debug=True)

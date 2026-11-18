@@ -7,6 +7,22 @@ function escapeHtml(value) {
     }[c]));
 }
 
+// Email masqué à l'écran (« pau************ ») : un clic l'affiche en entier, un autre le recache
+function emailMasque(email) {
+    const e = String(email ?? '');
+    return e ? e.slice(0, 3) + '*'.repeat(12) : '';
+}
+function htmlEmail(email) {
+    return `<button type="button" class="email-cache" data-email="${escapeHtml(email)}" title="Cliquer pour afficher">${escapeHtml(emailMasque(email))}</button>`;
+}
+document.addEventListener('click', e => {
+    const b = e.target.closest && e.target.closest('.email-cache');
+    if (!b) return;
+    const visible = b.classList.toggle('vu');
+    b.textContent = visible ? b.dataset.email : emailMasque(b.dataset.email);
+    b.title = visible ? 'Cliquer pour cacher' : 'Cliquer pour afficher';
+});
+
 // Appel API JSON. Renvoie toujours { ok, status, data } (jamais d'exception).
 // Si la session a expiré (401), redirige vers /login sauf si options.noRedirect est vrai.
 async function api(url, options = {}) {

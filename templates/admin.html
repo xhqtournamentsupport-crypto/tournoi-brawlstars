@@ -348,7 +348,7 @@
 
         function afficherMdp(boxId, r) {
             const box = document.getElementById(boxId);
-            box.innerHTML = `Nouveau mot de passe temporaire pour <strong>${escapeHtml(r.username)}</strong> (${escapeHtml(r.email)}) :
+            box.innerHTML = `Nouveau mot de passe temporaire pour <strong>${escapeHtml(r.username)}</strong> (${htmlEmail(r.email)}) :
                 <code>${escapeHtml(r.mot_de_passe)}</code><br>
                 <span class="muted">Envoie-le au joueur par email, puis demande-lui de le changer dans son profil. Il ne sera plus affiché ensuite.</span>`;
             box.classList.add('show');
@@ -715,7 +715,7 @@
                 <tr>
                     <td><span class="mini-av">${u.photo ? `<img src="${escapeHtml(u.photo)}" alt="">` : '👤'}</span><a href="/u/${encodeURIComponent(u.handle || '')}" target="_blank"><strong>${escapeHtml(u.username)}</strong></a>
                         ${u.is_admin ? '<span class="tag or">ADMIN</span>' : ''}${u.fondateur ? ' <span class="tag or">FONDATEUR</span>' : ''}${u.bloque ? ' <span class="tag suspendu">SUSPENDU</span>' : ''}<div class="muted">@${escapeHtml(u.handle || '')}</div></td>
-                    <td class="muted">${escapeHtml(u.email)}</td>
+                    <td class="muted">${htmlEmail(u.email)}</td>
                     <td>${u.team_name ? escapeHtml(u.team_name) : '<span class="muted">—</span>'}</td>
                     <td class="muted">${dateCourte(u.created_at)}</td>
                     <td><div class="actions">
@@ -867,7 +867,7 @@
                         <span class="msg-meta">${dateCourte(m.created_at)}</span>
                     </div>
                     <div class="msg-meta" style="margin-bottom: 0.8rem;">
-                        De <strong>${escapeHtml(m.nom)}</strong> · <a href="mailto:${encodeURIComponent(m.email).replace(/%40/g, '@')}" style="color:var(--text)">${escapeHtml(m.email)}</a>
+                        De <strong>${escapeHtml(m.nom)}</strong> · ${htmlEmail(m.email)} · <a href="mailto:${encodeURIComponent(m.email).replace(/%40/g, '@')}" style="color:var(--text)">Répondre par email</a>
                         ${m.compte_id ? '<span class="tag">compte existant</span>' : '<span class="tag">pas de compte</span>'}
                     </div>
                     <div class="msg-body">${escapeHtml(m.message)}</div>

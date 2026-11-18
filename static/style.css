@@ -187,6 +187,13 @@ a { color: var(--bleu-clair); }
 
 /* Menu du compte */
 .compte-nav { position: relative; }
+.email-cache { padding: 0; border: 0; background: none; color: inherit; font: inherit; letter-spacing: 0.02em; cursor: pointer; border-bottom: 1px dashed var(--line-2); }
+.email-cache:hover { color: var(--bleu-clair); }
+/* Bouton du compte : juste l'avatar rond (même taille que la cloche), sans nom ni flèche */
+.compte-btn, .compte-btn:hover, .compte-nav.ouvert .compte-btn { width: 40px; height: 40px; padding: 0 !important; gap: 0; border: 0 !important; background: none !important; border-radius: 50%; }
+.compte-btn .xhq-avatar { width: 40px; height: 40px; font-size: 1.2rem; transition: box-shadow 0.2s; }
+.compte-btn:hover .xhq-avatar { box-shadow: 0 0 0 2px rgba(124, 108, 255, 0.6); }
+.compte-nav.ouvert .xhq-avatar { box-shadow: 0 0 0 2px var(--violet); }
 .compte-btn {
     display: flex;
     align-items: center;
@@ -265,12 +272,7 @@ a { color: var(--bleu-clair); }
     .xhq-logo { grid-column: 1; grid-row: 1; }
     .nav-droite { grid-column: 2; grid-row: 1; justify-self: end; }
     .compte-nom { display: none; }
-    /* Téléphone : trois ronds identiques (cloche, avatar, menu), sans flèche */
     .nav-droite { gap: 0.5rem; }
-    .compte-btn, .compte-btn:hover, .compte-nav.ouvert .compte-btn { width: 40px; height: 40px; padding: 0; gap: 0; border: 0; background: none; border-radius: 50%; }
-    .compte-btn .chevron { display: none; }
-    .compte-btn .xhq-avatar { width: 40px; height: 40px; font-size: 1.2rem; }
-    .compte-nav.ouvert .xhq-avatar { box-shadow: 0 0 0 2px var(--violet); }
     .burger { width: 40px; height: 40px; }
     .nav-capsule {
         position: absolute;

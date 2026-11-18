@@ -30,14 +30,12 @@
                 </div>
             </div>
             <div class="compte-nav">
-                <button class="compte-btn" type="button" id="compte-btn" aria-haspopup="true" aria-expanded="false" aria-controls="compte-menu">
+                <button class="compte-btn" type="button" id="compte-btn" aria-label="Mon compte : {{ current_user.username }}" title="{{ current_user.username }}" aria-haspopup="true" aria-expanded="false" aria-controls="compte-menu">
                     {% if current_user.photo %}
                     <span class="xhq-avatar a-photo{% if current_user.cadre %} cadre-{{ current_user.cadre | replace('cadre_', '') }}{% endif %}" id="nav-avatar"><img src="{{ current_user.photo }}" alt=""></span>
                     {% else %}
                     <span class="xhq-avatar{% if current_user.cadre %} cadre-{{ current_user.cadre | replace('cadre_', '') }}{% endif %}" id="nav-avatar">{{ current_user.logo }}</span>
                     {% endif %}
-                    <span class="compte-nom">{{ current_user.username }}</span>
-                    <svg class="chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
                 </button>
                 <div class="compte-menu" id="compte-menu" hidden>
                     <a class="compte-tete" href="/u/{{ current_user.handle }}">

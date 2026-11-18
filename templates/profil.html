@@ -195,7 +195,7 @@
             <h2 class="section-title">Mon compte</h2>
             <div class="compte-resume">
                 <div><span class="muted">Pseudo</span><strong id="username-display">{{ current_user.username }}</strong> <span class="badge-joueur" id="badge-display"{% if not current_user.badge %} hidden{% endif %}>{{ current_user.badge or '' }}</span></div>
-                <div><span class="muted">Email</span><strong id="email-display">{{ current_user.email }}</strong></div>
+                <div><span class="muted">Email</span><strong id="email-display"></strong></div>
                 <div><span class="muted">Team</span><strong id="team-display">…</strong></div>
                 <div><span class="muted">Points ligue</span><strong id="points-display">…</strong></div>
                 <div><span class="muted">Solde</span><strong id="solde-display">…</strong></div>
@@ -221,7 +221,7 @@
                 </div>
                 <div class="form-group">
                     <label for="pwd-nouveau">Nouveau</label>
-                    <input type="password" id="pwd-nouveau" autocomplete="new-password" placeholder="6 caractères min.">
+                    <input type="password" id="pwd-nouveau" autocomplete="new-password" placeholder="8 caractères min.">
                 </div>
                 <div class="form-group">
                     <label for="pwd-confirm">Confirmation</label>
@@ -268,7 +268,7 @@
             afficherPhoto(data.photo);
             afficherBanniere(data.banniere, data.banniere_pos, data.banniere_zoom);
             document.getElementById('username-display').textContent = data.username;
-            document.getElementById('email-display').textContent = data.email;
+            document.getElementById('email-display').innerHTML = htmlEmail(data.email);
             document.getElementById('team-display').textContent = data.team_name || 'Aucune team';
             document.getElementById('points-display').textContent = (Number(data.points) || 0) + ' pts';
             document.getElementById('solde-display').textContent = (Number(data.solde) || 0) + ' €';
@@ -362,7 +362,9 @@
                 notePseudo(r.data.handle_info);
                 majLien(r.data.handle);
                 document.getElementById('username-display').textContent = r.data.username;
-                document.querySelectorAll('.compte-nom, .compte-tete strong').forEach(el => { el.textContent = r.data.username; });
+                document.querySelectorAll('.compte-tete strong').forEach(el => { el.textContent = r.data.username; });
+                const btnCompte = document.getElementById('compte-btn');
+                if (btnCompte) { btnCompte.setAttribute('aria-label', 'Mon compte : ' + r.data.username); btnCompte.title = r.data.username; }
                 document.querySelectorAll('.compte-tete span, .compte-tete small').forEach(el => { if (/^@/.test(el.textContent.trim())) el.textContent = '@' + r.data.handle; });
             }
             // 2. Bio et avatar
