@@ -155,6 +155,7 @@
             <button class="tab" type="button" data-tab="calendrier"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Calendrier</button>
             <button class="tab" type="button" data-tab="joueurs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Joueurs</button>
             <button class="tab" type="button" data-tab="messages"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4z"/></svg>Messages<span class="pastille" id="pastille" hidden></span></button>
+            <button class="tab" type="button" data-tab="journal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6zM9 9h6M9 13h6M9 17h4"/></svg>Journal</button>
             <button class="tab" type="button" data-tab="sauvegardes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M4 19h16"/></svg>Sauvegardes</button>
         </div>
 
@@ -298,12 +299,24 @@
             </div>
         </div>
 
+        <!-- ============ JOURNAL ============ -->
+        <div class="panel" id="panel-journal">
+            <div class="section">
+                <h2 class="section-title">Journal des actions admin</h2>
+                <p class="hint">Chaque action sensible d'un admin est notée ici : qui, quoi, quand. Les 200 dernières sont affichées. Si quelque chose a été supprimé ou modifié sans raison, tu sais qui l'a fait.</p>
+                <div class="table-wrap"><table>
+                    <thead><tr><th>Quand</th><th>Admin</th><th>Action</th><th>Concerné</th></tr></thead>
+                    <tbody id="liste-journal"></tbody>
+                </table></div>
+            </div>
+        </div>
+
         <!-- ============ SAUVEGARDES ============ -->
         <div class="panel" id="panel-sauvegardes">
             <div class="section">
                 <h2 class="section-title">Sauvegardes</h2>
                 <p class="hint">Une sauvegarde contient toute la base (comptes, teams, matchs, tournois) et toutes les images. Télécharge-en une de temps en temps et garde-la sur ton ordinateur ou ton Google Drive : si le serveur a un problème, on pourra tout remettre.</p>
-                <a class="btn" href="/admin/sauvegarde">Télécharger une sauvegarde maintenant</a>
+                <a class="btn" href="/admin/sauvegarde">Télécharger une sauvegarde maintenant</a> <span class="muted">(réservé aux fondateurs : elle contient toute la base)</span>
                 <div class="sauvegarde-auto">
                     <strong>Sauvegarde automatique : rien à faire</strong>
                     <p>Le site fait lui-même une sauvegarde par jour, dès la première visite de la journée, et garde les 14 dernières (dossier <code>sauvegardes/</code>).</p>
@@ -355,9 +368,13 @@
         }
 
         async function resetMdp(userId, boxId) {
-            if (!confirm('Générer un nouveau mot de passe pour ce joueur ? L\'ancien ne marchera plus.')) return;
+            if (!confirm('Envoyer à ce joueur un lien pour choisir un nouveau mot de passe ? (Il part sur l\'email de son compte, jamais sur celui de la personne qui a écrit.)')) return;
             const { ok, data } = await api(`/api/admin/users/${userId}/reset-password`, { method: 'POST' });
-            if (ok && data.success) afficherMdp(boxId, data);
+            if (ok && data.success && data.email_envoye) {
+                const box = document.getElementById(boxId);
+                box.innerHTML = `Lien de nouveau mot de passe envoyé à <strong>${escapeHtml(data.username)}</strong>, sur l'email de son compte (${htmlEmail(data.email)}). Il est valable 1 heure.`;
+                box.classList.add('show');
+            } else if (ok && data.success) afficherMdp(boxId, data);
             else showMessage(data.error || 'Erreur', 'error');
         }
 
@@ -372,6 +389,7 @@
             if (nom === 'saison') chargerSaison();
             if (nom === 'calendrier') chargerCalendrier();
             if (nom === 'sauvegardes') chargerSauvegardes();
+            if (nom === 'journal') chargerJournal();
             history.replaceState(null, '', nom === 'matchs' ? location.pathname : '#' + nom);
         }
         document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => ouvrirOnglet(t.dataset.tab)));
@@ -730,7 +748,7 @@
                             : `<button class="btn petit or" type="button" onclick="changerAdmin(${Number(u.id)}, true)">Rendre admin</button>`)}
                         ${u.verrou ? `<button class="btn petit or" type="button" onclick="deverrouiller(${Number(u.id)})">Déverrouiller</button>` : ''}
                         <button class="btn-mini" type="button" onclick="changerFondateur(${Number(u.id)}, ${!u.fondateur})">${u.fondateur ? 'Retirer Fondateur' : 'Donner Fondateur'}</button>
-                        ${u.is_me || u.is_admin ? '' : `<button class="btn-mini" type="button" onclick="supprimerJoueur(${Number(u.id)}, '${escapeHtml(u.username).replace(/'/g, '&#39;')}')">Supprimer le compte</button>`}
+                        ${u.is_me || u.is_admin ? '' : `<button class="btn-mini" type="button" data-nom="${escapeHtml(u.username)}" onclick="supprimerJoueur(${Number(u.id)}, this.dataset.nom)">Supprimer le compte</button>`}
                     </div></td>
                 </tr>`).join('');
         }
@@ -825,6 +843,16 @@
             if (!confirm('Retirer ce match du calendrier ?')) return;
             const { ok } = await api(`/api/admin/calendrier/${id}`, { method: 'POST', body: { supprimer: true } });
             if (ok) chargerCalendrier();
+        }
+
+        // ---------- journal ----------
+        async function chargerJournal() {
+            const { ok, data } = await api('/api/admin/journal');
+            const tbody = document.getElementById('liste-journal');
+            if (!ok || !Array.isArray(data)) return;
+            tbody.innerHTML = data.length ? data.map(j => `<tr><td class="muted" title="${escapeHtml(j.created_at)} UTC">${escapeHtml(j.quand)}</td>
+                <td><strong>${escapeHtml(j.admin_nom)}</strong></td><td>${escapeHtml(j.action)}</td><td class="muted">${escapeHtml(j.cible)}</td></tr>`).join('')
+                : '<tr><td colspan="4" class="vide">Aucune action pour l\'instant.</td></tr>';
         }
 
         // ---------- sauvegardes ----------

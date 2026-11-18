@@ -15,17 +15,21 @@ DB_PATH = os.path.join(BASE_DIR, 'tournois.db')
 SECRET_KEY_PATH = os.path.join(BASE_DIR, 'secret_key.txt')
 
 
+# Clés déjà publiées (anciennes versions du code sur GitHub) : refusées, une nouvelle est créée à la place
+CLES_COMPROMISES = {'xhq-tournament-secret-2026'}
+
+
 def charger_secret_key():
     """Clé qui signe les sessions. Elle ne doit JAMAIS être dans le code (le dépôt est public).
     1) variable d'environnement XHQ_SECRET_KEY si elle existe (pour la mise en ligne)
     2) sinon le fichier secret_key.txt (créé automatiquement, ignoré par Git)"""
     cle = os.environ.get('XHQ_SECRET_KEY', '').strip()
-    if cle:
+    if cle and cle not in CLES_COMPROMISES and len(cle) >= 32:
         return cle
     if os.path.exists(SECRET_KEY_PATH):
         with open(SECRET_KEY_PATH, encoding='utf-8') as f:
             cle = f.read().strip()
-        if cle:
+        if cle and cle not in CLES_COMPROMISES and len(cle) >= 32:
             return cle
     cle = secrets.token_hex(32)
     with open(SECRET_KEY_PATH, 'w', encoding='utf-8') as f:
@@ -69,13 +73,24 @@ def _entetes_securite(reponse):
     reponse.headers.setdefault('X-Content-Type-Options', 'nosniff')
     reponse.headers.setdefault('Referrer-Policy', 'same-origin')          # les liens secrets (mot de passe) ne fuitent pas
     reponse.headers.setdefault('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
+    reponse.headers.setdefault('Content-Security-Policy', CSP)
     if request.path.startswith(('/api/', '/admin', '/reinitialiser', '/profil')):
         reponse.headers.setdefault('Cache-Control', 'no-store')            # données perso jamais gardées en cache
     return reponse
 
 
+CSP = ("default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+       "font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; "
+       "frame-ancestors 'none'; form-action 'self'; base-uri 'self'; object-src 'none'")
+
+
 def ip_client():
-    return (request.headers.get('X-Real-IP') or request.remote_addr or '?')[:64]
+    """Adresse IP du visiteur. PythonAnywhere la fournit dans X-Real-IP (posé par son proxy).
+    Sinon, la DERNIÈRE adresse de X-Forwarded-For (les précédentes peuvent être inventées par le visiteur)."""
+    if request.headers.get('X-Real-IP'):
+        return request.headers['X-Real-IP'].strip()[:64]
+    transmis = [x.strip() for x in request.headers.get('X-Forwarded-For', '').split(',') if x.strip()]
+    return (transmis[-1] if transmis else (request.remote_addr or '?'))[:64]
 
 
 def limite_atteinte(cle, maximum, minutes):
@@ -412,7 +427,9 @@ def attribuer_handle(c, user_id, pseudo):
     """Donne un identifiant libre (pseudo, sinon pseudo2, pseudo3...) à un compte qui n'en a pas."""
     base = handle_depuis(pseudo)
     essai, n = base, 1
-    while c.execute('SELECT 1 FROM users WHERE handle = ? AND id != ?', (essai, user_id)).fetchone() or essai in HANDLES_RESERVES:
+    while (c.execute('SELECT 1 FROM users WHERE handle = ? AND id != ?', (essai, user_id)).fetchone() or essai in HANDLES_RESERVES
+           or c.execute("""SELECT 1 FROM anciens_handles WHERE handle = ? AND user_id != ?
+                           AND libere_at > datetime('now', '-90 days')""", (essai, user_id)).fetchone()):
         n += 1
         essai = base[:20 - len(str(n))] + str(n)
     c.execute('UPDATE users SET handle = ? WHERE id = ?', (essai, user_id))
@@ -538,6 +555,9 @@ def init_db():
     creer_tables_tournois(c)
     c.execute('CREATE TABLE IF NOT EXISTS limites (cle TEXT NOT NULL, created_at TEXT NOT NULL)')
     c.execute('CREATE TABLE IF NOT EXISTS team_exclusions (team_id INTEGER, user_id INTEGER, created_at TEXT)')
+    c.execute("""CREATE TABLE IF NOT EXISTS journal_admin (id INTEGER PRIMARY KEY AUTOINCREMENT, admin_id INTEGER,
+                 admin_nom TEXT, action TEXT, cible TEXT, ip TEXT, created_at TEXT)""")
+    c.execute('CREATE TABLE IF NOT EXISTS anciens_handles (handle TEXT, user_id INTEGER, libere_at TEXT)')
     # Un objet ne peut être possédé qu'une fois (deux clics simultanés ne le donnent pas deux fois)
     c.execute('DELETE FROM inventory WHERE id NOT IN (SELECT MIN(id) FROM inventory GROUP BY user_id, item_id)')
     c.execute('CREATE UNIQUE INDEX IF NOT EXISTS inventory_unique ON inventory (user_id, item_id)')
@@ -825,6 +845,23 @@ def fondateur_requis(db):
     return 'Réservé aux fondateurs (les comptes admin et fondateurs sont protégés)'
 
 
+def journaliser(db, action, cible=''):
+    """Garde une trace des actions sensibles des admins (qui, quoi, quand), consultable dans l'admin."""
+    u = utilisateur_connecte()
+    db.execute("INSERT INTO journal_admin (admin_id, admin_nom, action, cible, ip, created_at) VALUES (?, ?, ?, ?, ?, datetime('now'))",
+               (u['id'] if u else None, u['username'] if u else 'console', action[:120], str(cible)[:200], ip_client() if has_request_context() else ''))
+
+
+def nom_joueur(db, user_id):
+    r = db.execute('SELECT username FROM users WHERE id = ?', (user_id,)).fetchone()
+    return f"{r['username']} (#{user_id})" if r else f'#{user_id}'
+
+
+def nom_team(db, team_id):
+    r = db.execute('SELECT nom FROM teams WHERE id = ?', (team_id,)).fetchone()
+    return f"{r['nom']} (#{team_id})" if r else f'#{team_id}'
+
+
 def api_admin(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
@@ -852,6 +889,9 @@ def texte(data, cle, max_len=None):
     valeur = data.get(cle)
     valeur = sans_invisibles(valeur).strip() if isinstance(valeur, str) else ''
     return valeur[:max_len] if max_len else valeur
+
+
+EMAIL_VALIDE = re.compile(r'^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$')
 
 
 # Noms (pseudos, teams) : alphabet latin seulement, pour empêcher les sosies (Η grec, а cyrillique…)
@@ -1129,13 +1169,13 @@ def api_signup():
 
     if not email or not username or not password:
         return jsonify({'success': False, 'error': 'Tous les champs sont requis'}), 400
-    if '@' not in email or len(email) > 120:
+    if not EMAIL_VALIDE.match(email) or len(email) > 120:
         return jsonify({'success': False, 'error': 'Email invalide'}), 400
     username = re.sub(r'\s+', ' ', username).strip()
     if not 3 <= len(username) <= 20:
         return jsonify({'success': False, 'error': 'Le pseudo doit faire entre 3 et 20 caractères'}), 400
-    if len(password) < MOT_DE_PASSE_MIN:
-        return jsonify({'success': False, 'error': f'Le mot de passe doit faire au moins {MOT_DE_PASSE_MIN} caractères'}), 400
+    if not MOT_DE_PASSE_MIN <= len(password) <= 128:
+        return jsonify({'success': False, 'error': f'Le mot de passe doit faire entre {MOT_DE_PASSE_MIN} et 128 caractères'}), 400
 
     db = get_db()
     if limite_atteinte('signup:' + ip_client(), 20, 60):
@@ -1167,6 +1207,7 @@ def api_login():
     data = donnees_json()
     email = texte(data, 'email').lower()
     password = data.get('password') if isinstance(data.get('password'), str) else ''
+    password = password[:200]   # un mot de passe géant ne doit pas faire travailler le serveur pour rien
     if limite_atteinte('login-ip:' + ip_client(), 40, 15):
         return jsonify({'success': False, 'error': 'Trop d\'essais depuis ta connexion : réessaie dans 15 minutes.'}), 429
     db = get_db()
@@ -1286,7 +1327,7 @@ def api_profil_update():
     bio = data.get('bio', user['bio'] or '')
     if not isinstance(bio, str):
         return jsonify({'success': False, 'error': 'Bio invalide'}), 400
-    bio = bio.strip()[:500]
+    bio = sans_invisibles(bio).strip()[:500]
 
     logo = data.get('logo', user['profile_pic'])
     if logo in AVATARS_PREMIUM and not possede(db, session['user_id'], 'pack_rare'):
@@ -1306,16 +1347,29 @@ def api_profil_password():
     ancien = data.get('ancien') if isinstance(data.get('ancien'), str) else ''
     nouveau = data.get('nouveau') if isinstance(data.get('nouveau'), str) else ''
     db = get_db()
-    user = db.execute('SELECT password FROM users WHERE id = ?', (session['user_id'],)).fetchone()
-    if not ancien or not check_password_hash(user['password'], ancien):
-        return jsonify({'success': False, 'error': 'Mot de passe actuel incorrect'}), 400
-    if len(nouveau) < MOT_DE_PASSE_MIN:
+    erreur = verifier_mot_de_passe_actuel(db, ancien)
+    if erreur:
+        return erreur
+    if not MOT_DE_PASSE_MIN <= len(nouveau) <= 128:
         return jsonify({'success': False, 'error': f'Le nouveau mot de passe doit faire au moins {MOT_DE_PASSE_MIN} caractères'}), 400
     db.execute('UPDATE users SET password = ? WHERE id = ?', (generate_password_hash(nouveau), session['user_id']))
     invalider_sessions(db, session['user_id'])
     db.commit()
     connecter(session['user_id'])
     return jsonify({'success': True}), 200
+
+
+def verifier_mot_de_passe_actuel(db, mot_de_passe):
+    """Pour les actions sensibles (changer le mot de passe, supprimer le compte) : 5 essais ratés
+    par 15 minutes, pour qu'une session volée ne permette pas de deviner le mot de passe."""
+    cle = f"mdp-actuel:{session['user_id']}"
+    if limite_atteinte(cle, 5, 15):
+        return jsonify({'success': False, 'error': 'Trop d\'essais : réessaie dans 15 minutes'}), 429
+    user = db.execute('SELECT password FROM users WHERE id = ?', (session['user_id'],)).fetchone()
+    if not mot_de_passe or not check_password_hash(user['password'], mot_de_passe):
+        noter_action(cle)
+        return jsonify({'success': False, 'error': 'Mot de passe actuel incorrect'}), 400
+    return None
 
 
 def supprimer_compte(db, c, uid):
@@ -1330,6 +1384,9 @@ def supprimer_compte(db, c, uid):
         supprimer_media('bannieres', fichiers['banniere'])
     c.execute('UPDATE contact_messages SET user_id = NULL WHERE user_id = ?', (uid,))
     c.execute('DELETE FROM notifications WHERE user_id = ?', (uid,))
+    ancien = c.execute('SELECT handle FROM users WHERE id = ?', (uid,)).fetchone()
+    if ancien and ancien['handle']:
+        c.execute("INSERT INTO anciens_handles (handle, user_id, libere_at) VALUES (?, 0, datetime('now'))", (ancien['handle'],))
     c.execute('DELETE FROM users WHERE id = ?', (uid,))
 
 
@@ -1345,6 +1402,9 @@ def api_admin_delete_user(user_id):
         return jsonify({'success': False, 'error': 'Pour supprimer ton propre compte, passe par ton profil'}), 400
     if u['is_admin']:
         return jsonify({'success': False, 'error': "Retire d'abord ses droits admin"}), 400
+    if est_protege(db, user_id) and fondateur_requis(db):
+        return jsonify({'success': False, 'error': fondateur_requis(db)}), 403
+    journaliser(db, 'Compte supprimé', nom_joueur(db, user_id))
     supprimer_compte(db, db.cursor(), user_id)
     db.commit()
     return jsonify({'success': True}), 200
@@ -1355,6 +1415,10 @@ def api_admin_delete_user(user_id):
 def api_profil_delete():
     uid = session['user_id']
     db = get_db()
+    mdp = donnees_json().get('mot_de_passe')
+    erreur = verifier_mot_de_passe_actuel(db, mdp if isinstance(mdp, str) else '')
+    if erreur:
+        return erreur
     supprimer_compte(db, db.cursor(), uid)
     db.commit()
     restants = [x for x in session.get('comptes', []) if x != uid]
@@ -1547,6 +1611,7 @@ def api_profil_pseudo():
         return jsonify({'success': False, 'error': 'Tu as déjà utilisé tous tes changements de pseudo'}), 400
     if info['prochain']:
         return jsonify({'success': False, 'error': f"Tu pourras changer de pseudo à partir du {info['prochain']}"}), 400
+    c.execute("INSERT INTO anciens_handles (handle, user_id, libere_at) VALUES (?, ?, datetime('now'))", (actuel['handle'], uid))
     c.execute("""UPDATE users SET username = ?, handle = NULL, handle_changements = COALESCE(handle_changements, 0) + 1,
                  handle_modifie_at = datetime('now') WHERE id = ?""", (pseudo, uid))
     handle = attribuer_handle(c, uid, pseudo)
@@ -1657,7 +1722,7 @@ def api_teams():
 def api_create_team():
     uid = session['user_id']
     data = donnees_json()
-    nom = texte(data, 'nom')
+    nom = re.sub(r'\s+', ' ', texte(data, 'nom'))
     bio = texte(data, 'bio', 300)
     if not 2 <= len(nom) <= 30:
         return jsonify({'success': False, 'error': 'Le nom de la team doit faire entre 2 et 30 caractères'}), 400
@@ -1701,11 +1766,16 @@ def api_join_team(team_id):
     if db.execute("""SELECT 1 FROM team_exclusions WHERE team_id = ? AND user_id = ?
                      AND created_at > datetime('now', '-7 days')""", (team_id, uid)).fetchone():
         return jsonify({'success': False, 'error': 'Le capitaine t\'a retiré de cette team il y a moins de 7 jours'}), 403
-    if db.execute('SELECT COUNT(*) FROM team_members WHERE team_id = ?', (team_id,)).fetchone()[0] >= MAX_MEMBRES:
-        return jsonify({'success': False, 'error': f'Cette team est complète ({MAX_MEMBRES} joueurs maximum)'}), 400
+    if limite_atteinte(f'rejoindre:{uid}', 10, 60):
+        return jsonify({'success': False, 'error': TROP}), 429
+    noter_action(f'rejoindre:{uid}')
     try:
-        db.execute("INSERT INTO team_members (team_id, user_id, jeu_id, joined_at) VALUES (?, ?, ?, datetime('now'))",
-                   (team_id, uid, jeu_id))
+        ajout = db.execute("""INSERT INTO team_members (team_id, user_id, jeu_id, joined_at)
+                              SELECT ?, ?, ?, datetime('now')
+                              WHERE (SELECT COUNT(*) FROM team_members WHERE team_id = ?) < ?""",
+                           (team_id, uid, jeu_id, team_id, MAX_MEMBRES))
+        if not ajout.rowcount:
+            return jsonify({'success': False, 'error': f'Cette team est complète ({MAX_MEMBRES} joueurs maximum)'}), 400
         t = db.execute('SELECT createur_id FROM teams WHERE id = ?', (team_id,)).fetchone()
         notifier(db, [t['createur_id']], f"{utilisateur_connecte()['username']} a rejoint ta team", '/teams')
         db.commit()
@@ -1724,9 +1794,17 @@ def api_delete_team(team_id):
         return jsonify({'success': False, 'error': 'Team introuvable'}), 404
     if team['createur_id'] != session['user_id']:
         return jsonify({'success': False, 'error': 'Seul le créateur peut supprimer la team'}), 403
+    tournoi = en_tournoi_actif(db, team_id)
+    if tournoi:
+        return jsonify({'success': False, 'error': f"Impossible pendant le tournoi « {tournoi['nom']} » : attends la fin"}), 400
     supprimer_team(db.cursor(), team_id)
     db.commit()
     return jsonify({'success': True}), 200
+
+
+def en_tournoi_actif(db, team_id):
+    return db.execute("""SELECT t.nom FROM tournoi_inscriptions i JOIN tournois t ON t.id = i.tournoi_id
+                         WHERE i.team_id = ? AND t.statut IN ('poules', 'bracket')""", (team_id,)).fetchone()
 
 
 def team_du_capitaine(db, team_id):
@@ -1746,6 +1824,10 @@ def api_leave_team(team_id):
     db = get_db()
     if not db.execute('SELECT 1 FROM team_members WHERE team_id = ? AND user_id = ?', (team_id, uid)).fetchone():
         return jsonify({'success': False, 'error': "Vous n'êtes pas dans cette team"}), 400
+    seul = db.execute('SELECT COUNT(*) FROM team_members WHERE team_id = ?', (team_id,)).fetchone()[0] == 1
+    tournoi = en_tournoi_actif(db, team_id)
+    if seul and tournoi:
+        return jsonify({'success': False, 'error': f"Tu es le dernier membre et la team joue « {tournoi['nom']} » : attends la fin du tournoi"}), 400
     c = db.cursor()
     retirer_membre(c, uid, jeu_de_team(db, team_id))  # transfert du rôle de capitaine ou suppression si seul
     db.commit()
@@ -1813,7 +1895,7 @@ def api_update_team(team_id):
     if erreur:
         return erreur
     data = donnees_json()
-    nom = texte(data, 'nom') if 'nom' in data else team['nom']
+    nom = re.sub(r'\s+', ' ', texte(data, 'nom')) if 'nom' in data else team['nom']
     if not 2 <= len(nom) <= 30:
         return jsonify({'success': False, 'error': 'Le nom de la team doit faire entre 2 et 30 caractères'}), 400
     if nom_refuse(nom, 'Nom de team', est_admin()):
@@ -2106,7 +2188,7 @@ def api_contact():
     message = texte(data, 'message', 5000)
     if not nom or not email or not sujet or not message:
         return jsonify({'success': False, 'error': 'Tous les champs sont requis'}), 400
-    if '@' not in email:
+    if not EMAIL_VALIDE.match(email):
         return jsonify({'success': False, 'error': 'Email invalide'}), 400
     if limite_atteinte('contact:' + ip_client(), 5, 60):
         return jsonify({'success': False, 'error': TROP}), 429
@@ -2306,6 +2388,7 @@ def api_admin_create_match():
                                          entier(data.get('score1')), entier(data.get('score2')), session['user_id'])
     if erreur:
         return jsonify({'success': False, 'error': erreur[0]}), erreur[1]
+    journaliser(db, 'Résultat saisi', f"{nom_team(db, entier(data.get('team1_id')))} {entier(data.get('score1'))}-{entier(data.get('score2'))} {nom_team(db, entier(data.get('team2_id')))}")
     # Un résultat saisi par l'admin clôt une éventuelle déclaration en cours entre ces deux teams
     c.execute("""UPDATE declarations SET statut = 'valide', reponse = 'admin', match_id = ?, traite_at = datetime('now')
                  WHERE statut IN ('attente', 'conteste') AND ((team1_id = ? AND team2_id = ?) OR (team1_id = ? AND team2_id = ?))""",
@@ -2331,6 +2414,9 @@ def valider_declaration(c, db, d, score1=None, score2=None, reponse='confirme'):
     """Transforme une déclaration en match. Renvoie un message d'erreur ou None."""
     s1 = d['score1'] if score1 is None else score1
     s2 = d['score2'] if score2 is None else score2
+    if d['saison'] != saison_actuelle(db, d['jeu_id']):
+        c.execute("UPDATE declarations SET statut = 'annule', motif = 'Saison terminée', traite_at = datetime('now') WHERE id = ?", (d['id'],))
+        return "Ce résultat date d'une saison terminée"
     # On « réserve » la déclaration d'abord : deux clics simultanés ne créent jamais deux matchs
     if not c.execute("UPDATE declarations SET statut = 'traitement' WHERE id = ? AND statut IN ('attente', 'conteste')",
                      (d['id'],)).rowcount:
@@ -2531,12 +2617,14 @@ def api_admin_trancher(declaration_id):
         s1 = entier(data.get('score1')) if data.get('score1') is not None else None
         s2 = entier(data.get('score2')) if data.get('score2') is not None else None
         message = valider_declaration(c, db, d, s1, s2, reponse='admin')
+        journaliser(db, 'Litige tranché : résultat validé', f"{nom_team(db, d['team1_id'])} {s1 if s1 is not None else d['score1']}-{s2 if s2 is not None else d['score2']} {nom_team(db, d['team2_id'])}")
         db.commit()
         if message:
             return jsonify({'success': False, 'error': message}), 400
         return jsonify({'success': True}), 200
     if data.get('action') == 'refuser':
         c.execute("UPDATE declarations SET statut = 'refuse', reponse = 'admin', traite_at = datetime('now') WHERE id = ?", (d['id'],))
+        journaliser(db, 'Litige tranché : résultat refusé', f"{nom_team(db, d['team1_id'])} vs {nom_team(db, d['team2_id'])}")
         notifier(c, capitaines, f"Un admin a refusé le résultat déclaré {d['score1']}-{d['score2']} : à rejouer ou à redéclarer.", '/teams#resultats')
         db.commit()
         return jsonify({'success': True}), 200
@@ -2553,6 +2641,7 @@ def api_admin_delete_match(match_id):
         return jsonify({'success': False, 'error': 'Match introuvable'}), 404
     if m['saison'] != saison_actuelle(db, m['jeu_id']):
         return jsonify({'success': False, 'error': 'Ce match appartient à une saison terminée'}), 400
+    journaliser(db, 'Match supprimé', f"{m['team1_nom']} {m['score1']}-{m['score2']} {m['team2_nom']}")
     ajuster_points(c, m['team1_id'], m['ligue_num'], m['poule'], -m['points1'])
     ajuster_points(c, m['team2_id'], m['ligue_num'], m['poule'], -m['points2'])
     c.execute('DELETE FROM matchs WHERE id = ?', (match_id,))
@@ -2605,6 +2694,7 @@ def api_admin_move_team(team_id):
         return jsonify({'success': True, 'ligue_num': ligue_num, 'poule': poule}), 200
     if actuelle['ligue_num'] == ligue_num:
         return jsonify({'success': False, 'error': f'La team est déjà en Ligue {ligue_num}'}), 400
+    journaliser(db, f'Team déplacée en Ligue {ligue_num}', nom_team(db, team_id))
     # Changement de ligue : nouvelle poule, les points repartent de 0
     c.execute('UPDATE ligue SET ligue_num = ?, poule = NULL, points = 0 WHERE team_id = ?', (ligue_num, team_id))
     poule = choisir_poule(c, jeu_id, ligue_num)
@@ -2619,6 +2709,7 @@ def api_admin_delete_team(team_id):
     db = get_db()
     if not db.execute('SELECT 1 FROM teams WHERE id = ?', (team_id,)).fetchone():
         return jsonify({'success': False, 'error': 'Team introuvable'}), 404
+    journaliser(db, 'Team supprimée', nom_team(db, team_id))
     supprimer_team(db.cursor(), team_id)
     db.commit()
     return jsonify({'success': True}), 200
@@ -2659,6 +2750,14 @@ def api_admin_reset_password(user_id):
     user = db.execute('SELECT username, email FROM users WHERE id = ?', (user_id,)).fetchone()
     if not user:
         return jsonify({'success': False, 'error': 'Joueur introuvable'}), 404
+    if config_mail():
+        # On n'affiche jamais de mot de passe : le lien part sur l'email DU COMPTE (pas celui qui a écrit)
+        if not envoyer_lien_reinitialisation(db, user_id):
+            return jsonify({'success': False, 'error': "L'email n'a pas pu partir, réessaie plus tard"}), 502
+        journaliser(db, 'Lien de nouveau mot de passe envoyé', nom_joueur(db, user_id))
+        db.commit()
+        return jsonify({'success': True, 'email_envoye': True, 'username': user['username'], 'email': user['email']}), 200
+    journaliser(db, 'Mot de passe temporaire créé', nom_joueur(db, user_id))
     temporaire = secrets.token_urlsafe(8)
     db.execute('UPDATE users SET password = ? WHERE id = ?', (generate_password_hash(temporaire), user_id))
     invalider_sessions(db, user_id)
@@ -2685,6 +2784,7 @@ def api_admin_set_admin(user_id):
     if valeur and not u['is_admin'] and c.execute('SELECT COUNT(*) FROM users WHERE is_admin = 1').fetchone()[0] >= ADMINS_MAX:
         return jsonify({'success': False, 'error': f'Il y a déjà {ADMINS_MAX} admins (le maximum). Retire les droits à quelqu\'un d\'abord.'}), 400
     c.execute('UPDATE users SET is_admin = ? WHERE id = ?', (1 if valeur else 0, user_id))
+    journaliser(db, 'Droits admin donnés' if valeur else 'Droits admin retirés', nom_joueur(db, user_id))
     if valeur:
         donner_objet(c, user_id, 'admin', equiper=not c.execute('SELECT 1 FROM users WHERE id = ? AND badge_equipe = ?', (user_id, 'fondateur')).fetchone())
         notifier(c, [user_id], "Tu fais maintenant partie de l'équipe d'orga : badge Admin débloqué.", '/admin')
@@ -2692,6 +2792,13 @@ def api_admin_set_admin(user_id):
         retirer_objet(c, user_id, 'admin')
     db.commit()
     return jsonify({'success': True}), 200
+
+
+@app.route('/api/admin/journal', methods=['GET'])
+@api_admin
+def api_admin_journal():
+    rows = get_db().execute('SELECT admin_nom, action, cible, created_at FROM journal_admin ORDER BY id DESC LIMIT 200').fetchall()
+    return jsonify([{**dict(r), 'quand': il_y_a(r['created_at'])} for r in rows]), 200
 
 
 @app.route('/api/admin/users/<int:user_id>/deverrouiller', methods=['POST'])
@@ -2705,6 +2812,7 @@ def api_admin_deverrouiller(user_id):
                          WHERE id = ?""", (user_id,)).rowcount:
         return jsonify({'success': False, 'error': 'Joueur introuvable'}), 404
     notifier(db, [user_id], 'Ton compte a été débloqué par un admin. Pense à choisir un mot de passe solide.', '/profil')
+    journaliser(db, 'Compte déverrouillé', nom_joueur(db, user_id))
     db.commit()
     return jsonify({'success': True}), 200
 
@@ -2730,9 +2838,11 @@ def api_admin_set_fondateur(user_id):
         if porteurs(db, 'fondateur') >= FONDATEURS_MAX:
             return jsonify({'success': False, 'error': f'Les {FONDATEURS_MAX} badges Fondateur sont déjà donnés. Retire-le à quelqu\'un d\'abord.'}), 400
         donner_objet(c, user_id, 'fondateur')
+        journaliser(db, 'Badge Fondateur donné', nom_joueur(db, user_id))
         notifier(c, [user_id], 'Badge Fondateur débloqué : merci d\'avoir lancé la XHQ League !', '/shop')
     else:
         retirer_objet(c, user_id, 'fondateur')
+        journaliser(db, 'Badge Fondateur retiré', nom_joueur(db, user_id))
     db.commit()
     return jsonify({'success': True}), 200
 
@@ -2862,6 +2972,8 @@ def api_admin_cloturer_saison():
     if donnees_json().get('confirmation') != 'CLOTURER':
         return jsonify({'success': False, 'error': 'Tapez CLOTURER pour confirmer'}), 400
     db = get_db()
+    if fondateur_requis(db):
+        return jsonify({'success': False, 'error': 'Seuls les fondateurs peuvent clôturer une saison'}), 403
     jeu, erreur = jeu_ou_erreur(db)
     if erreur:
         return erreur
@@ -2871,6 +2983,9 @@ def api_admin_cloturer_saison():
         return jsonify({'success': False, 'error': 'Aucun match joué cette saison : rien à clôturer'}), 400
 
     classement = calculer_fin_saison(db, jeu['id'])
+    journaliser(db, f'Saison {saison} clôturée', jeu['nom'])
+    c.execute("""UPDATE declarations SET statut = 'annule', motif = 'Saison terminée', traite_at = datetime('now')
+                 WHERE jeu_id = ? AND statut IN ('attente', 'conteste')""", (jeu['id'],))
     try:
         c.execute("INSERT INTO saisons (jeu_id, numero, cloturee_at, cloturee_par) VALUES (?, ?, datetime('now'), ?)",
                   (jeu['id'], saison, session['user_id']))
@@ -3206,8 +3321,11 @@ def api_tournoi_inscription(tournoi_id):
     nb = db.execute('SELECT COUNT(*) FROM tournoi_inscriptions WHERE tournoi_id = ?', (t['id'],)).fetchone()[0]
     if nb >= t['places']:
         return jsonify({'success': False, 'error': 'Le tournoi est complet'}), 400
-    db.execute("INSERT INTO tournoi_inscriptions (tournoi_id, team_id, team_nom, created_at) VALUES (?, ?, ?, datetime('now'))",
-               (t['id'], ma_team['id'], ma_team['nom']))
+    if not db.execute("""INSERT OR IGNORE INTO tournoi_inscriptions (tournoi_id, team_id, team_nom, created_at)
+                         SELECT ?, ?, ?, datetime('now')
+                         WHERE (SELECT COUNT(*) FROM tournoi_inscriptions WHERE tournoi_id = ?) < ?""",
+                      (t['id'], ma_team['id'], ma_team['nom'], t['id'], t['places'])).rowcount:
+        return jsonify({'success': False, 'error': 'Le tournoi est complet'}), 400
     db.commit()
     return jsonify({'success': True, 'message': f"{ma_team['nom']} est inscrite à {t['nom']}"}), 200
 
@@ -3468,6 +3586,34 @@ def mot_de_passe_oublie_page():
     return render_template('mot_de_passe.html', etape='demande', mail_actif=bool(config_mail()), jeton='')
 
 
+def envoyer_lien_reinitialisation(db, user_id):
+    """Crée un lien à usage unique (1 h) et l'envoie à l'email du compte. Vrai si le mail est parti."""
+    user = db.execute('SELECT id, username, email FROM users WHERE id = ?', (user_id,)).fetchone()
+    conf = config_mail()
+    if not user or not conf:
+        return False
+    jeton = secrets.token_urlsafe(32)
+    expire = (datetime.utcnow() + timedelta(minutes=REINIT_DUREE_MINUTES)).strftime('%Y-%m-%d %H:%M:%S')
+    cur = db.execute("""INSERT INTO reinitialisations (user_id, jeton_hash, expire_at, created_at)
+                        VALUES (?, ?, ?, datetime('now'))""", (user['id'], hash_jeton(jeton), expire))
+    db.commit()
+    site = (conf.get('site') or SITE_URL_DEFAUT).rstrip('/')
+    envoye = envoyer_mail(user['email'], 'XHQ League · Réinitialiser ton mot de passe', f"""Salut {user['username']},
+
+Tu as demandé à changer ton mot de passe XHQ League. Clique sur ce lien (valable {REINIT_DUREE_MINUTES} minutes) :
+
+{site}/reinitialiser/{jeton}
+
+Si ce n'est pas toi, ignore ce message : ton mot de passe actuel reste valable.
+
+L'équipe XHQ""")
+    if not envoye:
+        # L'envoi a échoué : la demande ne compte pas dans la limite, on pourra réessayer
+        db.execute('DELETE FROM reinitialisations WHERE id = ?', (cur.lastrowid,))
+        db.commit()
+    return envoye
+
+
 @app.route('/api/mot-de-passe/demande', methods=['POST'])
 def api_demande_reinitialisation():
     email = texte(donnees_json(), 'email', 120).lower()
@@ -3484,25 +3630,7 @@ def api_demande_reinitialisation():
         recentes = db.execute("""SELECT COUNT(*) FROM reinitialisations WHERE user_id = ?
                                   AND created_at > datetime('now', '-1 hour')""", (user['id'],)).fetchone()[0]
         if recentes < REINIT_MAX_PAR_HEURE:
-            jeton = secrets.token_urlsafe(32)
-            expire = (datetime.utcnow() + timedelta(minutes=REINIT_DUREE_MINUTES)).strftime('%Y-%m-%d %H:%M:%S')
-            cur = db.execute("""INSERT INTO reinitialisations (user_id, jeton_hash, expire_at, created_at)
-                                VALUES (?, ?, ?, datetime('now'))""", (user['id'], hash_jeton(jeton), expire))
-            db.commit()
-            site = (conf.get('site') or SITE_URL_DEFAUT).rstrip('/')
-            envoye = envoyer_mail(user['email'], 'XHQ League · Réinitialiser ton mot de passe', f"""Salut {user['username']},
-
-Tu as demandé à changer ton mot de passe XHQ League. Clique sur ce lien (valable {REINIT_DUREE_MINUTES} minutes) :
-
-{site}/reinitialiser/{jeton}
-
-Si ce n'est pas toi, ignore ce message : ton mot de passe actuel reste valable.
-
-L'équipe XHQ""")
-            if not envoye:
-                # L'envoi a échoué : la demande ne compte pas dans la limite, on pourra réessayer
-                db.execute('DELETE FROM reinitialisations WHERE id = ?', (cur.lastrowid,))
-                db.commit()
+            envoyer_lien_reinitialisation(db, user['id'])
     # Même réponse que le compte existe ou non (on ne révèle pas quels emails sont inscrits)
     return jsonify({'success': True, 'mail': True}), 200
 
@@ -3528,7 +3656,7 @@ def api_reinitialiser():
     if not r:
         return jsonify({'success': False, 'error': 'Ce lien a expiré ou a déjà servi. Refais une demande.'}), 400
     nouveau = data.get('nouveau') if isinstance(data.get('nouveau'), str) else ''
-    if len(nouveau) < MOT_DE_PASSE_MIN:
+    if not MOT_DE_PASSE_MIN <= len(nouveau) <= 128:
         return jsonify({'success': False, 'error': f'Le mot de passe doit faire au moins {MOT_DE_PASSE_MIN} caractères'}), 400
     db.execute('UPDATE users SET password = ? WHERE id = ?', (generate_password_hash(nouveau), r['user_id']))
     db.execute('UPDATE reinitialisations SET utilise = 1 WHERE user_id = ?', (r['user_id'],))
@@ -3639,6 +3767,12 @@ def _sauvegarde_quotidienne():
 @app.route('/admin/sauvegarde')
 @page_admin
 def admin_sauvegarde():
+    # Une sauvegarde contient TOUTE la base (emails, mots de passe chiffrés) : réservée aux fondateurs
+    db = get_db()
+    if fondateur_requis(db):
+        return 'Téléchargement des sauvegardes réservé aux fondateurs.', 403
+    journaliser(db, 'Sauvegarde téléchargée')
+    db.commit()
     chemin = creer_sauvegarde()
     return send_from_directory(SAUVEGARDE_DIR, os.path.basename(chemin), as_attachment=True)
 
@@ -3675,6 +3809,7 @@ def api_admin_moderer():
     if not ligne:
         return jsonify({'success': False, 'error': 'Introuvable'}), 404
     dossier = MODERATION[table][champ]
+    journaliser(db, f'Modération : {champ} retiré(e)', nom_joueur(db, cible) if table == 'users' else nom_team(db, cible))
     db.execute(f"UPDATE {table} SET {champ} = {'NULL' if dossier else chr(39) * 2} WHERE id = ?", (cible,))
     db.commit()
     if dossier:
@@ -3691,6 +3826,7 @@ def api_admin_bloquer(user_id):
     db = get_db()
     if est_protege(db, user_id) and fondateur_requis(db):
         return jsonify({'success': False, 'error': fondateur_requis(db)}), 403
+    journaliser(db, 'Compte suspendu' if bloque else 'Compte réactivé', nom_joueur(db, user_id))
     if not db.execute('UPDATE users SET bloque = ? WHERE id = ?', (int(bloque), user_id)).rowcount:
         return jsonify({'success': False, 'error': 'Joueur introuvable'}), 404
     db.commit()

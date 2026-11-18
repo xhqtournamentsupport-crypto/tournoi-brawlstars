@@ -520,8 +520,9 @@
 
         async function deleteAccount() {
             if (!confirm('Supprimer ton compte ? Cette action est définitive.')) return;
-            if (!confirm('Dernière confirmation : ton compte et toutes tes données seront effacés.')) return;
-            const { ok, data } = await api('/api/profil/delete', { method: 'POST' });
+            const mot_de_passe = prompt('Pour confirmer, tape ton mot de passe :');
+            if (!mot_de_passe) return;
+            const { ok, data } = await api('/api/profil/delete', { method: 'POST', body: { mot_de_passe } });
             if (ok && data.success) {
                 alert('Compte supprimé.');
                 window.location.href = '/login';
