@@ -175,9 +175,10 @@
             </div>
 
             <div class="form-group">
-                <label for="handle-input">Identifiant</label>
-                <div class="champ-at"><span>@</span><input type="text" id="handle-input" maxlength="20" autocomplete="off" spellcheck="false"></div>
-                <p class="ed-note" id="handle-note"></p>
+                <label for="pseudo-input">Pseudo</label>
+                <input type="text" id="pseudo-input" maxlength="20" autocomplete="off" spellcheck="false">
+                <p class="ed-note">Ton lien de profil : <b id="lien-apercu"></b> (créé automatiquement à partir du pseudo)</p>
+                <p class="ed-note" id="pseudo-note"></p>
             </div>
 
             <div class="form-group">
@@ -261,8 +262,9 @@
             const { ok, data } = await api('/api/profil');
             if (!ok) return;  // 401 -> redirection vers /login gérée par api()
             profil = data;
-            document.getElementById('handle-input').value = data.handle || '';
-            noteHandle(data.handle_info);
+            document.getElementById('pseudo-input').value = data.username || '';
+            majLien(data.handle);
+            notePseudo(data.handle_info);
             afficherPhoto(data.photo);
             afficherBanniere(data.banniere, data.banniere_pos, data.banniere_zoom);
             document.getElementById('username-display').textContent = data.username;
@@ -350,14 +352,18 @@
         }
 
         async function updateProfil() {
-            // 1. Identifiant (seulement s'il a changé)
-            const handle = document.getElementById('handle-input').value.trim().toLowerCase().replace(/^@/, '');
-            if (profil && handle !== profil.handle) {
-                const r = await api('/api/profil/identifiant', { method: 'POST', body: { handle } });
-                if (!r.ok || !r.data.success) { flash('error-message', r.data.error || 'Identifiant refusé'); return; }
+            // 1. Pseudo (seulement s'il a changé) : le lien @ suit automatiquement
+            const pseudo = document.getElementById('pseudo-input').value.trim().replace(/\s+/g, ' ');
+            if (profil && pseudo !== profil.username) {
+                const r = await api('/api/profil/pseudo', { method: 'POST', body: { pseudo } });
+                if (!r.ok || !r.data.success) { flash('error-message', r.data.error || 'Pseudo refusé'); return; }
+                profil.username = r.data.username;
                 profil.handle = r.data.handle;
-                noteHandle(r.data.handle_info);
-                document.getElementById('lien-public').href = '/u/' + encodeURIComponent(r.data.handle);
+                notePseudo(r.data.handle_info);
+                majLien(r.data.handle);
+                document.getElementById('username-display').textContent = r.data.username;
+                document.querySelectorAll('.compte-nom, .compte-tete strong').forEach(el => { el.textContent = r.data.username; });
+                document.querySelectorAll('.compte-tete span, .compte-tete small').forEach(el => { if (/^@/.test(el.textContent.trim())) el.textContent = '@' + r.data.handle; });
             }
             // 2. Bio et avatar
             const bio = document.getElementById('bio-input').value;
@@ -372,15 +378,21 @@
             }
         }
 
-        // ---------- Identifiant ----------
-        function noteHandle(info) {
-            const note = document.getElementById('handle-note');
-            const champ = document.getElementById('handle-input');
+        // ---------- Pseudo ----------
+        function majLien(handle) {
+            document.getElementById('lien-apercu').textContent = location.host + '/u/' + (handle || '');
+            document.getElementById('lien-public').href = '/u/' + encodeURIComponent(handle || '');
+            document.querySelectorAll('#compte-menu a[href^="/u/"]').forEach(a => { a.href = '/u/' + encodeURIComponent(handle || ''); });
+        }
+
+        function notePseudo(info) {
+            const note = document.getElementById('pseudo-note');
+            const champ = document.getElementById('pseudo-input');
             if (!info) return;
             const reste = info.restants + ' changement' + (info.restants > 1 ? 's' : '') + ' possible' + (info.restants > 1 ? 's' : '');
-            if (!info.restants) { note.textContent = 'Tu as utilisé tous tes changements d\'identifiant.'; champ.disabled = true; }
-            else if (info.prochain) { note.textContent = `Tu pourras le modifier à partir du ${info.prochain} (encore ${reste}).`; champ.disabled = true; }
-            else { note.textContent = `3 à 20 caractères : lettres, chiffres, _ et point. Encore ${reste}, puis 30 jours d'attente entre deux changements.`; champ.disabled = false; }
+            if (!info.restants) { note.textContent = 'Tu as utilisé tous tes changements de pseudo (seules les majuscules peuvent encore changer).'; champ.disabled = false; }
+            else if (info.prochain) { note.textContent = `Tu pourras changer de pseudo à partir du ${info.prochain} (encore ${reste}). Les majuscules, elles, peuvent changer quand tu veux.`; champ.disabled = false; }
+            else { note.textContent = `3 à 20 caractères. Encore ${reste}, puis 30 jours d'attente entre deux changements.`; champ.disabled = false; }
         }
 
         // ---------- Envoi d'images ----------

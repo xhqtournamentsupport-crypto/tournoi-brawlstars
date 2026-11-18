@@ -549,6 +549,11 @@ def init_db():
     ajouter_colonne(c, 'users', 'handle', 'TEXT')
     ajouter_colonne(c, 'users', 'handle_changements', 'INTEGER DEFAULT 0')
     ajouter_colonne(c, 'users', 'handle_modifie_at', 'TEXT')
+    # Migration unique : pseudo et @identifiant ne font plus qu'un ; chacun repart avec ses 3 changements
+    if not c.execute("SELECT 1 FROM parametres WHERE cle = 'pseudo_unique'").fetchone():
+        c.execute('UPDATE users SET handle_changements = 0, handle_modifie_at = NULL')
+        c.execute("INSERT OR REPLACE INTO parametres (cle, valeur) VALUES ('pseudo_unique', '1')")
+
     for col, definition in (('logo', 'TEXT'), ('embleme', 'TEXT'), ('banniere', 'TEXT'),
                             ('banniere_pos', 'INTEGER DEFAULT 50'), ('banniere_zoom', 'INTEGER DEFAULT 100')):
         ajouter_colonne(c, 'teams', col, definition)
@@ -997,16 +1002,17 @@ def api_signup():
         return jsonify({'success': False, 'error': 'Tous les champs sont requis'}), 400
     if '@' not in email or len(email) > 120:
         return jsonify({'success': False, 'error': 'Email invalide'}), 400
+    username = re.sub(r'\s+', ' ', username).strip()
     if not 3 <= len(username) <= 20:
-        return jsonify({'success': False, 'error': "Le nom d'utilisateur doit faire entre 3 et 20 caractères"}), 400
+        return jsonify({'success': False, 'error': 'Le pseudo doit faire entre 3 et 20 caractères'}), 400
     if len(password) < 6:
         return jsonify({'success': False, 'error': 'Le mot de passe doit faire au moins 6 caractères'}), 400
 
     db = get_db()
     if db.execute('SELECT 1 FROM users WHERE lower(email) = ?', (email,)).fetchone():
         return jsonify({'success': False, 'error': 'Cet email est déjà utilisé'}), 400
-    if db.execute('SELECT 1 FROM users WHERE lower(username) = lower(?)', (username,)).fetchone():
-        return jsonify({'success': False, 'error': "Ce nom d'utilisateur est déjà pris"}), 400
+    if pseudo_refuse(db, username):
+        return jsonify({'success': False, 'error': pseudo_refuse(db, username)}), 400
     try:
         cur = db.execute(
             "INSERT INTO users (email, username, password, bio, profile_pic, solde, created_at) "
@@ -1323,29 +1329,47 @@ def info_handle(db, user_id):
     return {'restants': restants, 'prochain': prochain, 'possible': restants > 0 and not prochain}
 
 
-@app.route('/api/profil/identifiant', methods=['POST'])
+def pseudo_refuse(db, pseudo, user_id=None):
+    """Message d'erreur si ce pseudo n'est pas utilisable, sinon None."""
+    if not 3 <= len(pseudo) <= 20:
+        return 'Le pseudo doit faire entre 3 et 20 caractères'
+    est_admin_ = bool(user_id and db.execute('SELECT is_admin FROM users WHERE id = ?', (user_id,)).fetchone()['is_admin'])
+    if not est_admin_ and re.sub(r'[^a-z]', '', pseudo.lower()).startswith('xhq'):
+        return "Ce pseudo est réservé à l'équipe d'orga XHQ"
+    if db.execute('SELECT 1 FROM users WHERE lower(username) = lower(?) AND id != ?', (pseudo, user_id or 0)).fetchone():
+        return 'Ce pseudo est déjà pris'
+    return None
+
+
+@app.route('/api/profil/pseudo', methods=['POST'])
 @api_connectee
-def api_profil_identifiant():
+def api_profil_pseudo():
+    """Un seul nom à choisir : le pseudo. Le @identifiant (lien du profil) en découle automatiquement."""
     db = get_db()
-    handle = texte(donnees_json(), 'handle', 40).lower().lstrip('@')
-    actuel = db.execute('SELECT handle FROM users WHERE id = ?', (session['user_id'],)).fetchone()['handle']
-    if handle == actuel:
-        return jsonify({'success': True, 'handle': handle, 'handle_info': info_handle(db, session['user_id'])}), 200
-    if not HANDLE_REGEX.match(handle) or handle.startswith('.') or handle.endswith('.') or '..' in handle:
-        return jsonify({'success': False, 'error': '3 à 20 caractères : lettres minuscules, chiffres, _ et . (pas au début ni à la fin)'}), 400
-    if handle in HANDLES_RESERVES:
-        return jsonify({'success': False, 'error': 'Cet identifiant est réservé'}), 400
-    info = info_handle(db, session['user_id'])
+    uid = session['user_id']
+    pseudo = re.sub(r'\s+', ' ', texte(donnees_json(), 'pseudo', 40)).strip()
+    actuel = db.execute('SELECT username, handle FROM users WHERE id = ?', (uid,)).fetchone()
+    if pseudo == actuel['username']:
+        return jsonify({'success': True, 'username': pseudo, 'handle': actuel['handle'], 'handle_info': info_handle(db, uid)}), 200
+    erreur = pseudo_refuse(db, pseudo, uid)
+    if erreur:
+        return jsonify({'success': False, 'error': erreur}), 400
+    c = db.cursor()
+    if pseudo.lower() == actuel['username'].lower():
+        # Simple changement de majuscules : gratuit, le lien ne change pas
+        c.execute('UPDATE users SET username = ? WHERE id = ?', (pseudo, uid))
+        db.commit()
+        return jsonify({'success': True, 'username': pseudo, 'handle': actuel['handle'], 'handle_info': info_handle(db, uid)}), 200
+    info = info_handle(db, uid)
     if not info['restants']:
-        return jsonify({'success': False, 'error': 'Tu as déjà utilisé tous tes changements d\'identifiant'}), 400
+        return jsonify({'success': False, 'error': 'Tu as déjà utilisé tous tes changements de pseudo'}), 400
     if info['prochain']:
-        return jsonify({'success': False, 'error': f"Tu pourras le modifier à partir du {info['prochain']}"}), 400
-    if db.execute('SELECT 1 FROM users WHERE handle = ? AND id != ?', (handle, session['user_id'])).fetchone():
-        return jsonify({'success': False, 'error': 'Cet identifiant est déjà pris'}), 400
-    db.execute("""UPDATE users SET handle = ?, handle_changements = COALESCE(handle_changements, 0) + 1,
-                  handle_modifie_at = datetime('now') WHERE id = ?""", (handle, session['user_id']))
+        return jsonify({'success': False, 'error': f"Tu pourras changer de pseudo à partir du {info['prochain']}"}), 400
+    c.execute("""UPDATE users SET username = ?, handle = NULL, handle_changements = COALESCE(handle_changements, 0) + 1,
+                 handle_modifie_at = datetime('now') WHERE id = ?""", (pseudo, uid))
+    handle = attribuer_handle(c, uid, pseudo)
     db.commit()
-    return jsonify({'success': True, 'handle': handle, 'handle_info': info_handle(db, session['user_id'])}), 200
+    return jsonify({'success': True, 'username': pseudo, 'handle': handle, 'handle_info': info_handle(db, uid)}), 200
 
 
 @app.route('/u/<handle>')
