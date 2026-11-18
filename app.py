@@ -462,6 +462,15 @@ def attribuer_handle(c, user_id, pseudo):
     return essai
 
 
+def sceau_journal(precedent, ligne):
+    """Empreinte d'une ligne du journal, liée à la ligne précédente et à la clé secrète du site :
+    modifier, insérer ou effacer une ligne casse la chaîne, et on ne peut pas la recalculer sans la clé."""
+    import hmac
+    import hashlib
+    contenu = '|'.join(str(ligne[k] if ligne[k] is not None else '') for k in ('id', 'admin_id', 'admin_nom', 'action', 'cible', 'ip', 'created_at'))
+    return hmac.new(app.secret_key.encode(), f'{precedent}|{contenu}'.encode(), hashlib.sha256).hexdigest()
+
+
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
@@ -584,6 +593,20 @@ def init_db():
     c.execute("""CREATE TABLE IF NOT EXISTS journal_admin (id INTEGER PRIMARY KEY AUTOINCREMENT, admin_id INTEGER,
                  admin_nom TEXT, action TEXT, cible TEXT, ip TEXT, created_at TEXT)""")
     c.execute('CREATE TABLE IF NOT EXISTS anciens_handles (handle TEXT, user_id INTEGER, libere_at TEXT)')
+    ajouter_colonne(c, 'journal_admin', 'hachage', 'TEXT')
+    # Journal ineffaçable : la base elle-même refuse toute suppression ou modification
+    # (seule exception : poser l'empreinte d'une ligne qui vient d'être ajoutée)
+    if not c.execute("SELECT 1 FROM sqlite_master WHERE type = 'trigger' AND name = 'journal_pas_de_suppression'").fetchone():
+        precedent = 'debut'
+        for ligne in c.execute('SELECT * FROM journal_admin ORDER BY id').fetchall():
+            empreinte = ligne['hachage'] or sceau_journal(precedent, ligne)
+            if not ligne['hachage']:
+                c.execute('UPDATE journal_admin SET hachage = ? WHERE id = ?', (empreinte, ligne['id']))
+            precedent = empreinte
+        c.execute("""CREATE TRIGGER journal_pas_de_suppression BEFORE DELETE ON journal_admin
+                     BEGIN SELECT RAISE(ABORT, 'Le journal des admins ne peut pas être effacé'); END""")
+        c.execute("""CREATE TRIGGER journal_pas_de_modification BEFORE UPDATE ON journal_admin WHEN OLD.hachage IS NOT NULL
+                     BEGIN SELECT RAISE(ABORT, 'Le journal des admins ne peut pas être modifié'); END""")
     # Un objet ne peut être possédé qu'une fois (deux clics simultanés ne le donnent pas deux fois)
     c.execute('DELETE FROM inventory WHERE id NOT IN (SELECT MIN(id) FROM inventory GROUP BY user_id, item_id)')
     c.execute('CREATE UNIQUE INDEX IF NOT EXISTS inventory_unique ON inventory (user_id, item_id)')
@@ -884,11 +907,32 @@ def fondateur_requis(db):
     return 'Réservé aux fondateurs (les comptes admin et fondateurs sont protégés)'
 
 
+def ecrire_journal(c, admin_id, admin_nom, action, cible='', ip=''):
+    """Ajoute une ligne scellée au journal. L'insertion prend le verrou d'écriture de la base,
+    donc deux actions simultanées ne peuvent pas casser la chaîne."""
+    c.execute("INSERT INTO journal_admin (admin_id, admin_nom, action, cible, ip, created_at) VALUES (?, ?, ?, ?, ?, datetime('now'))",
+              (admin_id, admin_nom, action[:120], str(cible)[:200], ip))
+    nouvelle = c.execute('SELECT * FROM journal_admin WHERE id = ?', (c.lastrowid,)).fetchone()
+    avant = c.execute('SELECT hachage FROM journal_admin WHERE id < ? ORDER BY id DESC LIMIT 1', (nouvelle['id'],)).fetchone()
+    c.execute('UPDATE journal_admin SET hachage = ? WHERE id = ?', (sceau_journal(avant['hachage'] if avant else 'debut', nouvelle), nouvelle['id']))
+
+
+def verifier_journal(db):
+    """(intact, id de la première ligne trafiquée ou None, nombre de lignes)."""
+    precedent, n = 'debut', 0
+    for ligne in db.execute('SELECT * FROM journal_admin ORDER BY id'):
+        n += 1
+        if ligne['hachage'] != sceau_journal(precedent, ligne):
+            return False, ligne['id'], n
+        precedent = ligne['hachage']
+    return True, None, n
+
+
 def journaliser(db, action, cible=''):
     """Garde une trace des actions sensibles des admins (qui, quoi, quand), consultable dans l'admin."""
     u = utilisateur_connecte()
-    db.execute("INSERT INTO journal_admin (admin_id, admin_nom, action, cible, ip, created_at) VALUES (?, ?, ?, ?, ?, datetime('now'))",
-               (u['id'] if u else None, u['username'] if u else 'console', action[:120], str(cible)[:200], ip_client() if has_request_context() else ''))
+    ecrire_journal(db.cursor() if hasattr(db, 'cursor') else db, u['id'] if u else None, u['username'] if u else 'console',
+                   action, cible, ip_client() if has_request_context() else '')
 
 
 def nom_joueur(db, user_id):
@@ -2954,8 +2998,11 @@ def api_admin_set_admin(user_id):
 @app.route('/api/admin/journal', methods=['GET'])
 @api_admin
 def api_admin_journal():
-    rows = get_db().execute('SELECT admin_nom, action, cible, created_at FROM journal_admin ORDER BY id DESC LIMIT 200').fetchall()
-    return jsonify([{**dict(r), 'quand': il_y_a(r['created_at'])} for r in rows]), 200
+    db = get_db()
+    rows = db.execute('SELECT admin_nom, action, cible, created_at FROM journal_admin ORDER BY id DESC LIMIT 200').fetchall()
+    intact, ligne, total = verifier_journal(db)
+    return jsonify({'lignes': [{**dict(r), 'quand': il_y_a(r['created_at'])} for r in rows],
+                    'intact': intact, 'ligne_trafiquee': ligne, 'total': total}), 200
 
 
 @app.route('/api/admin/users/<int:user_id>/deverrouiller', methods=['POST'])
@@ -4273,8 +4320,7 @@ def promouvoir_admin(email):
     if u:
         c.execute('UPDATE users SET is_admin = 1 WHERE id = ?', (u['id'],))
         donner_objet(c, u['id'], 'admin', equiper=False)
-        c.execute("INSERT INTO journal_admin (admin_nom, action, cible, created_at) VALUES ('console', 'Droits admin donnés', ?, datetime('now'))",
-                  (f"{email.strip()} (#{u['id']})",))
+        ecrire_journal(c, None, 'console', 'Droits admin donnés', f"{email.strip()} (#{u['id']})")
     conn.commit()
     conn.close()
     return u is not None
@@ -4299,7 +4345,8 @@ if __name__ == '__main__':
         conn = sqlite3.connect(DB_PATH)
         n = conn.execute("""UPDATE users SET verrou_definitif = 0, verrou_niveau = 0, echecs_connexion = 0, bloque_jusqua = NULL
                             WHERE lower(email) = lower(?)""", (sys.argv[2].strip(),)).rowcount
-        conn.execute("INSERT INTO journal_admin (admin_nom, action, cible, created_at) VALUES ('console', 'Compte déverrouillé', ?, datetime('now'))", (sys.argv[2],))
+        conn.row_factory = sqlite3.Row
+        ecrire_journal(conn.cursor(), None, 'console', 'Compte déverrouillé', sys.argv[2])
         conn.commit()
         conn.close()
         print(f'OK : {sys.argv[2]} est débloqué.' if n else f"Erreur : aucun compte avec l'email {sys.argv[2]}")

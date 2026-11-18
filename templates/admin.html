@@ -304,6 +304,7 @@
             <div class="section">
                 <h2 class="section-title">Journal des actions admin</h2>
                 <p class="hint">Chaque action sensible d'un admin est notée ici : qui, quoi, quand. Les 200 dernières sont affichées. Si quelque chose a été supprimé ou modifié sans raison, tu sais qui l'a fait.</p>
+                <div class="sauvegarde-auto" id="journal-etat">…</div>
                 <div class="table-wrap"><table>
                     <thead><tr><th>Quand</th><th>Admin</th><th>Action</th><th>Concerné</th></tr></thead>
                     <tbody id="liste-journal"></tbody>
@@ -848,9 +849,13 @@
 
         // ---------- journal ----------
         async function chargerJournal() {
-            const { ok, data } = await api('/api/admin/journal');
+            const { ok, data: rep } = await api('/api/admin/journal');
             const tbody = document.getElementById('liste-journal');
-            if (!ok || !Array.isArray(data)) return;
+            if (!ok || !rep || !Array.isArray(rep.lignes)) return;
+            const data = rep.lignes;
+            document.getElementById('journal-etat').innerHTML = rep.intact
+                ? `<strong>🔒 Journal protégé et intact</strong><p>Impossible à effacer ou à modifier, même depuis la base de données. Chaque ligne est scellée à la précédente : ${Number(rep.total)} ligne(s) vérifiée(s), aucune trafiquée.</p>`
+                : `<strong>⚠️ Journal trafiqué</strong><p>La ligne n°${Number(rep.ligne_trafiquee)} (ou une ligne juste avant) a été modifiée ou effacée en dehors du site. Préviens les autres fondateurs et regarde qui a accès à la console PythonAnywhere.</p>`;
             tbody.innerHTML = data.length ? data.map(j => `<tr><td class="muted" title="${escapeHtml(j.created_at)} UTC">${escapeHtml(j.quand)}</td>
                 <td><strong>${escapeHtml(j.admin_nom)}</strong></td><td>${escapeHtml(j.action)}</td><td class="muted">${escapeHtml(j.cible)}</td></tr>`).join('')
                 : '<tr><td colspan="4" class="vide">Aucune action pour l\'instant.</td></tr>';
