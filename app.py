@@ -1075,6 +1075,13 @@ def index():
                            ligue_depart=LIGUE_DEPART, palmares=palmares(db, jeu['id'], 1))
 
 
+@app.route('/js-requis', methods=['GET', 'POST'])
+def js_requis():
+    """Formulaires envoyés sans JavaScript : on ne lit rien (le mot de passe n'est jamais dans une adresse)."""
+    return ('<p style="font-family:sans-serif;padding:2rem">Le site a besoin de JavaScript pour se connecter. '
+            'Active-le (ou mets ton navigateur à jour), puis <a href="/login">réessaie</a>.</p>'), 400
+
+
 @app.route('/login')
 def login_page():
     if utilisateur_connecte() and not request.args.get('ajout'):
@@ -1464,6 +1471,35 @@ def api_admin_delete_user(user_id):
     supprimer_compte(db, db.cursor(), user_id)
     db.commit()
     return jsonify({'success': True}), 200
+
+
+@app.route('/api/profil/export', methods=['GET'])
+@api_connectee
+def api_profil_export():
+    """Droit d'accès / portabilité (RGPD) : toutes les données du joueur dans un fichier, sans aucun secret
+    (ni mot de passe, ni compteurs de sécurité)."""
+    db = get_db()
+    uid = session['user_id']
+    lignes = lambda req, *p: [dict(r) for r in db.execute(req, p)]
+    compte = lignes("""SELECT username AS pseudo, handle AS identifiant, email, bio, profile_pic AS avatar, created_at AS inscrit_le,
+                             badge_equipe, cadre_equipe FROM users WHERE id = ?""", uid)[0]
+    donnees = {
+        'genere_le': datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC'),
+        'compte': compte,
+        'photo': url_media('avatars', db.execute('SELECT photo FROM users WHERE id = ?', (uid,)).fetchone()['photo']),
+        'teams': lignes("""SELECT j.nom AS jeu, t.nom AS team, tm.joined_at AS rejoint_le, t.createur_id = ? AS capitaine
+                            FROM team_members tm JOIN teams t ON t.id = tm.team_id JOIN jeux j ON j.id = tm.jeu_id
+                            WHERE tm.user_id = ?""", uid, uid),
+        'objets': lignes('SELECT s.nom, i.bought_at AS obtenu_le FROM inventory i JOIN shop_items s ON s.id = i.item_id WHERE i.user_id = ?', uid),
+        'notifications': lignes('SELECT texte, created_at FROM notifications WHERE user_id = ? ORDER BY id DESC', uid),
+        'messages_de_contact': lignes("""SELECT sujet, message, created_at FROM contact_messages
+                                         WHERE user_id = ? OR lower(email) = lower(?)""", uid, compte['email']),
+        'resultats_declares': lignes('SELECT score1, score2, statut, created_at FROM declarations WHERE par_user_id = ?', uid),
+    }
+    import json
+    reponse = app.response_class(json.dumps(donnees, ensure_ascii=False, indent=2), mimetype='application/json')
+    reponse.headers['Content-Disposition'] = 'attachment; filename="mes-donnees-xhq.json"'
+    return reponse
 
 
 @app.route('/api/profil/delete', methods=['POST'])
@@ -2970,7 +3006,7 @@ def api_admin_set_fondateur(user_id):
 @api_admin
 def api_admin_messages():
     rows = get_db().execute("""
-        SELECT m.id, m.nom, m.email, m.sujet, m.message, m.created_at, COALESCE(m.traite, 0) AS traite,
+        SELECT m.id, m.nom, m.email, m.sujet, m.message, m.created_at, COALESCE(m.traite, 0) AS traite, m.user_id,
                (SELECT u.id FROM users u WHERE lower(u.email) = lower(m.email)) AS compte_id
         FROM contact_messages m
         ORDER BY COALESCE(m.traite, 0) ASC, m.id DESC LIMIT 200""").fetchall()
@@ -2978,6 +3014,10 @@ def api_admin_messages():
     for r in rows:
         m = dict(r)
         m['traite'] = bool(m['traite'])
+        # Le message vient-il vraiment de ce compte (envoyé en étant connecté dessus) ? Sinon, n'importe qui
+        # a pu taper cet email : ne jamais accorder de droits ou d'infos sur la seule foi d'un message.
+        m['verifie'] = bool(m['compte_id'] and m['user_id'] == m['compte_id'])
+        del m['user_id']
         messages.append(m)
     return jsonify(messages), 200
 
@@ -3690,6 +3730,13 @@ def envoyer_mail(destinataire, sujet, texte_brut):
     conf = config_mail()
     if not conf:
         return False
+    # Quota : Gmail limite les envois quotidiens. Au-delà de 300 mails en 24 h, on arrête (et on le note)
+    # pour qu'un attaquant ne puisse pas épuiser le quota et bloquer les vrais « mot de passe oublié ».
+    if has_request_context():
+        if limite_atteinte('mail-global', 300, 24 * 60):
+            app.logger.error('Quota quotidien de mails atteint : envoi refusé')
+            return False
+        noter_action('mail-global')
     msg = EmailMessage()
     msg['Subject'] = sujet
     msg['From'] = conf.get('expediteur') or conf['utilisateur']

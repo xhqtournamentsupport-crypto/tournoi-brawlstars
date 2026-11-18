@@ -906,7 +906,7 @@
                     </div>
                     <div class="msg-meta" style="margin-bottom: 0.8rem;">
                         De <strong>${escapeHtml(m.nom)}</strong> · ${htmlEmail(m.email)} · <a href="mailto:${encodeURIComponent(m.email).replace(/%40/g, '@')}" style="color:var(--text)">Répondre par email</a>
-                        ${m.compte_id ? '<span class="tag">compte existant</span>' : '<span class="tag">pas de compte</span>'}
+                        ${m.verifie ? '<span class="tag or">✓ envoyé depuis ce compte</span>' : m.compte_id ? '<span class="tag suspendu">⚠ email non vérifié : n\'importe qui a pu l\'écrire</span>' : '<span class="tag">pas de compte</span>'}
                     </div>
                     <div class="msg-body">${escapeHtml(m.message)}</div>
                     <div class="actions">

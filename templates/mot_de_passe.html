@@ -28,7 +28,7 @@
             <p class="subtitle">Entre l'email de ton compte : on t'envoie un lien pour choisir un nouveau mot de passe (valable 1 heure).</p>
             <div class="error-message" id="erreur"></div>
             <div class="success-message envoye" id="envoye">C'est envoyé ! Si un compte existe avec cet email, tu vas recevoir le lien dans quelques minutes. Pense à regarder tes spams.</div>
-            <form id="form-demande">
+            <form id="form-demande" method="post" action="/js-requis">
                 <div class="form-group"><label for="email">Email</label><input type="email" id="email" autocomplete="email" required placeholder="ton@email.com"></div>
                 <button class="btn" type="submit">Recevoir le lien</button>
             </form>
@@ -41,7 +41,7 @@
             <h2>Nouveau mot de passe</h2>
             <p class="subtitle">Choisis ton nouveau mot de passe (8 caractères minimum).</p>
             <div class="error-message" id="erreur"></div>
-            <form id="form-nouveau">
+            <form id="form-nouveau" method="post" action="/js-requis">
                 <div class="form-group"><label for="nouveau">Nouveau mot de passe</label><input type="password" id="nouveau" autocomplete="new-password" minlength="8" required></div>
                 <div class="form-group"><label for="confirmation">Confirmation</label><input type="password" id="confirmation" autocomplete="new-password" minlength="8" required></div>
                 <button class="btn" type="submit">Enregistrer et me connecter</button>
