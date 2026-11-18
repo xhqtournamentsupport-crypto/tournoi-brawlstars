@@ -305,10 +305,9 @@
                 <p class="hint">Une sauvegarde contient toute la base (comptes, teams, matchs, tournois) et toutes les images. Télécharge-en une de temps en temps et garde-la sur ton ordinateur ou ton Google Drive : si le serveur a un problème, on pourra tout remettre.</p>
                 <a class="btn" href="/admin/sauvegarde">Télécharger une sauvegarde maintenant</a>
                 <div class="sauvegarde-auto">
-                    <strong>Sauvegarde automatique chaque jour (PythonAnywhere)</strong>
-                    <p>Onglet <b>Tâches</b> → choisis une heure (par exemple 04:00) → colle cette commande → valide :</p>
-                    <code>python3.10 /home/XHQTounament/tournoi-brawlstars/app.py sauvegarde</code>
-                    <p>Les 14 dernières sont gardées dans le dossier <code>sauvegardes/</code>.</p>
+                    <strong>Sauvegarde automatique : rien à faire</strong>
+                    <p>Le site fait lui-même une sauvegarde par jour, dès la première visite de la journée, et garde les 14 dernières (dossier <code>sauvegardes/</code>).</p>
+                    <p>Ces sauvegardes restent sur le serveur : télécharge-en quand même une de temps en temps (une fois par semaine, par exemple) et garde-la sur ton ordinateur ou ton Google Drive.</p>
                 </div>
                 <h3 class="sous-titre">Sauvegardes sur le serveur</h3>
                 <div id="liste-sauvegardes" class="muted">…</div>
@@ -414,8 +413,8 @@
             if (a.sans_date) t.push(tache(false, 'cal', pl(a.sans_date, 'match') + ' sans date', 'À caler dans le calendrier', 'calendrier'));
             else if (!a.prevus && stats.teams > 1) t.push(tache(false, 'cal', 'Pas de calendrier', 'Génère les matchs de la saison en 1 clic', 'calendrier'));
             if (a.teams_inactives) t.push(tache(false, 'dodo', pl(a.teams_inactives, 'team') + ' sans match', `Saison ${Number(stats.saison)} : à relancer, sinon retirées à la clôture`, 'saison'));
-            if (a.sauvegarde_jours === null || a.sauvegarde_jours === undefined) t.push(tache(true, 'save', 'Aucune sauvegarde', 'Télécharge-en une et active la tâche quotidienne', 'sauvegardes'));
-            else if (a.sauvegarde_jours > 2) t.push(tache(true, 'save', `Dernière sauvegarde il y a ${Number(a.sauvegarde_jours)} jours`, 'La tâche automatique ne tourne peut-être plus', 'sauvegardes'));
+            if (a.sauvegarde_jours === null || a.sauvegarde_jours === undefined) t.push(tache(true, 'save', 'Aucune sauvegarde', 'Elle se fera toute seule à la prochaine visite du site', 'sauvegardes'));
+            else if (a.sauvegarde_jours > 2) t.push(tache(true, 'save', `Dernière sauvegarde il y a ${Number(a.sauvegarde_jours)} jours`, 'Le site n\'a pas été visité depuis : télécharges-en une', 'sauvegardes'));
             document.getElementById('taches').innerHTML = t.length ? t.join('') : '<div class="a-jour">Tout est à jour. Rien à faire pour l\'instant.</div>';
             const semaine = a.cette_semaine ? ` · ${pl(a.cette_semaine, 'match')} prévu${a.cette_semaine > 1 ? 's' : ''} cette semaine` : '';
             document.getElementById('a-faire-resume').textContent = (t.length ? pl(t.length, 'point') + ' à voir' : 'Saison ' + stats.saison) + semaine;

@@ -3336,6 +3336,34 @@ def creer_sauvegarde():
     return chemin
 
 
+# Sauvegarde automatique sans tâche planifiée (payante sur PythonAnywhere) :
+# au plus une vérification toutes les 10 min ; si la dernière sauvegarde a plus de 24 h, on en fait une.
+_controle_sauvegarde = {'t': 0.0}
+
+
+def sauvegarde_auto_si_besoin():
+    import time
+    maintenant = time.time()
+    if maintenant - _controle_sauvegarde['t'] < 600 or os.environ.get('XHQ_SAUVEGARDE_AUTO') == '0':
+        return
+    _controle_sauvegarde['t'] = maintenant
+    try:
+        derniere = 0
+        if os.path.isdir(SAUVEGARDE_DIR):
+            zips = [os.path.join(SAUVEGARDE_DIR, f) for f in os.listdir(SAUVEGARDE_DIR) if f.startswith('xhq-') and f.endswith('.zip')]
+            derniere = max((os.path.getmtime(z) for z in zips), default=0)
+        if maintenant - derniere > 24 * 3600:
+            creer_sauvegarde()
+    except Exception as e:   # une sauvegarde ratée ne doit jamais casser le site
+        app.logger.warning('Sauvegarde automatique impossible : %s', e)
+
+
+@app.before_request
+def _sauvegarde_quotidienne():
+    if not request.path.startswith(('/static/', '/media/')):
+        sauvegarde_auto_si_besoin()
+
+
 @app.route('/admin/sauvegarde')
 @page_admin
 def admin_sauvegarde():

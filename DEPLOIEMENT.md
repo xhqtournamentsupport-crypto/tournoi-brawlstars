@@ -54,13 +54,10 @@ puis **Reload** dans l'onglet Web.
 - Ne partage jamais le fichier `secret_key.txt` (créé automatiquement) : il protège les connexions.
 
 
-## Sauvegarde automatique (à faire une fois)
-Onglet **Tasks** → *Scheduled tasks* → heure `04:00` → commande :
-
-    python3.10 /home/XHQTounament/tournoi-brawlstars/app.py sauvegarde
-
-→ **Create**. Une copie de la base et des images est faite chaque nuit dans `sauvegardes/` (14 gardées).
-Pense aussi à en télécharger une de temps en temps depuis Admin → Sauvegardes.
+## Sauvegarde automatique (rien à faire)
+Le site crée lui-même une sauvegarde par jour (base + images) dans `sauvegardes/`, dès la première visite
+de la journée, et garde les 14 dernières. Les tâches planifiées de PythonAnywhere sont payantes : on n'en a pas besoin.
+Pense quand même à en télécharger une de temps en temps depuis Admin → Sauvegardes.
 
 
 ## Activer les emails « mot de passe oublié » (facultatif)

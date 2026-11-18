@@ -107,8 +107,8 @@ Admin → **Joueurs** / **Teams** : retirer une photo, un logo, une bannière ou
 
 ## Sauvegardes
 `python3.10 app.py sauvegarde` crée `sauvegardes/xhq-AAAAMMJJ-HHMMSS.zip` (base + images, 14 gardées).
-Admin → **Sauvegardes** pour en télécharger une. Sur PythonAnywhere, onglet *Tasks* : tâche quotidienne
-`python3.10 /home/XHQTounament/tournoi-brawlstars/app.py sauvegarde`.
+Le site en fait une **tout seul chaque jour** (à la première visite de la journée), donc pas besoin de
+tâche planifiée (payante sur PythonAnywhere). Admin → **Sauvegardes** pour en télécharger une.
 
 ## Notifications
 Cloche dans la barre du haut : nouveau membre, calendrier publié, créneau changé, résultat, nouveau tournoi,
