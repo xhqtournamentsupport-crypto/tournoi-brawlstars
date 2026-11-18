@@ -101,6 +101,14 @@
         .decl-admin .qui small { display: block; color: var(--muted); }
         .decl-admin .motif { display: block; margin-top: 0.3rem; color: var(--text-soft); font-style: italic; }
         .decl-admin input { width: 58px; padding: 0.4rem; text-align: center; font-weight: 800; }
+        .case-a-cocher { display: flex; align-items: center; gap: 0.5rem; margin: 0.6rem 0 0; color: var(--text-soft); font-weight: 600; cursor: pointer; }
+        .case-a-cocher input { width: auto; }
+        .an-carte { padding: 0.9rem 1rem; margin-bottom: 0.6rem; border: 1px solid var(--line); border-radius: 14px; background: var(--bg-2); }
+        .an-carte b { display: block; margin: 0.2rem 0; }
+        .an-carte p { margin: 0.2rem 0 0.6rem; color: var(--text-soft); white-space: pre-line; overflow-wrap: anywhere; }
+        .apercu-mini { display: inline-block; padding: 0.1rem 0.6rem; border-radius: 8px; font-weight: 800; font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase; background: var(--violet); color: #fff; }
+        .apercu-mini.sombre { background: var(--bg); border: 1px solid var(--line-2); }
+        .apercu-mini.contour { background: transparent; border: 2px solid var(--violet); box-shadow: 0 0 12px rgba(124, 108, 255, 0.45); }
         .palmares-ligne { display: flex; justify-content: space-between; gap: 1rem; padding: 0.8rem 0; border-bottom: 1px solid var(--line); }
         .palmares-ligne strong { color: var(--gold); }
 
@@ -155,6 +163,8 @@
             <button class="tab" type="button" data-tab="calendrier"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Calendrier</button>
             <button class="tab" type="button" data-tab="joueurs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Joueurs</button>
             <button class="tab" type="button" data-tab="messages"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4z"/></svg>Messages<span class="pastille" id="pastille" hidden></span></button>
+            <button class="tab" type="button" data-tab="annonces"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v2a1 1 0 0 0 1 1h3l5 4V6L7 10H4a1 1 0 0 0-1 1zM16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12"/></svg>Annonces</button>
+            <button class="tab" type="button" data-tab="boutique"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1.2 12H6.2L5 8zM9 8V6a3 3 0 0 1 6 0v2"/></svg>Boutique</button>
             <button class="tab" type="button" data-tab="journal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6zM9 9h6M9 13h6M9 17h4"/></svg>Journal</button>
             <button class="tab" type="button" data-tab="sauvegardes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M4 19h16"/></svg>Sauvegardes</button>
         </div>
@@ -299,6 +309,73 @@
             </div>
         </div>
 
+        <!-- ============ ANNONCES ============ -->
+        <div class="panel" id="panel-annonces">
+            <div class="section">
+                <h2 class="section-title" id="an-titre-section">Nouvelle annonce</h2>
+                <p class="hint">Elle s'affiche en bandeau sur l'accueil et dans la page Annonces, avec une notification à tous les joueurs. Laisse la date vide pour publier tout de suite, ou choisis une date (heure de France) : elle partira toute seule.</p>
+                <input type="hidden" id="an-id">
+                <div class="form-group"><label for="an-titre">Titre</label><input type="text" id="an-titre" maxlength="100" placeholder="Ex. : Le 1er tournoi XHQ Cup arrive !"></div>
+                <div class="form-group"><label for="an-texte">Texte</label><textarea id="an-texte" maxlength="1500" placeholder="Les détails : date, règles, récompenses…"></textarea></div>
+                <div class="form-group"><label for="an-lien">Lien (facultatif)</label><input type="text" id="an-lien" maxlength="300" placeholder="/tournois/1 ou https://…"></div>
+                <div class="cal-form">
+                    <div><label for="an-publier">Publier le (vide = tout de suite)</label><input type="datetime-local" id="an-publier"></div>
+                    <div><label for="an-fin">Retirer de l'accueil le (facultatif)</label><input type="datetime-local" id="an-fin"></div>
+                </div>
+                <label class="case-a-cocher"><input type="checkbox" id="an-notifier" checked> Envoyer une notification à tous les joueurs</label>
+                <label class="case-a-cocher"><input type="checkbox" id="an-discord"> Publier aussi sur le Discord <span class="muted" id="an-discord-etat"></span></label>
+                <div class="actions" style="margin-top:0.8rem">
+                    <button class="btn" type="button" id="an-envoyer" onclick="enregistrerAnnonce()">Publier</button>
+                    <button class="btn secondaire" type="button" id="an-annuler" hidden onclick="viderAnnonce()">Annuler la modification</button>
+                </div>
+            </div>
+            <div class="section">
+                <h2 class="section-title">Annonces</h2>
+                <div id="liste-annonces" class="muted">…</div>
+            </div>
+            <div class="section">
+                <h2 class="section-title">Relier le Discord</h2>
+                <p class="hint">Sur ton serveur Discord : Paramètres du salon d'annonces → Intégrations → Webhooks → Nouveau webhook → « Copier l'URL du webhook », puis colle-la ici. Réservé aux fondateurs (cette adresse permet de poster dans le salon : ne la donne à personne).</p>
+                <div class="cal-form">
+                    <div style="grid-column: span 2"><label for="discord-url">Adresse du webhook</label><input type="password" id="discord-url" placeholder="https://discord.com/api/webhooks/…" autocomplete="off"></div>
+                    <button class="btn secondaire" type="button" onclick="relierDiscord()">Relier et tester</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============ BOUTIQUE ============ -->
+        <div class="panel" id="panel-boutique">
+            <div class="section">
+                <h2 class="section-title" id="bq-titre-section">Créer un badge</h2>
+                <p class="hint">Le badge apparaît dans le Shop. Libre : tout le monde peut le récupérer. Limité : seulement les X premiers. Réservé : personne ne peut le prendre, c'est toi qui le donnes (ex. récompense d'un événement). Tu peux aussi limiter à une période (heure de France).</p>
+                <input type="hidden" id="bq-id">
+                <div class="cal-form">
+                    <div><label for="bq-nom">Nom (20 caractères max)</label><input type="text" id="bq-nom" maxlength="20" placeholder="Ex. : Halloween 2026"></div>
+                    <div><label for="bq-style">Style</label><select id="bq-style"><option value="violet">Violet plein</option><option value="sombre">Sombre</option><option value="contour">Contour lumineux</option></select></div>
+                </div>
+                <div class="form-group"><label for="bq-desc">Description</label><input type="text" id="bq-desc" maxlength="200" placeholder="Ex. : Pour ceux qui ont joué pendant l'événement Halloween."></div>
+                <div class="cal-form">
+                    <div><label for="bq-mode">Qui peut l'avoir ?</label><select id="bq-mode" onchange="document.getElementById('bq-qte-zone').hidden = this.value !== 'limite'"><option value="libre">Tout le monde (libre)</option><option value="limite">Les premiers seulement (limité)</option><option value="reserve">Personne : je le donne (réservé)</option></select></div>
+                    <div id="bq-qte-zone" hidden><label for="bq-qte">Combien d'exemplaires ?</label><input type="number" id="bq-qte" min="1" max="100000" value="50"></div>
+                </div>
+                <div class="cal-form">
+                    <div><label for="bq-debut">Disponible à partir du (facultatif)</label><input type="datetime-local" id="bq-debut"></div>
+                    <div><label for="bq-fin">Jusqu'au (facultatif)</label><input type="datetime-local" id="bq-fin"></div>
+                </div>
+                <div class="actions" style="margin-top:0.8rem">
+                    <button class="btn" type="button" id="bq-envoyer" onclick="enregistrerBadge()">Créer le badge</button>
+                    <button class="btn secondaire" type="button" id="bq-annuler" hidden onclick="viderBadge()">Annuler la modification</button>
+                </div>
+            </div>
+            <div class="section">
+                <h2 class="section-title">Badges</h2>
+                <div class="table-wrap"><table>
+                    <thead><tr><th>Badge</th><th>Qui</th><th>Porté par</th><th>Actions</th></tr></thead>
+                    <tbody id="liste-badges"></tbody>
+                </table></div>
+            </div>
+        </div>
+
         <!-- ============ JOURNAL ============ -->
         <div class="panel" id="panel-journal">
             <div class="section">
@@ -391,6 +468,8 @@
             if (nom === 'calendrier') chargerCalendrier();
             if (nom === 'sauvegardes') chargerSauvegardes();
             if (nom === 'journal') chargerJournal();
+            if (nom === 'annonces') chargerAnnonces();
+            if (nom === 'boutique') chargerBoutique();
             history.replaceState(null, '', nom === 'matchs' ? location.pathname : '#' + nom);
         }
         document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => ouvrirOnglet(t.dataset.tab)));
@@ -845,6 +924,125 @@
             if (!confirm('Retirer ce match du calendrier ?')) return;
             const { ok } = await api(`/api/admin/calendrier/${id}`, { method: 'POST', body: { supprimer: true } });
             if (ok) chargerCalendrier();
+        }
+
+        // ---------- annonces ----------
+        const ETATS_ANNONCE = { programmee: ['PROGRAMMÉE', ''], en_ligne: ['EN LIGNE', 'or'], terminee: ['TERMINÉE', 'suspendu'] };
+        let annonces = [];
+        async function chargerAnnonces() {
+            const { ok, data } = await api('/api/admin/annonces');
+            if (!ok) return;
+            annonces = data.annonces;
+            document.getElementById('an-discord-etat').textContent = data.discord_relie ? '(Discord relié ✓)' : '(relie d\'abord le Discord, plus bas)';
+            document.getElementById('an-discord').disabled = !data.discord_relie;
+            document.getElementById('liste-annonces').innerHTML = annonces.length ? annonces.map(a => {
+                const [etat, classe] = ETATS_ANNONCE[a.etat];
+                return `<div class="an-carte"><span class="tag ${classe}">${etat}</span> <span class="muted">${a.publiee ? 'Publiée' : 'Prévue'} ${escapeHtml(a.publier_fr)}${a.fin_fr ? ' · retirée ' + escapeHtml(a.fin_fr) : ''} · par ${escapeHtml(a.auteur || '?')}${a.discord ? (a.discord_ok === 1 ? ' · Discord ✓' : a.discord_ok === 0 ? ' · Discord ✗' : ' · Discord') : ''}</span>
+                    <b>${escapeHtml(a.titre)}</b>${a.texte ? `<p>${escapeHtml(a.texte)}</p>` : ''}
+                    <div class="actions"><button class="btn-mini" type="button" onclick="modifierAnnonce(${Number(a.id)})">Modifier</button>
+                    ${a.etat === 'en_ligne' ? `<button class="btn-mini" type="button" onclick="actionAnnonce(${Number(a.id)}, 'terminer')">Retirer de l'accueil</button>` : ''}
+                    <button class="btn-mini" type="button" onclick="actionAnnonce(${Number(a.id)}, 'supprimer')">Supprimer</button></div></div>`;
+            }).join('') : 'Aucune annonce pour l\'instant.';
+        }
+        function viderAnnonce() {
+            for (const id of ['an-id', 'an-titre', 'an-texte', 'an-lien', 'an-publier', 'an-fin']) document.getElementById(id).value = '';
+            document.getElementById('an-notifier').checked = true; document.getElementById('an-discord').checked = false;
+            document.getElementById('an-envoyer').textContent = 'Publier'; document.getElementById('an-annuler').hidden = true;
+            document.getElementById('an-titre-section').textContent = 'Nouvelle annonce';
+        }
+        function modifierAnnonce(id) {
+            const a = annonces.find(x => x.id === id); if (!a) return;
+            document.getElementById('an-id').value = a.id; document.getElementById('an-titre').value = a.titre;
+            document.getElementById('an-texte').value = a.texte || ''; document.getElementById('an-lien').value = a.lien || '';
+            document.getElementById('an-publier').value = a.publiee ? '' : a.publier_court; document.getElementById('an-fin').value = a.fin_court || '';
+            document.getElementById('an-notifier').checked = !!a.notifier; document.getElementById('an-discord').checked = !!a.discord;
+            document.getElementById('an-envoyer').textContent = 'Enregistrer'; document.getElementById('an-annuler').hidden = false;
+            document.getElementById('an-titre-section').textContent = 'Modifier l\'annonce';
+            document.getElementById('an-titre').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        async function enregistrerAnnonce() {
+            const id = document.getElementById('an-id').value;
+            const body = { titre: document.getElementById('an-titre').value, texte: document.getElementById('an-texte').value,
+                lien: document.getElementById('an-lien').value, publier_at: document.getElementById('an-publier').value,
+                fin_at: document.getElementById('an-fin').value, notifier: document.getElementById('an-notifier').checked,
+                discord: document.getElementById('an-discord').checked };
+            const { ok, data } = await api(id ? `/api/admin/annonces/${id}` : '/api/admin/annonces', { method: 'POST', body });
+            showMessage(ok ? (id ? 'Annonce modifiée.' : (body.publier_at ? 'Annonce programmée : elle partira toute seule.' : 'Annonce publiée !')) : (data.error || 'Erreur'), ok ? 'success' : 'error');
+            if (ok) { viderAnnonce(); chargerAnnonces(); }
+        }
+        async function actionAnnonce(id, action) {
+            if (action === 'supprimer' && !confirm('Supprimer cette annonce (et ses notifications) ?')) return;
+            const { ok, data } = await api(`/api/admin/annonces/${id}`, { method: 'POST', body: { [action]: true } });
+            showMessage(ok ? 'C\'est fait.' : (data.error || 'Erreur'), ok ? 'success' : 'error');
+            chargerAnnonces();
+        }
+        async function relierDiscord() {
+            const champ = document.getElementById('discord-url');
+            const { ok, data } = await api('/api/admin/discord', { method: 'POST', body: { webhook: champ.value.trim(), tester: true } });
+            champ.value = '';
+            showMessage(ok ? (data.test === false ? 'Relié, mais le message de test n\'est pas parti : vérifie l\'adresse.' : data.test ? 'Discord relié : un message de test est parti dans le salon.' : 'Discord délié.') : (data.error || 'Erreur'), ok && data.test !== false ? 'success' : 'error');
+            chargerAnnonces();
+        }
+
+        // ---------- boutique ----------
+        const MODES_BADGE = { libre: 'Tout le monde', limite: 'Les premiers', reserve: 'Donné par l\'orga' };
+        let badges = [];
+        async function chargerBoutique() {
+            const { ok, data } = await api('/api/admin/boutique');
+            if (!ok || !Array.isArray(data)) return;
+            badges = data;
+            document.getElementById('liste-badges').innerHTML = data.map(b => {
+                const qui = b.perso ? MODES_BADGE[b.mode] + (b.mode === 'limite' ? ` (${Number(b.quantite_max)})` : '') + (b.debut_fr || b.fin_fr ? `<div class="muted">${b.debut_fr ? 'du ' + escapeHtml(b.debut_fr) : ''} ${b.fin_fr ? 'au ' + escapeHtml(b.fin_fr) : ''}</div>` : '') : '<span class="muted">Badge de base</span>';
+                return `<tr${b.actif ? '' : ' style="opacity:.55"'}><td><span class="apercu-mini ${escapeHtml(b.style || 'violet')}">${escapeHtml(b.nom)}</span>${b.actif ? '' : ' <span class="tag suspendu">MASQUÉ</span>'}<div class="muted">${escapeHtml(b.description || '')}</div></td>
+                    <td>${qui}</td><td>${Number(b.porteurs)} joueur(s)</td>
+                    <td><div class="actions">
+                        ${['fondateur', 'admin'].includes(b.code) ? '' : `<button class="btn-mini" type="button" onclick="donnerBadge(${Number(b.id)})">Donner à un joueur</button>`}
+                        ${b.perso ? `<button class="btn-mini" type="button" onclick="modifierBadge(${Number(b.id)})">Modifier</button>
+                        <button class="btn-mini" type="button" onclick="actionBadge(${Number(b.id)}, { actif: ${!b.actif} })">${b.actif ? 'Masquer' : 'Afficher'}</button>
+                        <button class="btn-mini" type="button" onclick="actionBadge(${Number(b.id)}, { supprimer: true })">Supprimer</button>` : ''}
+                    </div></td></tr>`;
+            }).join('');
+        }
+        function viderBadge() {
+            for (const id of ['bq-id', 'bq-nom', 'bq-desc', 'bq-debut', 'bq-fin']) document.getElementById(id).value = '';
+            document.getElementById('bq-mode').value = 'libre'; document.getElementById('bq-style').value = 'violet';
+            document.getElementById('bq-qte').value = 50; document.getElementById('bq-qte-zone').hidden = true;
+            document.getElementById('bq-envoyer').textContent = 'Créer le badge'; document.getElementById('bq-annuler').hidden = true;
+            document.getElementById('bq-titre-section').textContent = 'Créer un badge';
+        }
+        function modifierBadge(id) {
+            const b = badges.find(x => x.id === id); if (!b) return;
+            document.getElementById('bq-id').value = b.id; document.getElementById('bq-nom').value = b.nom;
+            document.getElementById('bq-desc').value = b.description || ''; document.getElementById('bq-style').value = b.style || 'violet';
+            document.getElementById('bq-mode').value = b.mode || 'libre'; document.getElementById('bq-qte').value = b.quantite_max || 50;
+            document.getElementById('bq-qte-zone').hidden = b.mode !== 'limite';
+            document.getElementById('bq-debut').value = b.debut_court || ''; document.getElementById('bq-fin').value = b.fin_court || '';
+            document.getElementById('bq-envoyer').textContent = 'Enregistrer'; document.getElementById('bq-annuler').hidden = false;
+            document.getElementById('bq-titre-section').textContent = 'Modifier le badge';
+            document.getElementById('bq-nom').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        async function enregistrerBadge() {
+            const id = document.getElementById('bq-id').value;
+            const body = { nom: document.getElementById('bq-nom').value, description: document.getElementById('bq-desc').value,
+                style: document.getElementById('bq-style').value, mode: document.getElementById('bq-mode').value,
+                quantite_max: Number(document.getElementById('bq-qte').value), debut_at: document.getElementById('bq-debut').value,
+                fin_at: document.getElementById('bq-fin').value };
+            const { ok, data } = await api(id ? `/api/admin/boutique/${id}` : '/api/admin/boutique', { method: 'POST', body });
+            showMessage(ok ? (id ? 'Badge modifié.' : 'Badge créé : il est dans le Shop.') : (data.error || 'Erreur'), ok ? 'success' : 'error');
+            if (ok) { viderBadge(); chargerBoutique(); }
+        }
+        async function actionBadge(id, body) {
+            if (body.supprimer && !confirm('Supprimer ce badge ? Les joueurs qui l\'ont le perdront.')) return;
+            const { ok, data } = await api(`/api/admin/boutique/${id}`, { method: 'POST', body });
+            showMessage(ok ? 'C\'est fait.' : (data.error || 'Erreur'), ok ? 'success' : 'error');
+            chargerBoutique();
+        }
+        async function donnerBadge(id) {
+            const qui = prompt('À qui donner ce badge ? (son @identifiant, ex. @xhq_nova)');
+            if (!qui) return;
+            const { ok, data } = await api(`/api/admin/boutique/${id}`, { method: 'POST', body: { donner: qui.trim() } });
+            showMessage(ok ? `Badge donné à ${data.joueur}.` : (data.error || 'Erreur'), ok ? 'success' : 'error');
+            chargerBoutique();
         }
 
         // ---------- journal ----------

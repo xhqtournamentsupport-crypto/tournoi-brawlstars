@@ -593,6 +593,13 @@ def init_db():
     c.execute("""CREATE TABLE IF NOT EXISTS journal_admin (id INTEGER PRIMARY KEY AUTOINCREMENT, admin_id INTEGER,
                  admin_nom TEXT, action TEXT, cible TEXT, ip TEXT, created_at TEXT)""")
     c.execute('CREATE TABLE IF NOT EXISTS anciens_handles (handle TEXT, user_id INTEGER, libere_at TEXT)')
+    # Annonces de l'orga (publiées tout de suite ou programmées), et badges créés depuis l'admin
+    c.execute("""CREATE TABLE IF NOT EXISTS annonces (id INTEGER PRIMARY KEY AUTOINCREMENT, titre TEXT NOT NULL, texte TEXT,
+                 lien TEXT, publier_at TEXT NOT NULL, fin_at TEXT, notifier INTEGER DEFAULT 1, discord INTEGER DEFAULT 0,
+                 publiee INTEGER DEFAULT 0, discord_ok INTEGER, auteur_id INTEGER, created_at TEXT)""")
+    for col, definition in (('actif', 'INTEGER DEFAULT 1'), ('mode', "TEXT DEFAULT 'libre'"), ('quantite_max', 'INTEGER'),
+                            ('debut_at', 'TEXT'), ('fin_at', 'TEXT'), ('style', "TEXT DEFAULT 'violet'"), ('perso', 'INTEGER DEFAULT 0')):
+        ajouter_colonne(c, 'shop_items', col, definition)
     ajouter_colonne(c, 'journal_admin', 'hachage', 'TEXT')
     # Journal ineffaçable : la base elle-même refuse toute suppression ou modification
     # (seule exception : poser l'empreinte d'une ligne qui vient d'être ajoutée)
@@ -829,6 +836,21 @@ def apparence(db, user_id):
 
 def disponibilite(db, user_id, code):
     """(disponible, raison) pour récupérer un objet."""
+    perso = db.execute("""SELECT id, mode, quantite_max, debut_at, fin_at, COALESCE(actif, 1) AS actif FROM shop_items
+                          WHERE code = ? AND COALESCE(perso, 0) = 1""", (code,)).fetchone()
+    if perso:
+        maintenant = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+        if not perso['actif']:
+            return False, 'Plus disponible'
+        if perso['mode'] == 'reserve':
+            return False, "Donné par l'orga"
+        if perso['debut_at'] and maintenant < perso['debut_at']:
+            return False, f"Disponible à partir du {date_paris(perso['debut_at'])}"
+        if perso['fin_at'] and maintenant >= perso['fin_at']:
+            return False, 'La période est terminée'
+        if perso['mode'] == 'limite' and perso['quantite_max'] is not None and porteurs(db, code) >= perso['quantite_max']:
+            return False, f"Les {perso['quantite_max']} exemplaires sont partis"
+        return True, None
     if code == 'pionnier':
         rang = db.execute('SELECT COUNT(*) FROM users WHERE id <= ?', (user_id,)).fetchone()[0]
         if rang > PIONNIERS_MAX:
@@ -1119,11 +1141,12 @@ def index():
     for t in top:
         t['forme'] = forme.get(t['id'], [])[:5]
     prochains_matchs = rencontres_a_venir(db, jeu['id'], limite=6)
+    annonce = (annonces_actives(db, 1) or [None])[0]
     return render_template('index.html', jeu_actuel=jeu, chiffres=chiffres, ligue1=ligue1, leader=leader, prochains_matchs=prochains_matchs,
                            en_forme=en_forme, dernier_champion=dernier_champion, prochain=prochain,
                            autres_tournois=actifs[1:3], derniers=derniers, top=top, fil=fil_actu(db, jeu['id']),
                            nb_tournois=nb_tournois, nb_ligues=LIGUE_MAX, par_poule=TEAMS_PAR_POULE,
-                           ligue_depart=LIGUE_DEPART, palmares=palmares(db, jeu['id'], 1))
+                           ligue_depart=LIGUE_DEPART, palmares=palmares(db, jeu['id'], 1), annonce=annonce)
 
 
 @app.route('/js-requis', methods=['GET', 'POST'])
@@ -1131,6 +1154,11 @@ def js_requis():
     """Formulaires envoyés sans JavaScript : on ne lit rien (le mot de passe n'est jamais dans une adresse)."""
     return ('<p style="font-family:sans-serif;padding:2rem">Le site a besoin de JavaScript pour se connecter. '
             'Active-le (ou mets ton navigateur à jour), puis <a href="/login">réessaie</a>.</p>'), 400
+
+
+@app.route('/annonces')
+def annonces_page():
+    return render_template('annonces.html', annonces=annonces_actives(get_db()))
 
 
 @app.route('/login')
@@ -2315,7 +2343,8 @@ def api_shop():
     equipe = apparence(db, uid)
     nb_users = db.execute('SELECT COUNT(*) FROM users').fetchone()[0]
     items = []
-    for r in db.execute('SELECT id, code, nom, description, prix, type FROM shop_items WHERE code IS NOT NULL ORDER BY id'):
+    for r in db.execute("""SELECT id, code, nom, description, prix, type, mode, quantite_max, style, COALESCE(perso, 0) AS perso
+                           FROM shop_items WHERE code IS NOT NULL AND COALESCE(actif, 1) = 1 ORDER BY id""").fetchall():
         item = dict(r)
         item['possede'] = possede(db, uid, item['code'])
         item['disponible'], item['raison'] = disponibilite(db, uid, item['code'])
@@ -2324,6 +2353,8 @@ def api_shop():
             item['places_restantes'] = max(0, PIONNIERS_MAX - nb_users)
         if item['code'] == 'fondateur':
             item['places_restantes'] = max(0, FONDATEURS_MAX - porteurs(db, 'fondateur'))
+        if item['perso'] and item['mode'] == 'limite' and item['quantite_max'] is not None:
+            item['places_restantes'] = max(0, item['quantite_max'] - porteurs(db, item['code']))
         items.append(item)
     return jsonify(items), 200
 
@@ -2495,6 +2526,84 @@ def outils_a_mettre_a_jour():
         if v < mini:
             vieux.append(f"{nom} {version(nom)}")
     return vieux
+
+
+def fuseau_paris():
+    """Fuseau horaire de la France (heure d'été comprise). Secours : UTC+1 si le serveur n'a pas les fuseaux."""
+    try:
+        from zoneinfo import ZoneInfo
+        return ZoneInfo('Europe/Paris')
+    except Exception:
+        from datetime import timezone
+        return timezone(timedelta(hours=1))
+
+
+def paris_vers_utc(texte_date):
+    """'2026-12-14T18:00' (heure de France, tapée dans l'admin) -> '2026-12-14 17:00:00' (UTC, en base)."""
+    from datetime import timezone
+    d = datetime.strptime(texte_date, '%Y-%m-%dT%H:%M').replace(tzinfo=fuseau_paris())
+    return d.astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+
+
+def date_paris(utc_texte, format_court=False):
+    """'2026-12-14 17:00:00' (UTC) -> 'samedi 14 déc. à 18h00' (heure de France)."""
+    from datetime import timezone
+    if not utc_texte:
+        return ''
+    d = datetime.strptime(utc_texte[:19], '%Y-%m-%d %H:%M:%S').replace(tzinfo=timezone.utc).astimezone(fuseau_paris())
+    return d.strftime('%Y-%m-%dT%H:%M') if format_court else date_fr(d.strftime('%Y-%m-%dT%H:%M'))
+
+
+DISCORD_WEBHOOK_REGEX = re.compile(r'^https://(discord\.com|discordapp\.com)/api/webhooks/\d+/[A-Za-z0-9_\-]+$')
+
+
+def envoyer_discord(titre, texte, lien):
+    """Publie l'annonce sur le salon Discord relié (webhook réglé par un fondateur). Vrai si c'est parti."""
+    import json
+    import urllib.request
+    db = get_db()
+    r = db.execute("SELECT valeur FROM parametres WHERE cle = 'discord_webhook'").fetchone()
+    if not r or not DISCORD_WEBHOOK_REGEX.match(r['valeur'] or ''):
+        return False
+    contenu = f"📢 **{titre}**\n{texte or ''}" + (f"\n{lien}" if lien else '')
+    corps = json.dumps({'content': contenu[:1900], 'allowed_mentions': {'parse': []}}).encode()
+    req = urllib.request.Request(r['valeur'], data=corps, headers={'Content-Type': 'application/json', 'User-Agent': 'XHQLeague'})
+    try:
+        with urllib.request.urlopen(req, timeout=8) as rep:
+            return 200 <= rep.status < 300
+    except Exception as e:
+        app.logger.warning('Annonce non envoyée sur Discord : %s', e)
+        return False
+
+
+def publier_annonces_dues(db):
+    """Publie les annonces dont l'heure est arrivée : notification à tous les joueurs et Discord si demandé."""
+    dues = db.execute("SELECT * FROM annonces WHERE publiee = 0 AND publier_at <= datetime('now') ORDER BY publier_at").fetchall()
+    for a in dues:
+        # On « prend » l'annonce d'abord : deux visites simultanées ne la publient jamais deux fois
+        if not db.execute('UPDATE annonces SET publiee = 1 WHERE id = ? AND publiee = 0', (a['id'],)).rowcount:
+            continue
+        if a['notifier']:
+            db.execute("""INSERT INTO notifications (user_id, texte, lien, created_at)
+                          SELECT id, ?, ?, datetime('now') FROM users WHERE COALESCE(bloque, 0) = 0""",
+                       (f"📢 {a['titre']}"[:200], f"/annonces#annonce-{a['id']}"))
+        db.commit()
+        if a['discord']:
+            db.execute('UPDATE annonces SET discord_ok = ? WHERE id = ?', (1 if envoyer_discord(a['titre'], a['texte'], a['lien']) else 0, a['id']))
+            db.commit()
+    return len(dues)
+
+
+_controle_annonces = {'t': 0.0}
+
+
+def annonces_actives(db, limite=None):
+    req = """SELECT id, titre, texte, lien, publier_at FROM annonces WHERE publiee = 1
+             AND (fin_at IS NULL OR fin_at > datetime('now')) ORDER BY publier_at DESC"""
+    lignes = [dict(r) for r in db.execute(req + (' LIMIT ?' if limite else ''), (limite,) if limite else ())]
+    for l in lignes:
+        l['quand'] = date_paris(l['publier_at'])
+    return lignes
 
 
 def a_faire_admin(db, jeu_id, saison):
@@ -2993,6 +3102,209 @@ def api_admin_set_admin(user_id):
         notifier(c, [user_id], "Tu fais maintenant partie de l'équipe d'orga : badge Admin débloqué.", '/admin')
     else:
         retirer_objet(c, user_id, 'admin')
+    db.commit()
+    return jsonify({'success': True}), 200
+
+
+def lire_annonce(data):
+    """Valide le formulaire d'annonce. Renvoie (valeurs, erreur)."""
+    titre = texte(data, 'titre', 100)
+    corps = texte(data, 'texte', 1500)
+    lien = texte(data, 'lien', 300)
+    if len(titre) < 3:
+        return None, 'Le titre doit faire au moins 3 caractères'
+    if lien and not re.match(r'^(https://|/)[^\s<>"]*$', lien):
+        return None, 'Le lien doit commencer par https:// ou / (une page du site)'
+    try:
+        publier = paris_vers_utc(texte(data, 'publier_at', 16)) if texte(data, 'publier_at', 16) else datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+        fin = paris_vers_utc(texte(data, 'fin_at', 16)) if texte(data, 'fin_at', 16) else None
+    except ValueError:
+        return None, 'Date invalide'
+    if fin and fin <= publier:
+        return None, 'La fin doit être après la publication'
+    return {'titre': titre, 'texte': corps, 'lien': lien or None, 'publier_at': publier, 'fin_at': fin,
+            'notifier': 1 if data.get('notifier', True) else 0, 'discord': 1 if data.get('discord') else 0}, None
+
+
+@app.route('/api/admin/annonces', methods=['GET', 'POST'])
+@api_admin
+def api_admin_annonces():
+    db = get_db()
+    if request.method == 'POST':
+        valeurs, erreur = lire_annonce(donnees_json())
+        if erreur:
+            return jsonify({'success': False, 'error': erreur}), 400
+        cur = db.execute("""INSERT INTO annonces (titre, texte, lien, publier_at, fin_at, notifier, discord, auteur_id, created_at)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))""",
+                         (valeurs['titre'], valeurs['texte'], valeurs['lien'], valeurs['publier_at'], valeurs['fin_at'],
+                          valeurs['notifier'], valeurs['discord'], session['user_id']))
+        journaliser(db, 'Annonce créée', valeurs['titre'])
+        db.commit()
+        publier_annonces_dues(db)
+        return jsonify({'success': True, 'id': cur.lastrowid}), 201
+    lignes = []
+    for a in db.execute('SELECT a.*, u.username AS auteur FROM annonces a LEFT JOIN users u ON u.id = a.auteur_id ORDER BY a.publier_at DESC LIMIT 100'):
+        a = dict(a)
+        a['publier_fr'], a['publier_court'] = date_paris(a['publier_at']), date_paris(a['publier_at'], True)
+        a['fin_fr'], a['fin_court'] = date_paris(a['fin_at']), date_paris(a['fin_at'], True)
+        a['etat'] = 'programmee' if not a['publiee'] else ('terminee' if a['fin_at'] and a['fin_at'] <= datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S') else 'en_ligne')
+        lignes.append(a)
+    w = db.execute("SELECT valeur FROM parametres WHERE cle = 'discord_webhook'").fetchone()
+    return jsonify({'annonces': lignes, 'discord_relie': bool(w and w['valeur'])}), 200
+
+
+@app.route('/api/admin/annonces/<int:annonce_id>', methods=['POST'])
+@api_admin
+def api_admin_annonce(annonce_id):
+    db = get_db()
+    a = db.execute('SELECT * FROM annonces WHERE id = ?', (annonce_id,)).fetchone()
+    if not a:
+        return jsonify({'success': False, 'error': 'Annonce introuvable'}), 404
+    data = donnees_json()
+    if data.get('supprimer'):
+        db.execute('DELETE FROM annonces WHERE id = ?', (annonce_id,))
+        db.execute('DELETE FROM notifications WHERE lien = ?', (f'/annonces#annonce-{annonce_id}',))
+        journaliser(db, 'Annonce supprimée', a['titre'])
+        db.commit()
+        return jsonify({'success': True}), 200
+    if data.get('terminer'):
+        db.execute("UPDATE annonces SET fin_at = datetime('now') WHERE id = ?", (annonce_id,))
+        journaliser(db, 'Annonce retirée de l\'accueil', a['titre'])
+        db.commit()
+        return jsonify({'success': True}), 200
+    valeurs, erreur = lire_annonce(data)
+    if erreur:
+        return jsonify({'success': False, 'error': erreur}), 400
+    if a['publiee']:
+        valeurs['publier_at'] = a['publier_at']   # déjà publiée : on corrige le texte, pas la date de publication
+    db.execute('UPDATE annonces SET titre = ?, texte = ?, lien = ?, publier_at = ?, fin_at = ?, notifier = ?, discord = ? WHERE id = ?',
+               (valeurs['titre'], valeurs['texte'], valeurs['lien'], valeurs['publier_at'], valeurs['fin_at'],
+                valeurs['notifier'], valeurs['discord'], annonce_id))
+    journaliser(db, 'Annonce modifiée', valeurs['titre'])
+    db.commit()
+    publier_annonces_dues(db)
+    return jsonify({'success': True}), 200
+
+
+@app.route('/api/admin/discord', methods=['POST'])
+@api_admin
+def api_admin_discord():
+    """Relier un salon Discord (adresse de webhook). Réservé aux fondateurs : l'adresse permet de poster."""
+    db = get_db()
+    if fondateur_requis(db):
+        return jsonify({'success': False, 'error': 'Seuls les fondateurs peuvent relier le Discord'}), 403
+    url = texte(donnees_json(), 'webhook', 300)
+    if url and not DISCORD_WEBHOOK_REGEX.match(url):
+        return jsonify({'success': False, 'error': 'Adresse invalide : elle doit commencer par https://discord.com/api/webhooks/'}), 400
+    db.execute("INSERT OR REPLACE INTO parametres (cle, valeur) VALUES ('discord_webhook', ?)", (url,))
+    journaliser(db, 'Discord relié' if url else 'Discord délié')
+    db.commit()
+    if url and donnees_json().get('tester'):
+        return jsonify({'success': True, 'test': envoyer_discord('Test XHQ League', 'Le site est bien relié à ce salon.', None)}), 200
+    return jsonify({'success': True}), 200
+
+
+# ---------- admin : boutique (badges créés depuis l'admin) ----------
+STYLES_BADGE = ('violet', 'sombre', 'contour')
+MODES_BADGE = ('libre', 'limite', 'reserve')
+
+
+def lire_badge(data):
+    nom = re.sub(r'\s+', ' ', texte(data, 'nom', 20))
+    if not 2 <= len(nom) <= 20:
+        return None, 'Le nom du badge doit faire entre 2 et 20 caractères'
+    if not NOM_AUTORISE.match(nom):
+        return None, "Nom : lettres, chiffres, espaces et . _ - ' ! ? & # seulement"
+    mode = data.get('mode') if data.get('mode') in MODES_BADGE else 'libre'
+    quantite = entier(data.get('quantite_max')) if mode == 'limite' else None
+    if mode == 'limite' and (quantite is None or not 1 <= quantite <= 100000):
+        return None, 'Indique combien d\'exemplaires (1 ou plus)'
+    try:
+        debut = paris_vers_utc(texte(data, 'debut_at', 16)) if texte(data, 'debut_at', 16) else None
+        fin = paris_vers_utc(texte(data, 'fin_at', 16)) if texte(data, 'fin_at', 16) else None
+    except ValueError:
+        return None, 'Date invalide'
+    if debut and fin and fin <= debut:
+        return None, 'La fin doit être après le début'
+    return {'nom': nom, 'description': texte(data, 'description', 200), 'mode': mode, 'quantite_max': quantite,
+            'debut_at': debut, 'fin_at': fin, 'style': data.get('style') if data.get('style') in STYLES_BADGE else 'violet'}, None
+
+
+@app.route('/api/admin/boutique', methods=['GET', 'POST'])
+@api_admin
+def api_admin_boutique():
+    db = get_db()
+    if request.method == 'POST':
+        valeurs, erreur = lire_badge(donnees_json())
+        if erreur:
+            return jsonify({'success': False, 'error': erreur}), 400
+        if db.execute('SELECT 1 FROM shop_items WHERE lower(nom) = lower(?)', (valeurs['nom'],)).fetchone():
+            return jsonify({'success': False, 'error': 'Un badge porte déjà ce nom'}), 400
+        cur = db.execute("""INSERT INTO shop_items (nom, description, prix, type, mode, quantite_max, debut_at, fin_at, style, perso, actif)
+                            VALUES (?, ?, 0, 'badge', ?, ?, ?, ?, ?, 1, 1)""",
+                         (valeurs['nom'], valeurs['description'], valeurs['mode'], valeurs['quantite_max'],
+                          valeurs['debut_at'], valeurs['fin_at'], valeurs['style']))
+        db.execute('UPDATE shop_items SET code = ? WHERE id = ?', (f'perso_{cur.lastrowid}', cur.lastrowid))
+        journaliser(db, 'Badge créé', valeurs['nom'])
+        db.commit()
+        return jsonify({'success': True, 'id': cur.lastrowid}), 201
+    lignes = []
+    for r in db.execute("""SELECT id, code, nom, description, mode, quantite_max, debut_at, fin_at, style, COALESCE(actif, 1) AS actif,
+                                  COALESCE(perso, 0) AS perso FROM shop_items WHERE code IS NOT NULL ORDER BY perso, id"""):
+        b = dict(r)
+        b['porteurs'] = porteurs(db, b['code'])
+        b['debut_court'], b['fin_court'] = date_paris(b['debut_at'], True), date_paris(b['fin_at'], True)
+        b['debut_fr'], b['fin_fr'] = date_paris(b['debut_at']), date_paris(b['fin_at'])
+        lignes.append(b)
+    return jsonify(lignes), 200
+
+
+@app.route('/api/admin/boutique/<int:item_id>', methods=['POST'])
+@api_admin
+def api_admin_badge(item_id):
+    db = get_db()
+    b = db.execute('SELECT * FROM shop_items WHERE id = ?', (item_id,)).fetchone()
+    if not b:
+        return jsonify({'success': False, 'error': 'Badge introuvable'}), 404
+    data = donnees_json()
+    if data.get('donner'):
+        # Donner le badge à un joueur (par son @identifiant ou son pseudo)
+        cible = texte(data, 'donner', 40).lstrip('@').lower()
+        u = db.execute('SELECT id, username FROM users WHERE handle = ? OR lower(username) = ?', (cible, cible)).fetchone()
+        if not u:
+            return jsonify({'success': False, 'error': 'Joueur introuvable (tape son @identifiant)'}), 404
+        if b['code'] in ('fondateur', 'admin'):
+            return jsonify({'success': False, 'error': 'Ce badge se donne avec les droits (onglet Joueurs)'}), 400
+        if possede(db, u['id'], b['code']):
+            return jsonify({'success': False, 'error': f"{u['username']} a déjà ce badge"}), 400
+        donner_objet(db.cursor(), u['id'], b['code'], equiper=False)
+        notifier(db, [u['id']], f"Nouveau badge : {b['nom']} (offert par l'orga)", '/profil')
+        journaliser(db, f"Badge « {b['nom']} » donné", nom_joueur(db, u['id']))
+        db.commit()
+        return jsonify({'success': True, 'joueur': u['username']}), 200
+    if not b['perso']:
+        return jsonify({'success': False, 'error': 'Les badges de base (OG, Saison 1, Champion, Fondateur, Admin) ne se modifient pas'}), 400
+    if data.get('supprimer'):
+        db.execute('DELETE FROM inventory WHERE item_id = ?', (item_id,))
+        db.execute("UPDATE users SET badge_equipe = NULL WHERE badge_equipe = ?", (b['code'],))
+        db.execute('DELETE FROM shop_items WHERE id = ?', (item_id,))
+        journaliser(db, 'Badge supprimé', b['nom'])
+        db.commit()
+        return jsonify({'success': True}), 200
+    if 'actif' in data and len(data) == 1:
+        db.execute('UPDATE shop_items SET actif = ? WHERE id = ?', (1 if data.get('actif') else 0, item_id))
+        journaliser(db, 'Badge affiché dans la boutique' if data.get('actif') else 'Badge masqué de la boutique', b['nom'])
+        db.commit()
+        return jsonify({'success': True}), 200
+    valeurs, erreur = lire_badge(data)
+    if erreur:
+        return jsonify({'success': False, 'error': erreur}), 400
+    if db.execute('SELECT 1 FROM shop_items WHERE lower(nom) = lower(?) AND id != ?', (valeurs['nom'], item_id)).fetchone():
+        return jsonify({'success': False, 'error': 'Un badge porte déjà ce nom'}), 400
+    db.execute('UPDATE shop_items SET nom = ?, description = ?, mode = ?, quantite_max = ?, debut_at = ?, fin_at = ?, style = ? WHERE id = ?',
+               (valeurs['nom'], valeurs['description'], valeurs['mode'], valeurs['quantite_max'], valeurs['debut_at'],
+                valeurs['fin_at'], valeurs['style'], item_id))
+    journaliser(db, 'Badge modifié', valeurs['nom'])
     db.commit()
     return jsonify({'success': True}), 200
 
@@ -4022,6 +4334,13 @@ def sauvegarde_auto_si_besoin():
 def _sauvegarde_quotidienne():
     if not request.path.startswith(('/static/', '/media/')):
         sauvegarde_auto_si_besoin()
+        import time
+        if time.time() - _controle_annonces['t'] > 30:
+            _controle_annonces['t'] = time.time()
+            try:
+                publier_annonces_dues(get_db())
+            except Exception as e:   # une annonce ratée ne doit jamais casser une page
+                app.logger.warning('Publication des annonces impossible : %s', e)
 
 
 @app.route('/admin/sauvegarde')

@@ -86,3 +86,13 @@ Si ce sont les admins eux-mêmes qui sont verrouillés, onglet **Consoles** → 
     cd ~/tournoi-brawlstars && python3.10 app.py debloquer ton-email@gmail.com
 
 Conseil : pour ton compte admin, utilise un email **différent** de l'email de contact public du site.
+
+## Annonces et boutique (sans toucher au code)
+- **Admin → Annonces** : publier tout de suite ou programmer (date et heure de France). L'annonce part toute seule
+  à l'heure prévue (à la première visite du site), en bandeau sur l'accueil, dans la page `/annonces`, en notification
+  à tous les joueurs et, si coché, sur le Discord.
+- **Relier le Discord** (fondateurs) : salon d'annonces → Paramètres → Intégrations → Webhooks → Nouveau webhook →
+  « Copier l'URL », puis la coller dans Admin → Annonces → « Relier le Discord ». Un message de test part dans le salon.
+  Si rien n'arrive sur un compte gratuit PythonAnywhere, c'est que discord.com n'est pas joignable depuis le serveur.
+- **Admin → Boutique** : créer des badges (libres, limités aux X premiers, réservés à donner soi-même, ou disponibles
+  entre deux dates), les donner à un joueur par son @, les masquer ou les supprimer. Les badges de base sont protégés.

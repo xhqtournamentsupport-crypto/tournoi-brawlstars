@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Annonces · XHQ League</title>
+    {% include '_head.html' %}
+    <style>
+        .container { max-width: 820px; }
+        .annonce { position: relative; margin-bottom: 1rem; padding: 1.4rem 1.5rem; background: var(--panel); border: 1px solid var(--line); border-radius: 20px; scroll-margin-top: 90px; }
+        .annonce:first-of-type { border-color: rgba(124, 108, 255, 0.5); background: radial-gradient(circle at 0% 0%, rgba(124, 108, 255, 0.16), transparent 55%), var(--panel); }
+        .annonce small { color: var(--bleu-clair); font-size: 0.8rem; font-weight: 700; letter-spacing: 0.04em; }
+        .annonce h2 { margin: 0.3rem 0 0.6rem; font-size: 1.35rem; }
+        .annonce p { margin: 0 0 0.8rem; color: var(--text-soft); white-space: pre-line; overflow-wrap: anywhere; }
+        .annonce:target { box-shadow: 0 0 0 2px var(--violet), 0 0 40px rgba(124, 108, 255, 0.3); }
+    </style>
+</head>
+<body>
+    {% include '_nav.html' %}
+    <main class="xhq-main">
+    <div class="container">
+        <div class="header-nav">
+            <h1><span class="kicker">Infos de l'orga</span>Annonces</h1>
+        </div>
+        {% for a in annonces %}
+        <article class="annonce" id="annonce-{{ a.id }}">
+            <small>{{ a.quand }}</small>
+            <h2>{{ a.titre }}</h2>
+            {% if a.texte %}<p>{{ a.texte }}</p>{% endif %}
+            {% if a.lien %}<a class="btn btn-fleche petit" href="{{ a.lien }}"{% if a.lien.startswith('https://') %} target="_blank" rel="noopener"{% endif %}>En savoir plus</a>{% endif %}
+        </article>
+        {% else %}
+        <p class="empty">Aucune annonce pour l'instant. Suis aussi le Discord pour ne rien rater.</p>
+        {% endfor %}
+    </div>
+    </main>
+    {% include '_footer.html' %}
+</body>
+</html>

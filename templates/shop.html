@@ -132,6 +132,7 @@
 
     <script>
         const TYPES = { badge: 'Badge' };
+        const STYLE_BADGE = { sombre: 'saison', contour: 'champion' };   // styles des badges créés dans l'admin
         const monAvatar = {{ current_user.logo | tojson }};
         const maPhoto = {{ (current_user.photo or '') | tojson }};
         const RARETE = { champion_tournoi: ['exclusif', 'Exclusif'], fondateur: ['exclusif', '3 au monde'], admin: ['exclusif', 'Staff'], pionnier: ['limite', 'Limité'], saison1: ['limite', 'Saison 1'] };
@@ -154,7 +155,7 @@
                 case 'cadre_or': return `<span class="apercu-cadre cadre-or">${visage()}</span>`;
                 case 'cadre_carbone': return `<span class="apercu-cadre cadre-carbone">${visage()}</span>`;
                 case 'pack_rare': return '<span class="apercu-avatars">🐉 🦄 🤖 👽</span>';
-                default: return '<span></span>';
+                default: return `<span class="apercu-badge ${STYLE_BADGE[item.style] || ''}">${escapeHtml(item.nom)}</span>`;
             }
         }
 
@@ -204,6 +205,8 @@
             let barre = '';
             if (item.code === 'fondateur' && !item.possede) {
                 limite = `<span class="item-limite">${Number(item.places_restantes)} / 3 encore libre(s)</span>`;
+            } else if (item.perso && item.mode === 'limite' && !item.possede && item.disponible) {
+                limite = `<span class="item-limite">${Number(item.places_restantes)} exemplaire(s) restant(s)</span>`;
             } else if (item.code === 'pionnier' && !item.possede && item.disponible) {
                 limite = `<span class="item-limite">${Number(item.places_restantes)} place(s) restante(s)</span>`;
                 barre = `<div class="places"><i style="width:${Math.max(2, Math.round(Number(item.places_restantes)))}%"></i></div>`;
