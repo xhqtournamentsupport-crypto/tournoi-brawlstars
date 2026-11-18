@@ -55,6 +55,7 @@
                         <a href="/login?ajout=1" class="ajout-compte">+ Ajouter un compte</a>
                     </div>
                     <a href="/logout" class="sortie">Se déconnecter{% if current_user.autres_comptes %} de {{ current_user.username }}{% endif %}</a>
+                    {% if current_user.autres_comptes %}<a href="/logout?tous=1" class="sortie" style="margin-top:0;border-top:0;padding-top:0.3rem">Déconnecter tous les comptes</a>{% endif %}
                 </div>
             </div>
             {% else %}

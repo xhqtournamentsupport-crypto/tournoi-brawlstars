@@ -35,7 +35,7 @@ python app.py admin ton@email.fr
 Le lien **ADMIN** apparaît dans la nav. Le panneau `/admin` permet de :
 - enregistrer les résultats de matchs (victoire 3 pts, défaite 0, pas de nul) et les supprimer ;
 - déplacer ou supprimer des teams ;
-- générer un mot de passe temporaire pour un joueur (vrai « mot de passe oublié ») ;
+- envoyer à un joueur un lien de nouveau mot de passe sur l'email de son compte (aucun mot de passe affiché) ;
 - lire les messages de contact et donner les droits admin à d'autres joueurs.
 
 Le barème se change en haut de `app.py` (`POINTS_VICTOIRE`, `POINTS_DEFAITE`).

@@ -1196,6 +1196,8 @@ def logout():
         return redirect('/')   # lien piégé sur un autre site : on ne déconnecte pas
     restants = [c for c in session.get('comptes', []) if isinstance(c, int) and c != session.get('user_id')]
     session.clear()
+    if request.args.get('tous'):    # ordinateur partagé : on ferme tous les comptes d'un coup
+        return redirect('/login')
     if restants:
         connecter(restants[0])
         session['comptes'] = restants
@@ -4271,6 +4273,8 @@ def promouvoir_admin(email):
     if u:
         c.execute('UPDATE users SET is_admin = 1 WHERE id = ?', (u['id'],))
         donner_objet(c, u['id'], 'admin', equiper=False)
+        c.execute("INSERT INTO journal_admin (admin_nom, action, cible, created_at) VALUES ('console', 'Droits admin donnés', ?, datetime('now'))",
+                  (f"{email.strip()} (#{u['id']})",))
     conn.commit()
     conn.close()
     return u is not None
