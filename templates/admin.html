@@ -95,6 +95,12 @@
         .cloture .ligne { display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; }
         .cloture input { max-width: 240px; letter-spacing: 0.2em; text-transform: uppercase; font-weight: 700; }
 
+        .decl-admin { display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; padding: 0.85rem 1rem; margin-bottom: 0.6rem; border: 1px solid var(--line); border-radius: 14px; background: var(--bg-2); }
+        .decl-admin.conteste { border-color: var(--violet); box-shadow: 0 0 22px rgba(124, 108, 255, 0.15); }
+        .decl-admin .qui { flex: 1; min-width: 200px; }
+        .decl-admin .qui small { display: block; color: var(--muted); }
+        .decl-admin .motif { display: block; margin-top: 0.3rem; color: var(--text-soft); font-style: italic; }
+        .decl-admin input { width: 58px; padding: 0.4rem; text-align: center; font-weight: 800; }
         .palmares-ligne { display: flex; justify-content: space-between; gap: 1rem; padding: 0.8rem 0; border-bottom: 1px solid var(--line); }
         .palmares-ligne strong { color: var(--gold); }
 
@@ -194,6 +200,12 @@
                         <span class="muted" id="m-info"></span>
                     </div>
                 </div>
+            </div>
+
+            <div class="section" id="section-declarations">
+                <h2 class="section-title">Résultats déclarés par les teams</h2>
+                <p class="hint">Les capitaines déclarent leurs scores. Un résultat <strong>contesté</strong> attend ta décision : valide-le (en corrigeant le score si besoin) ou refuse-le. Ceux <strong>en attente</strong> seront validés tout seuls au bout de 48 h sans réponse, mais tu peux trancher avant.</p>
+                <div id="liste-declarations"><p class="muted">…</p></div>
             </div>
 
             <div class="section">
@@ -355,6 +367,7 @@
             document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === nom));
             document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + nom));
             if (nom === 'joueurs') chargerJoueurs();
+            if (nom === 'matchs') chargerDeclarations();
             if (nom === 'messages') chargerMessages();
             if (nom === 'teams') chargerTeams();
             if (nom === 'saison') chargerSaison();
@@ -392,6 +405,7 @@
         function afficherAFaire(stats) {
             const a = stats.a_faire || {}, t = [];
             if (stats.messages_non_traites) t.push(tache(true, 'message', pl(stats.messages_non_traites, 'message') + ' à traiter', 'Contact, mot de passe perdu, signalement…', 'messages'));
+            if (stats.litiges) t.push(tache(true, 'alerte', pl(stats.litiges, 'litige') + ' à trancher', 'Score contesté par une équipe', 'matchs'));
             if (a.en_retard) t.push(tache(true, 'alerte', pl(a.en_retard, 'résultat') + ' en retard', 'Match prévu passé, score pas encore saisi', 'calendrier'));
             for (const tr of a.tournois || []) {
                 const etat = { inscriptions: `${Number(tr.inscrits)}/${Number(tr.places)} inscrits`, poules: 'Phase de poules en cours', bracket: 'Phase finale en cours' }[tr.statut] || escapeHtml(tr.statut);
@@ -421,6 +435,38 @@
             pastille.textContent = data.messages_non_traites;
             pastille.hidden = data.messages_non_traites === 0;
             afficherAFaire(data);
+        }
+
+        // ---------- résultats déclarés par les capitaines ----------
+        async function chargerDeclarations() {
+            const { ok, data } = await api('/api/admin/declarations');
+            const box = document.getElementById('liste-declarations');
+            if (!ok || !Array.isArray(data)) return;
+            if (!data.length) { box.innerHTML = '<p class="muted">Rien à trancher : aucun résultat en attente ou contesté.</p>'; return; }
+            box.innerHTML = data.map(d => `
+                <div class="decl-admin ${escapeHtml(d.statut)}">
+                    <span class="tag ${d.statut === 'conteste' ? 'or' : ''}">${d.statut === 'conteste' ? 'CONTESTÉ' : 'EN ATTENTE'}</span>
+                    <span class="qui"><b>${escapeHtml(d.team1_nom)}</b> vs <b>${escapeHtml(d.team2_nom)}</b>
+                        <small>Déclaré par ${escapeHtml(d.team1_nom)} ${escapeHtml(d.date_fr)}${d.statut === 'attente' ? ` · validé tout seul dans ${Number(d.heures_restantes)} h` : ''}</small>
+                        ${d.motif ? `<span class="motif">« ${escapeHtml(d.motif)} » (${escapeHtml(d.team2_nom)})</span>` : ''}</span>
+                    <span class="actions">
+                        <input type="number" min="0" max="99" id="dec-s1-${Number(d.id)}" value="${Number(d.score1)}" aria-label="Score ${escapeHtml(d.team1_nom)}">
+                        <span class="muted">-</span>
+                        <input type="number" min="0" max="99" id="dec-s2-${Number(d.id)}" value="${Number(d.score2)}" aria-label="Score ${escapeHtml(d.team2_nom)}">
+                        <button class="btn petit" type="button" onclick="trancher(${Number(d.id)}, 'valider')">Valider</button>
+                        <button class="btn petit danger" type="button" onclick="trancher(${Number(d.id)}, 'refuser')">Refuser</button>
+                    </span>
+                </div>`).join('');
+        }
+
+        async function trancher(id, action) {
+            const body = { action };
+            if (action === 'valider') { body.score1 = Number(document.getElementById('dec-s1-' + id).value); body.score2 = Number(document.getElementById('dec-s2-' + id).value); }
+            else if (!confirm('Refuser ce résultat ? Les deux capitaines seront prévenus (match à rejouer ou à redéclarer).')) return;
+            const { ok, data } = await api(`/api/admin/declarations/${id}`, { method: 'POST', body });
+            showMessage(ok ? (action === 'valider' ? 'Résultat validé : points comptés.' : 'Résultat refusé.') : (data.error || 'Erreur'), ok ? 'success' : 'error');
+            chargerDeclarations(); chargerStats();
+            if (ok && action === 'valider') { await chargerTeams(); chargerMatchs(); }
         }
 
         // ---------- matchs ----------
@@ -669,7 +715,7 @@
             tbody.innerHTML = data.map(u => `
                 <tr>
                     <td><span class="mini-av">${u.photo ? `<img src="${escapeHtml(u.photo)}" alt="">` : '👤'}</span><a href="/u/${encodeURIComponent(u.handle || '')}" target="_blank"><strong>${escapeHtml(u.username)}</strong></a>
-                        ${u.is_admin ? '<span class="tag or">ADMIN</span>' : ''}${u.bloque ? ' <span class="tag suspendu">SUSPENDU</span>' : ''}<div class="muted">@${escapeHtml(u.handle || '')}</div></td>
+                        ${u.is_admin ? '<span class="tag or">ADMIN</span>' : ''}${u.fondateur ? ' <span class="tag or">FONDATEUR</span>' : ''}${u.bloque ? ' <span class="tag suspendu">SUSPENDU</span>' : ''}<div class="muted">@${escapeHtml(u.handle || '')}</div></td>
                     <td class="muted">${escapeHtml(u.email)}</td>
                     <td>${u.team_name ? escapeHtml(u.team_name) : '<span class="muted">—</span>'}</td>
                     <td class="muted">${dateCourte(u.created_at)}</td>
@@ -682,8 +728,24 @@
                         ${u.is_me ? '' : (u.is_admin
                             ? `<button class="btn petit danger" type="button" onclick="changerAdmin(${Number(u.id)}, false)">Retirer admin</button>`
                             : `<button class="btn petit or" type="button" onclick="changerAdmin(${Number(u.id)}, true)">Rendre admin</button>`)}
+                        <button class="btn-mini" type="button" onclick="changerFondateur(${Number(u.id)}, ${!u.fondateur})">${u.fondateur ? 'Retirer Fondateur' : 'Donner Fondateur'}</button>
+                        ${u.is_me || u.is_admin ? '' : `<button class="btn-mini" type="button" onclick="supprimerJoueur(${Number(u.id)}, '${escapeHtml(u.username).replace(/'/g, '&#39;')}')">Supprimer le compte</button>`}
                     </div></td>
                 </tr>`).join('');
+        }
+
+        async function changerFondateur(id, valeur) {
+            if (!confirm(valeur ? 'Donner le badge Fondateur à ce joueur ? (3 maximum)' : 'Retirer le badge Fondateur ?')) return;
+            const { ok, data } = await api(`/api/admin/users/${id}/fondateur`, { method: 'POST', body: { fondateur: valeur } });
+            showMessage(ok ? (valeur ? 'Badge Fondateur donné.' : 'Badge Fondateur retiré.') : (data.error || 'Erreur'), ok ? 'success' : 'error');
+            chargerJoueurs();
+        }
+
+        async function supprimerJoueur(id, nom) {
+            if (!confirm(`Supprimer définitivement le compte de ${nom} ? S'il est capitaine, sa team passe à un autre membre (ou disparaît s'il était seul). Impossible d'annuler.`)) return;
+            const { ok, data } = await api(`/api/admin/users/${id}/delete`, { method: 'POST' });
+            showMessage(ok ? 'Compte supprimé.' : (data.error || 'Erreur'), ok ? 'success' : 'error');
+            chargerJoueurs(); chargerTeams(); chargerStats();
         }
 
         // ---------- modération ----------
@@ -855,6 +917,7 @@
         
         // ---------- démarrage ----------
         chargerStats();
+        chargerDeclarations();
         function ongletDepuisUrl() {
             const h = location.hash.slice(1);
             if (h && document.querySelector(`.tab[data-tab="${CSS.escape(h)}"]`)) ouvrirOnglet(h);

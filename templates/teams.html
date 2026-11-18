@@ -44,6 +44,28 @@
             text-transform: uppercase;
         }
 
+        /* Résultats déclarés par les capitaines */
+        .resultats { margin-top: 1.4rem; padding: 1.1rem 1.2rem; border: 1px solid rgba(124, 108, 255, 0.35); border-radius: 18px; background: linear-gradient(140deg, rgba(124, 108, 255, 0.12), transparent 60%), var(--bg-2); scroll-margin-top: 90px; }
+        .resultats h4 { margin: 0 0 0.3rem; font-size: 1.05rem; }
+        .resultats > p { margin: 0 0 0.9rem; color: var(--muted); font-size: 0.88rem; }
+        .form-score { display: grid; grid-template-columns: minmax(0, 1fr) 70px auto 70px auto; gap: 0.6rem; align-items: end; }
+        .form-score label { font-size: 0.8rem; }
+        .form-score input { text-align: center; font-weight: 800; font-size: 1.15rem; }
+        .form-score .tiret { padding-bottom: 0.75rem; color: var(--dim); font-weight: 800; }
+        .decl { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; padding: 0.75rem 0.9rem; margin-top: 0.6rem; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); }
+        .decl.a-repondre { border-color: var(--violet); box-shadow: 0 0 0 1px rgba(124, 108, 255, 0.3), 0 0 26px rgba(124, 108, 255, 0.18); }
+        .decl .score-decl { font-family: var(--display); font-size: 1.2rem; font-weight: 800; }
+        .decl .info { flex: 1; min-width: 180px; }
+        .decl .info small { display: block; color: var(--muted); font-size: 0.8rem; }
+        .decl .boutons { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+        .etat-decl { padding: 0.1rem 0.55rem; border-radius: 999px; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.04em; background: rgba(255, 255, 255, 0.08); }
+        .etat-decl.valide { background: var(--violet); color: #fff; }
+        @media (max-width: 560px) {
+            .form-score { grid-template-columns: 1fr 1fr; }
+            .form-score .adv, .form-score button { grid-column: 1 / -1; }
+            .form-score .tiret { display: none; }
+        }
+
         .places { color: var(--text); }
         .places.pleine { color: var(--lose); }
 
@@ -206,6 +228,7 @@
         let allTeams = [];
         let userTeamId = null;
         let membres = [];
+        let resultats = null;   // déclarations de scores (capitaines)
         let mesMatchs = [];
         let prochains = [];
         let maxMembres = 5;
@@ -230,7 +253,8 @@
         }
 
         async function loadTeams() {
-            const { ok, data } = await api('/api/teams');
+            const [{ ok, data }, res] = await Promise.all([api('/api/teams'), api('/api/resultats')]);
+            resultats = res.ok ? res.data : null;
             if (!ok || !Array.isArray(data.teams)) {
                 document.getElementById('no-teams').textContent = data.error || 'Impossible de charger les teams';
                 return;
@@ -249,6 +273,11 @@
             document.getElementById('create-team-section').style.display = userTeamId ? 'none' : 'block';
             renderMyTeam();
             renderTeams();
+            if (location.hash === '#resultats' && !loadTeams.fait) {
+                loadTeams.fait = true;
+                const el = document.getElementById('resultats');
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
         }
 
         function renderMyTeam() {
@@ -286,6 +315,7 @@
                         <div class="team-meta">${ligue}</div>
                         ${chiffres}
                         ${renderParticipation()}
+                        ${renderResultats(myTeam)}
                         <div class="membres-liste">
                             <h4>Membres <span class="places ${membres.length >= maxMembres ? 'pleine' : ''}">${membres.length}/${maxMembres}</span></h4>
                             ${membres.map(m => `
@@ -369,6 +399,76 @@
                 </div>
             `;
             if (myTeam.is_creator) brancherEdition(myTeam);
+        }
+
+        // ---------- Résultats : le capitaine déclare, l'adversaire confirme ou conteste ----------
+        function renderResultats(myTeam) {
+            const r = resultats;
+            if (!r || !r.team || !myTeam.ligue_num) return '';
+            const ligneDecl = (d, contenu, classe = '') => {
+                const nous = d.team1_id === myTeam.id;
+                const adv = nous ? d.team2_nom : d.team1_nom;
+                const pour = nous ? d.score1 : d.score2, contre = nous ? d.score2 : d.score1;
+                return `<div class="decl ${classe}"><span class="score-decl">${Number(pour)} - ${Number(contre)}</span>
+                    <span class="info"><b>vs ${escapeHtml(adv)}</b>${contenu.info}</span>${contenu.actions || ''}</div>`;
+            };
+            const aConfirmer = r.a_confirmer.map(d => ligneDecl(d, {
+                info: `<small>Déclaré par ${escapeHtml(d.team1_nom)} ${escapeHtml(d.date_fr)} · validé tout seul dans ${Number(d.heures_restantes)} h</small>`,
+                actions: r.capitaine ? `<span class="boutons"><button class="btn petit" type="button" onclick="repondre(${Number(d.id)}, 'confirmer')">Confirmer</button>
+                    <button class="btn petit secondaire" type="button" onclick="contester(${Number(d.id)})">Contester</button></span>` : '<small class="muted">Le capitaine doit répondre</small>'
+            }, 'a-repondre')).join('');
+            const enAttente = r.en_attente.map(d => ligneDecl(d, {
+                info: `<small>En attente de ${escapeHtml(d.team2_nom)} · validé tout seul dans ${Number(d.heures_restantes)} h</small>`,
+                actions: r.capitaine ? `<span class="boutons"><button class="btn-mini" type="button" onclick="repondre(${Number(d.id)}, 'annuler')">Annuler</button></span>` : ''
+            })).join('');
+            const litiges = r.litiges.map(d => ligneDecl(d, {
+                info: `<small>Contesté : « ${escapeHtml(d.motif || '')} » · un admin va trancher</small>`, actions: '<span class="etat-decl">LITIGE</span>'
+            })).join('');
+            const ETATS = { valide: 'VALIDÉ', refuse: 'REFUSÉ', annule: 'ANNULÉ' };
+            const recents = r.recents.map(d => ligneDecl(d, {
+                info: `<small>${d.statut === 'valide' ? (d.reponse === 'auto' ? 'Validé automatiquement (pas de réponse)' : d.reponse === 'admin' ? 'Validé par un admin' : 'Confirmé par l\'adversaire') : d.statut === 'refuse' ? 'Refusé par un admin' : escapeHtml(d.motif || 'Annulé')}</small>`,
+                actions: `<span class="etat-decl ${d.statut}">${ETATS[d.statut] || ''}</span>`
+            })).join('');
+            const form = r.capitaine ? (r.adversaires.length ? `
+                <div class="form-score">
+                    <div class="adv"><label for="decl-adv">Contre</label><select id="decl-adv">
+                        ${r.adversaires.map(a => `<option value="${Number(a.id)}">${escapeHtml(a.nom)}${a.joues ? ` (déjà ${Number(a.joues)} match${a.joues > 1 ? 's' : ''})` : ''}</option>`).join('')}
+                    </select></div>
+                    <div><label for="decl-pour">Nous</label><input type="number" id="decl-pour" min="0" max="99" value="0"></div>
+                    <span class="tiret">–</span>
+                    <div><label for="decl-contre">Eux</label><input type="number" id="decl-contre" min="0" max="99" value="0"></div>
+                    <button class="btn" type="button" id="decl-envoyer" onclick="declarer()">Déclarer</button>
+                </div>` : '<p class="muted">Pas encore d\'autre équipe dans ta poule.</p>')
+                : '<p class="muted" style="margin:0">Seul le capitaine déclare les scores.</p>';
+            return `<div class="resultats" id="resultats">
+                <h4>Résultats</h4>
+                <p>Après chaque match, le capitaine déclare le score. L'équipe adverse confirme ou conteste (sans réponse sous ${Number(r.delai_h)} h, c'est validé). En cas de désaccord, un admin tranche.</p>
+                ${aConfirmer}${form}${enAttente}${litiges}${recents}
+            </div>`;
+        }
+
+        async function declarer() {
+            const body = { adversaire_id: Number(document.getElementById('decl-adv').value),
+                score_pour: Number(document.getElementById('decl-pour').value), score_contre: Number(document.getElementById('decl-contre').value) };
+            const { ok, data } = await api('/api/resultats/declarer', { method: 'POST', body });
+            showMessage(ok ? "Résultat envoyé : l'équipe adverse doit le confirmer." : (data.error || 'Erreur'), ok ? 'success' : 'error');
+            if (ok) { if (window.xhqEclatSur) xhqEclatSur(document.getElementById('decl-envoyer'), 30); loadTeams(); }
+        }
+
+        async function repondre(id, action) {
+            if (action === 'annuler' && !confirm('Annuler ce résultat déclaré ?')) return;
+            const { ok, data } = await api(`/api/resultats/${id}/${action}`, { method: 'POST' });
+            const textes = { confirmer: 'Résultat confirmé : les points sont comptés.', annuler: 'Déclaration annulée.' };
+            showMessage(ok ? textes[action] : (data.error || 'Erreur'), ok ? 'success' : 'error');
+            loadTeams();
+        }
+
+        async function contester(id) {
+            const motif = prompt('Qu\'est-ce qui ne va pas ? (ex. « on a gagné 2-1 », « match pas joué »)');
+            if (motif === null) return;
+            const { ok, data } = await api(`/api/resultats/${id}/contester`, { method: 'POST', body: { motif } });
+            showMessage(ok ? 'Contestation envoyée : un admin va trancher.' : (data.error || 'Erreur'), ok ? 'success' : 'error');
+            loadTeams();
         }
 
         function basculerEdition() {

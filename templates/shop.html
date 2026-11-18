@@ -136,11 +136,11 @@
         const TYPES = { badge: 'Badge', cadre: "Cadre d'avatar", avatars: 'Avatars' };
         const monAvatar = {{ current_user.logo | tojson }};
         const maPhoto = {{ (current_user.photo or '') | tojson }};
-        const RARETE = { champion_tournoi: ['exclusif', 'Exclusif'], fondateur: ['limite', 'Limité'], saison1: ['limite', 'Saison 1'] };
+        const RARETE = { champion_tournoi: ['exclusif', 'Exclusif'], fondateur: ['exclusif', '3 au monde'], admin: ['exclusif', 'Staff'], pionnier: ['limite', 'Limité'], saison1: ['limite', 'Saison 1'] };
         let objets = [];
         let filtre = 'tout';
         let dernier = null;   // code du dernier objet récupéré (petite animation sur sa carte)
-        const RARES = ['champion_tournoi', 'fondateur', 'pack_rare'];
+        const RARES = ['champion_tournoi', 'fondateur', 'admin', 'pionnier', 'pack_rare'];
 
         function visage() {
             return maPhoto ? `<img src="${escapeHtml(maPhoto)}" alt="">` : escapeHtml(monAvatar);
@@ -148,7 +148,9 @@
 
         function apercu(item) {
             switch (item.code) {
-                case 'fondateur': return '<span class="apercu-badge">Fondateur</span>';
+                case 'pionnier': return '<span class="apercu-badge">Pionnier</span>';
+                case 'fondateur': return '<span class="apercu-badge champion">Fondateur</span>';
+                case 'admin': return '<span class="apercu-badge saison">Admin</span>';
                 case 'saison1': return '<span class="apercu-badge saison">Saison 1</span>';
                 case 'champion_tournoi': return '<span class="apercu-badge champion">Champion</span>';
                 case 'cadre_or': return `<span class="apercu-cadre cadre-or">${visage()}</span>`;
@@ -167,7 +169,9 @@
         }
 
         function majCollection() {
-            const total = objets.length, eus = objets.filter(o => o.possede).length;
+            // Les badges réservés (Fondateur, Admin) ne comptent que si on les a
+            const comptes = objets.filter(o => o.possede || !['fondateur', 'admin'].includes(o.code));
+            const total = comptes.length, eus = objets.filter(o => o.possede).length;
             const barreColl = document.querySelector('.barre-coll');
             if (majCollection.avant !== undefined && eus > majCollection.avant) { barreColl.classList.remove('eclat'); void barreColl.offsetWidth; barreColl.classList.add('eclat'); }
             majCollection.avant = eus;
@@ -200,7 +204,9 @@
             }
             let limite = '<span class="item-price">Gratuit</span>';
             let barre = '';
-            if (item.code === 'fondateur' && !item.possede && item.disponible) {
+            if (item.code === 'fondateur' && !item.possede) {
+                limite = `<span class="item-limite">${Number(item.places_restantes)} / 3 encore libre(s)</span>`;
+            } else if (item.code === 'pionnier' && !item.possede && item.disponible) {
                 limite = `<span class="item-limite">${Number(item.places_restantes)} place(s) restante(s)</span>`;
                 barre = `<div class="places"><i style="width:${Math.max(2, Math.round(Number(item.places_restantes)))}%"></i></div>`;
             } else if (item.code === 'saison1' && item.disponible && !item.possede) {

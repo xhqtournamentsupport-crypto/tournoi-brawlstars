@@ -91,14 +91,18 @@ SOLDE_DEPART = 0
 
 # Objets exclusifs, gratuits et purement cosmétiques : (code, nom, description, prix, type)
 SHOP_DEFAUT = [
-    ('fondateur', 'Badge Fondateur', "Réservé aux 100 premiers inscrits. Une fois les 100 places prises, il ne revient pas.", 0, 'badge'),
+    ('pionnier', 'Badge Pionnier', "Réservé aux 100 premiers inscrits. Une fois les 100 places prises, il ne revient pas.", 0, 'badge'),
     ('saison1', 'Badge Saison 1', "Disponible pendant la saison 1 uniquement. À la fin de la saison, il disparaît du shop.", 0, 'badge'),
     ('cadre_or', 'Cadre Violet', "Contour violet autour de ton avatar : profil, menu et liste des membres de ta team.", 0, 'cadre'),
     ('cadre_carbone', 'Cadre Carbone', "Contour indigo mat avec liseré, plus discret que le violet.", 0, 'cadre'),
     ('pack_rare', 'Avatars rares', "Quatre avatars en plus dans le sélecteur du profil, introuvables autrement.", 0, 'avatars'),
     ('champion_tournoi', 'Badge Champion', "Donné à chaque joueur de la team qui gagne un tournoi XHQ. Impossible à récupérer autrement.", 0, 'badge'),
+    ('fondateur', 'Badge Fondateur', "Porté uniquement par les 3 fondateurs de la XHQ League. Donné par l'orga, impossible à récupérer.", 0, 'badge'),
+    ('admin', 'Badge Admin', "Porté par l'équipe d'organisation (10 admins maximum). Donné avec les droits admin.", 0, 'badge'),
 ]
-FONDATEURS_MAX = 100
+PIONNIERS_MAX = 100   # badge Pionnier : les 100 premiers inscrits
+FONDATEURS_MAX = 3    # badge Fondateur : donné à la main par un admin
+ADMINS_MAX = 10       # nombre maximum de comptes admin (ils portent le badge Admin)
 
 # Nombre maximum de joueurs par team (3 titulaires + 2 remplaçants en 3v3)
 MAX_MEMBRES = 5
@@ -472,12 +476,35 @@ def init_db():
     c.execute('CREATE TABLE IF NOT EXISTS parametres (cle TEXT PRIMARY KEY, valeur TEXT)')
     migrer_multi_jeux(c)
     creer_tables_tournois(c)
+    c.execute("""CREATE TABLE IF NOT EXISTS declarations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        jeu_id INTEGER NOT NULL,
+        saison INTEGER NOT NULL,
+        team1_id INTEGER NOT NULL,      -- la team qui déclare
+        team2_id INTEGER NOT NULL,      -- l'adversaire, qui confirme ou conteste
+        score1 INTEGER NOT NULL,
+        score2 INTEGER NOT NULL,
+        par_user_id INTEGER,
+        statut TEXT NOT NULL DEFAULT 'attente',   -- attente, valide, conteste, refuse, annule
+        motif TEXT,
+        reponse TEXT,                   -- confirme, auto (48 h sans réponse), admin
+        match_id INTEGER,
+        created_at TEXT,
+        traite_at TEXT)""")
     ajouter_colonne(c, 'tournois', 'debut', 'TEXT')   # 'AAAA-MM-JJTHH:MM' (heure de France)
     c.execute("UPDATE users SET created_at = datetime('now') WHERE created_at IS NULL")
     c.execute("UPDATE teams SET created_at = datetime('now') WHERE created_at IS NULL")
     tous_avatars = AVATARS + AVATARS_PREMIUM
     c.execute("UPDATE users SET profile_pic = ? WHERE profile_pic IS NULL OR profile_pic NOT IN (%s)"
               % ','.join('?' * len(tous_avatars)), (AVATAR_DEFAUT, *tous_avatars))
+
+    # Migration unique : l'ancien badge « Fondateur » des 100 premiers devient « Pionnier »
+    # (ceux qui l'ont déjà le gardent) ; « Fondateur » est désormais réservé à 3 comptes.
+    if not c.execute("SELECT 1 FROM parametres WHERE cle = 'badges_v3'").fetchone():
+        if not c.execute("SELECT 1 FROM shop_items WHERE code = 'pionnier'").fetchone():
+            c.execute("UPDATE shop_items SET code = 'pionnier' WHERE code = 'fondateur'")
+            c.execute("UPDATE users SET badge_equipe = 'pionnier' WHERE badge_equipe = 'fondateur'")
+        c.execute("INSERT OR REPLACE INTO parametres (cle, valeur) VALUES ('badges_v3', '1')")
 
     # Objets exclusifs gratuits
     for code, nom, description, prix, type_ in SHOP_DEFAUT:
@@ -487,6 +514,15 @@ def init_db():
         else:
             c.execute('INSERT INTO shop_items (code, nom, description, prix, type) VALUES (?, ?, ?, ?, ?)',
                       (code, nom, description, prix, type_))
+
+    # Le badge Admin suit les droits admin
+    c.execute("""INSERT INTO inventory (user_id, item_id, bought_at)
+                 SELECT u.id, s.id, datetime('now') FROM users u, shop_items s
+                 WHERE u.is_admin = 1 AND s.code = 'admin'
+                 AND NOT EXISTS (SELECT 1 FROM inventory i WHERE i.user_id = u.id AND i.item_id = s.id)""")
+    c.execute("""DELETE FROM inventory WHERE item_id IN (SELECT id FROM shop_items WHERE code = 'admin')
+                 AND user_id IN (SELECT id FROM users WHERE COALESCE(is_admin, 0) = 0)""")
+    c.execute("UPDATE users SET badge_equipe = NULL WHERE badge_equipe = 'admin' AND COALESCE(is_admin, 0) = 0")
 
     # Migration unique : fin du boost et de l'argent de départ
     if not c.execute("SELECT 1 FROM parametres WHERE cle = 'shop_v2'").fetchone():
@@ -627,10 +663,14 @@ def apparence(db, user_id):
 
 def disponibilite(db, user_id, code):
     """(disponible, raison) pour récupérer un objet."""
-    if code == 'fondateur':
+    if code == 'pionnier':
         rang = db.execute('SELECT COUNT(*) FROM users WHERE id <= ?', (user_id,)).fetchone()[0]
-        if rang > FONDATEURS_MAX:
-            return False, f'Réservé aux {FONDATEURS_MAX} premiers inscrits'
+        if rang > PIONNIERS_MAX:
+            return False, f'Réservé aux {PIONNIERS_MAX} premiers inscrits'
+    if code == 'fondateur':
+        return False, 'Réservé aux 3 fondateurs'
+    if code == 'admin':
+        return False, "Réservé à l'équipe d'orga"
     if code == 'champion_tournoi':
         return False, 'Gagne un tournoi XHQ pour le débloquer'
     if code == 'saison1' and saison_actuelle(db, jeu_defaut_id(db)) != 1:
@@ -1096,12 +1136,9 @@ def api_profil_password():
     return jsonify({'success': True}), 200
 
 
-@app.route('/api/profil/delete', methods=['POST'])
-@api_connectee
-def api_profil_delete():
-    uid = session['user_id']
-    db = get_db()
-    c = db.cursor()
+def supprimer_compte(db, c, uid):
+    """Supprime un compte : il quitte ses teams (le capitanat passe à un autre membre,
+    ou la team disparaît s'il était seul), puis ses objets, images et notifications."""
     for j in liste_jeux(db):
         retirer_membre(c, uid, j['id'])
     c.execute('DELETE FROM inventory WHERE user_id = ?', (uid,))
@@ -1110,7 +1147,33 @@ def api_profil_delete():
         supprimer_media('avatars', fichiers['photo'])
         supprimer_media('bannieres', fichiers['banniere'])
     c.execute('UPDATE contact_messages SET user_id = NULL WHERE user_id = ?', (uid,))
+    c.execute('DELETE FROM notifications WHERE user_id = ?', (uid,))
     c.execute('DELETE FROM users WHERE id = ?', (uid,))
+
+
+@app.route('/api/admin/users/<int:user_id>/delete', methods=['POST'])
+@api_admin
+def api_admin_delete_user(user_id):
+    """Supprimer un compte (comptes de test, faux comptes…). Pas soi-même, pas un autre admin."""
+    db = get_db()
+    u = db.execute('SELECT is_admin FROM users WHERE id = ?', (user_id,)).fetchone()
+    if not u:
+        return jsonify({'success': False, 'error': 'Joueur introuvable'}), 404
+    if user_id == session['user_id']:
+        return jsonify({'success': False, 'error': 'Pour supprimer ton propre compte, passe par ton profil'}), 400
+    if u['is_admin']:
+        return jsonify({'success': False, 'error': "Retire d'abord ses droits admin"}), 400
+    supprimer_compte(db, db.cursor(), user_id)
+    db.commit()
+    return jsonify({'success': True}), 200
+
+
+@app.route('/api/profil/delete', methods=['POST'])
+@api_connectee
+def api_profil_delete():
+    uid = session['user_id']
+    db = get_db()
+    supprimer_compte(db, db.cursor(), uid)
     db.commit()
     restants = [x for x in session.get('comptes', []) if x != uid]
     session.clear()
@@ -1784,8 +1847,10 @@ def api_shop():
         item['possede'] = possede(db, uid, item['code'])
         item['disponible'], item['raison'] = disponibilite(db, uid, item['code'])
         item['equipe'] = item['code'] in (equipe['badge_code'], equipe['cadre'])
+        if item['code'] == 'pionnier':
+            item['places_restantes'] = max(0, PIONNIERS_MAX - nb_users)
         if item['code'] == 'fondateur':
-            item['places_restantes'] = max(0, FONDATEURS_MAX - nb_users)
+            item['places_restantes'] = max(0, FONDATEURS_MAX - porteurs(db, 'fondateur'))
         items.append(item)
     return jsonify(items), 200
 
@@ -1923,6 +1988,7 @@ def api_admin_stats():
         return erreur
     compter = lambda req, *p: db.execute(req, p).fetchone()[0]
     saison = saison_actuelle(db, jeu['id'])
+    valider_declarations_expirees(db)
     return jsonify({
         'jeu': jeu,
         'joueurs': compter('SELECT COUNT(*) FROM users'),
@@ -1930,6 +1996,7 @@ def api_admin_stats():
         'matchs': compter('SELECT COUNT(*) FROM matchs WHERE jeu_id = ? AND saison = ?', jeu['id'], saison),
         'saison': saison,
         'messages_non_traites': compter('SELECT COUNT(*) FROM contact_messages WHERE traite = 0 OR traite IS NULL'),
+        'litiges': compter("SELECT COUNT(*) FROM declarations WHERE jeu_id = ? AND statut = 'conteste'", jeu['id']),
         'a_faire': a_faire_admin(db, jeu['id'], saison),
     }), 200
 
@@ -1964,58 +2031,285 @@ def a_faire_admin(db, jeu_id, saison):
     }
 
 
-@app.route('/api/admin/matchs', methods=['POST'])
-@api_admin
-def api_admin_create_match():
-    data = donnees_json()
-    team1_id, team2_id = entier(data.get('team1_id')), entier(data.get('team2_id'))
-    score1, score2 = entier(data.get('score1')), entier(data.get('score2'))
+def enregistrer_resultat(c, db, team1_id, team2_id, score1, score2, saisi_par):
+    """Enregistre un match de ligue (points, calendrier, notifications).
+    Renvoie (infos, None) ou (None, (message d'erreur, code HTTP)). Ne fait pas le commit."""
     if team1_id is None or team2_id is None:
-        return jsonify({'success': False, 'error': 'Choisissez les deux teams'}), 400
+        return None, ('Choisissez les deux teams', 400)
     if team1_id == team2_id:
-        return jsonify({'success': False, 'error': 'Une team ne peut pas jouer contre elle-même'}), 400
+        return None, ('Une team ne peut pas jouer contre elle-même', 400)
     if score1 is None or score2 is None or not (0 <= score1 <= SCORE_MAX and 0 <= score2 <= SCORE_MAX):
-        return jsonify({'success': False, 'error': f'Les scores doivent être des nombres entre 0 et {SCORE_MAX}'}), 400
+        return None, (f'Les scores doivent être des nombres entre 0 et {SCORE_MAX}', 400)
     if score1 == score2:
-        return jsonify({'success': False, 'error': "Pas de match nul : il faut un gagnant"}), 400
-
-    db = get_db()
-    c = db.cursor()
+        return None, ("Pas de match nul : il faut un gagnant", 400)
     t1 = c.execute('SELECT t.nom, t.jeu_id, l.ligue_num, l.poule FROM teams t JOIN ligue l ON l.team_id = t.id '
                    'WHERE t.id = ?', (team1_id,)).fetchone()
     t2 = c.execute('SELECT t.nom, t.jeu_id, l.ligue_num, l.poule FROM teams t JOIN ligue l ON l.team_id = t.id '
                    'WHERE t.id = ?', (team2_id,)).fetchone()
     if not t1 or not t2:
-        return jsonify({'success': False, 'error': 'Team introuvable'}), 404
+        return None, ('Team introuvable', 404)
     if t1['jeu_id'] != t2['jeu_id']:
-        return jsonify({'success': False, 'error': 'Les deux teams ne jouent pas au même jeu'}), 400
+        return None, ('Les deux teams ne jouent pas au même jeu', 400)
     if (t1['ligue_num'], t1['poule']) != (t2['ligue_num'], t2['poule']):
-        return jsonify({'success': False,
-                        'error': 'Les deux teams doivent être dans la même ligue et la même poule'}), 400
+        return None, ('Les deux teams doivent être dans la même ligue et la même poule', 400)
 
     ligue_num, poule, jeu_id = t1['ligue_num'], t1['poule'], t1['jeu_id']
+    saison = saison_actuelle(db, jeu_id)
     points1 = POINTS_VICTOIRE if score1 > score2 else POINTS_DEFAITE
     points2 = POINTS_VICTOIRE if score2 > score1 else POINTS_DEFAITE
     c.execute("""INSERT INTO matchs (ligue_num, poule, team1_id, team2_id, team1_nom, team2_nom,
                                      score1, score2, points1, points2, saisi_par, created_at, saison, jeu_id)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, ?)""",
               (ligue_num, poule, team1_id, team2_id, t1['nom'], t2['nom'],
-               score1, score2, points1, points2, session['user_id'], saison_actuelle(db, jeu_id), jeu_id))
+               score1, score2, points1, points2, saisi_par, saison, jeu_id))
     match_id = c.lastrowid
     # Le résultat « remplit » le match prévu au calendrier entre ces deux teams (le plus ancien)
     c.execute("""UPDATE rencontres SET match_id = ? WHERE id = (
                     SELECT id FROM rencontres WHERE match_id IS NULL AND jeu_id = ? AND saison = ?
                     AND ((team1_id = ? AND team2_id = ?) OR (team1_id = ? AND team2_id = ?))
-                    ORDER BY date LIMIT 1)""", (match_id, jeu_id, saison_actuelle(db, jeu_id), team1_id, team2_id, team2_id, team1_id))
+                    ORDER BY date LIMIT 1)""", (match_id, jeu_id, saison, team1_id, team2_id, team2_id, team1_id))
     ajuster_points(c, team1_id, ligue_num, poule, points1)
     ajuster_points(c, team2_id, ligue_num, poule, points2)
     for moi, adv, a, b, pts in ((team1_id, t2['nom'], score1, score2, points1), (team2_id, t1['nom'], score2, score1, points2)):
         notifier(c, membres_de(c, moi), f"{'Victoire' if a > b else 'Défaite'} {a}-{b} contre {adv} ({'+' if pts else ''}{pts} pts)",
                  f'/team/{moi}')
+    return {'match_id': match_id, 'gagnant': t1['nom'] if score1 > score2 else t2['nom'],
+            'ligue_num': ligue_num, 'poule': poule}, None
+
+
+@app.route('/api/admin/matchs', methods=['POST'])
+@api_admin
+def api_admin_create_match():
+    data = donnees_json()
+    db = get_db()
+    c = db.cursor()
+    infos, erreur = enregistrer_resultat(c, db, entier(data.get('team1_id')), entier(data.get('team2_id')),
+                                         entier(data.get('score1')), entier(data.get('score2')), session['user_id'])
+    if erreur:
+        return jsonify({'success': False, 'error': erreur[0]}), erreur[1]
+    # Un résultat saisi par l'admin clôt une éventuelle déclaration en cours entre ces deux teams
+    c.execute("""UPDATE declarations SET statut = 'valide', reponse = 'admin', match_id = ?, traite_at = datetime('now')
+                 WHERE statut IN ('attente', 'conteste') AND ((team1_id = ? AND team2_id = ?) OR (team1_id = ? AND team2_id = ?))""",
+              (infos['match_id'], entier(data.get('team1_id')), entier(data.get('team2_id')),
+               entier(data.get('team2_id')), entier(data.get('team1_id'))))
     db.commit()
-    gagnant = t1['nom'] if score1 > score2 else t2['nom']
-    return jsonify({'success': True, 'match_id': match_id, 'gagnant': gagnant,
-                    'ligue_num': ligue_num, 'poule': poule}), 201
+    return jsonify({'success': True, **infos}), 201
+
+
+# ---------------------------------------------------------------------------
+# Résultats déclarés par les capitaines : l'un déclare, l'autre confirme ou conteste.
+# Sans réponse sous 48 h, le résultat est validé. Un litige est tranché par un admin.
+# ---------------------------------------------------------------------------
+DELAI_CONFIRMATION_H = 48
+
+
+def capitaine_de(c, team_id):
+    r = c.execute('SELECT createur_id FROM teams WHERE id = ?', (team_id,)).fetchone()
+    return r['createur_id'] if r else None
+
+
+def valider_declaration(c, db, d, score1=None, score2=None, reponse='confirme'):
+    """Transforme une déclaration en match. Renvoie un message d'erreur ou None."""
+    s1 = d['score1'] if score1 is None else score1
+    s2 = d['score2'] if score2 is None else score2
+    infos, erreur = enregistrer_resultat(c, db, d['team1_id'], d['team2_id'], s1, s2, d['par_user_id'])
+    if erreur:
+        c.execute("UPDATE declarations SET statut = 'annule', motif = ?, traite_at = datetime('now') WHERE id = ?",
+                  (erreur[0], d['id']))
+        return erreur[0]
+    c.execute("""UPDATE declarations SET statut = 'valide', reponse = ?, score1 = ?, score2 = ?, match_id = ?,
+                 traite_at = datetime('now') WHERE id = ?""", (reponse, s1, s2, infos['match_id'], d['id']))
+    return None
+
+
+def valider_declarations_expirees(db):
+    """Les déclarations restées sans réponse 48 h sont validées automatiquement."""
+    c = db.cursor()
+    rows = c.execute("""SELECT * FROM declarations WHERE statut = 'attente'
+                        AND created_at <= datetime('now', ?)""", (f'-{DELAI_CONFIRMATION_H} hours',)).fetchall()
+    for d in rows:
+        valider_declaration(c, db, d, reponse='auto')
+    if rows:
+        db.commit()
+
+
+def declaration_publique(c, d):
+    d = dict(d)
+    noms = {r['id']: r['nom'] for r in c.execute('SELECT id, nom FROM teams WHERE id IN (?, ?)', (d['team1_id'], d['team2_id']))}
+    d['team1_nom'] = noms.get(d['team1_id'], 'Team supprimée')
+    d['team2_nom'] = noms.get(d['team2_id'], 'Team supprimée')
+    d['date_fr'] = il_y_a(d['created_at']) if d.get('created_at') else ''
+    if d['statut'] == 'attente' and d.get('created_at'):
+        fin = datetime.strptime(d['created_at'][:19], '%Y-%m-%d %H:%M:%S') + timedelta(hours=DELAI_CONFIRMATION_H)
+        d['heures_restantes'] = max(0, int((fin - datetime.utcnow()).total_seconds() // 3600))
+    return d
+
+
+@app.route('/api/resultats', methods=['GET'])
+@api_connectee
+def api_resultats():
+    db = get_db()
+    jeu, erreur = jeu_ou_erreur(db)
+    if erreur:
+        return erreur
+    valider_declarations_expirees(db)
+    team = ma_team_dans_jeu(db, jeu['id'])
+    if not team:
+        return jsonify({'team': None}), 200
+    c = db.cursor()
+    tid = team['id']
+    ligue = c.execute('SELECT ligue_num, poule FROM ligue WHERE team_id = ?', (tid,)).fetchone()
+    adversaires = []
+    if ligue:
+        saison = saison_actuelle(db, jeu['id'])
+        for r in c.execute("""SELECT t.id, t.nom FROM ligue l JOIN teams t ON t.id = l.team_id
+                              WHERE l.ligue_num = ? AND l.poule = ? AND t.id != ? AND t.jeu_id = ? ORDER BY t.nom""",
+                           (ligue['ligue_num'], ligue['poule'], tid, jeu['id'])).fetchall():
+            joues = c.execute("""SELECT COUNT(*) FROM matchs WHERE saison = ? AND jeu_id = ?
+                                 AND ((team1_id = ? AND team2_id = ?) OR (team1_id = ? AND team2_id = ?))""",
+                              (saison, jeu['id'], tid, r['id'], r['id'], tid)).fetchone()[0]
+            adversaires.append({'id': r['id'], 'nom': r['nom'], 'joues': joues})
+    liste = lambda cond, *p: [declaration_publique(c, d) for d in c.execute(
+        f'SELECT * FROM declarations WHERE jeu_id = ? AND {cond} ORDER BY id DESC LIMIT 10', (jeu['id'], *p)).fetchall()]
+    return jsonify({
+        'team': team, 'capitaine': team['capitaine'], 'adversaires': adversaires, 'delai_h': DELAI_CONFIRMATION_H,
+        'a_confirmer': liste("statut = 'attente' AND team2_id = ?", tid),
+        'en_attente': liste("statut = 'attente' AND team1_id = ?", tid),
+        'litiges': liste("statut = 'conteste' AND (team1_id = ? OR team2_id = ?)", tid, tid),
+        'recents': liste("statut IN ('valide', 'refuse', 'annule') AND (team1_id = ? OR team2_id = ?) AND traite_at >= datetime('now', '-7 days')", tid, tid),
+    }), 200
+
+
+@app.route('/api/resultats/declarer', methods=['POST'])
+@api_connectee
+def api_resultats_declarer():
+    db = get_db()
+    jeu, erreur = jeu_ou_erreur(db)
+    if erreur:
+        return erreur
+    team = ma_team_dans_jeu(db, jeu['id'])
+    if not team or not team['capitaine']:
+        return jsonify({'success': False, 'error': 'Seul le capitaine peut déclarer un résultat'}), 403
+    data = donnees_json()
+    adv_id = entier(data.get('adversaire_id'))
+    pour, contre = entier(data.get('score_pour')), entier(data.get('score_contre'))
+    if adv_id is None:
+        return jsonify({'success': False, 'error': "Choisis l'équipe adverse"}), 400
+    if pour is None or contre is None or not (0 <= pour <= SCORE_MAX and 0 <= contre <= SCORE_MAX):
+        return jsonify({'success': False, 'error': f'Les scores doivent être des nombres entre 0 et {SCORE_MAX}'}), 400
+    if pour == contre:
+        return jsonify({'success': False, 'error': 'Pas de match nul : il faut un gagnant'}), 400
+    c = db.cursor()
+    l1 = c.execute('SELECT ligue_num, poule FROM ligue WHERE team_id = ?', (team['id'],)).fetchone()
+    l2 = c.execute('SELECT l.ligue_num, l.poule, t.nom, t.jeu_id FROM ligue l JOIN teams t ON t.id = l.team_id WHERE t.id = ?', (adv_id,)).fetchone()
+    if not l1 or not l2 or l2['jeu_id'] != jeu['id'] or (l1['ligue_num'], l1['poule']) != (l2['ligue_num'], l2['poule']) or adv_id == team['id']:
+        return jsonify({'success': False, 'error': 'Cette équipe n\'est pas dans ta poule'}), 400
+    deja = c.execute("""SELECT 1 FROM declarations WHERE statut IN ('attente', 'conteste')
+                        AND ((team1_id = ? AND team2_id = ?) OR (team1_id = ? AND team2_id = ?))""",
+                     (team['id'], adv_id, adv_id, team['id'])).fetchone()
+    if deja:
+        return jsonify({'success': False, 'error': 'Un résultat est déjà en attente entre vos deux équipes'}), 400
+    c.execute("""INSERT INTO declarations (jeu_id, saison, team1_id, team2_id, score1, score2, par_user_id, statut, created_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, 'attente', datetime('now'))""",
+              (jeu['id'], saison_actuelle(db, jeu['id']), team['id'], adv_id, pour, contre, session['user_id']))
+    notifier(c, [capitaine_de(c, adv_id)],
+             f"{team['nom']} déclare {contre}-{pour} pour vous ({'défaite' if pour > contre else 'victoire'}). "
+             f"Confirme ou conteste sous {DELAI_CONFIRMATION_H} h.", '/teams#resultats')
+    db.commit()
+    return jsonify({'success': True}), 201
+
+
+def declaration_ou_erreur(c, declaration_id):
+    d = c.execute('SELECT * FROM declarations WHERE id = ?', (declaration_id,)).fetchone()
+    if not d:
+        return None, (jsonify({'success': False, 'error': 'Résultat introuvable'}), 404)
+    return d, None
+
+
+@app.route('/api/resultats/<int:declaration_id>/<action>', methods=['POST'])
+@api_connectee
+def api_resultats_repondre(declaration_id, action):
+    db = get_db()
+    c = db.cursor()
+    d, erreur = declaration_ou_erreur(c, declaration_id)
+    if erreur:
+        return erreur
+    uid = session['user_id']
+    if d['statut'] != 'attente':
+        return jsonify({'success': False, 'error': 'Ce résultat a déjà été traité'}), 400
+    noms = {r['id']: r['nom'] for r in c.execute('SELECT id, nom FROM teams WHERE id IN (?, ?)', (d['team1_id'], d['team2_id']))}
+    if action == 'annuler':
+        if capitaine_de(c, d['team1_id']) != uid:
+            return jsonify({'success': False, 'error': 'Seul le capitaine qui a déclaré peut annuler'}), 403
+        c.execute("UPDATE declarations SET statut = 'annule', traite_at = datetime('now') WHERE id = ?", (d['id'],))
+        db.commit()
+        return jsonify({'success': True}), 200
+    if capitaine_de(c, d['team2_id']) != uid:
+        return jsonify({'success': False, 'error': "Seul le capitaine de l'équipe adverse peut répondre"}), 403
+    if action == 'confirmer':
+        message = valider_declaration(c, db, d)
+        if message:
+            db.commit()
+            return jsonify({'success': False, 'error': message}), 400
+        notifier(c, [capitaine_de(c, d['team1_id'])], noms.get(d['team2_id'], "L'adversaire") + f" a confirmé le résultat {d['score1']}-{d['score2']}.",
+                 '/teams#resultats')
+        db.commit()
+        return jsonify({'success': True}), 200
+    if action == 'contester':
+        motif = texte(donnees_json(), 'motif', 300)
+        if not motif:
+            return jsonify({'success': False, 'error': 'Explique en quelques mots ce qui ne va pas'}), 400
+        c.execute("UPDATE declarations SET statut = 'conteste', motif = ?, traite_at = datetime('now') WHERE id = ?",
+                  (motif, d['id']))
+        a, b = noms.get(d['team1_id'], '?'), noms.get(d['team2_id'], '?')
+        notifier(c, [capitaine_de(c, d['team1_id'])], f"{b} conteste le résultat {d['score1']}-{d['score2']} : un admin va trancher.", '/teams#resultats')
+        notifier(c, [r[0] for r in c.execute('SELECT id FROM users WHERE is_admin = 1')],
+                 f"Litige : {a} vs {b} ({d['score1']}-{d['score2']} contesté)", '/admin#matchs')
+        db.commit()
+        return jsonify({'success': True}), 200
+    return jsonify({'success': False, 'error': 'Action inconnue'}), 400
+
+
+@app.route('/api/admin/declarations', methods=['GET'])
+@api_admin
+def api_admin_declarations():
+    db = get_db()
+    jeu, erreur = jeu_ou_erreur(db)
+    if erreur:
+        return erreur
+    valider_declarations_expirees(db)
+    c = db.cursor()
+    rows = c.execute("""SELECT * FROM declarations WHERE jeu_id = ? AND statut IN ('conteste', 'attente')
+                        ORDER BY statut = 'attente', id""", (jeu['id'],)).fetchall()
+    return jsonify([declaration_publique(c, d) for d in rows]), 200
+
+
+@app.route('/api/admin/declarations/<int:declaration_id>', methods=['POST'])
+@api_admin
+def api_admin_trancher(declaration_id):
+    db = get_db()
+    c = db.cursor()
+    d, erreur = declaration_ou_erreur(c, declaration_id)
+    if erreur:
+        return erreur
+    if d['statut'] not in ('attente', 'conteste'):
+        return jsonify({'success': False, 'error': 'Ce résultat a déjà été traité'}), 400
+    data = donnees_json()
+    capitaines = [capitaine_de(c, d['team1_id']), capitaine_de(c, d['team2_id'])]
+    if data.get('action') == 'valider':
+        s1 = entier(data.get('score1')) if data.get('score1') is not None else None
+        s2 = entier(data.get('score2')) if data.get('score2') is not None else None
+        message = valider_declaration(c, db, d, s1, s2, reponse='admin')
+        db.commit()
+        if message:
+            return jsonify({'success': False, 'error': message}), 400
+        return jsonify({'success': True}), 200
+    if data.get('action') == 'refuser':
+        c.execute("UPDATE declarations SET statut = 'refuse', reponse = 'admin', traite_at = datetime('now') WHERE id = ?", (d['id'],))
+        notifier(c, capitaines, f"Un admin a refusé le résultat déclaré {d['score1']}-{d['score2']} : à rejouer ou à redéclarer.", '/teams#resultats')
+        db.commit()
+        return jsonify({'success': True}), 200
+    return jsonify({'success': False, 'error': 'Action inconnue'}), 400
 
 
 @app.route('/api/admin/matchs/<int:match_id>/delete', methods=['POST'])
@@ -2115,6 +2409,7 @@ def api_admin_users():
         u = dict(r)
         u['is_admin'] = bool(u['is_admin'])
         u['bloque'] = bool(u['bloque'])
+        u['fondateur'] = possede(get_db(), u['id'], 'fondateur')
         u['is_me'] = u['id'] == session['user_id']
         u['photo'] = url_media('avatars', u['photo'])
         u['banniere'] = url_media('bannieres', u['banniere'])
@@ -2145,9 +2440,42 @@ def api_admin_set_admin(user_id):
     if user_id == session['user_id'] and not valeur:
         return jsonify({'success': False, 'error': 'Vous ne pouvez pas retirer vos propres droits admin'}), 400
     db = get_db()
-    cur = db.execute('UPDATE users SET is_admin = ? WHERE id = ?', (1 if valeur else 0, user_id))
-    if cur.rowcount == 0:
+    c = db.cursor()
+    u = c.execute('SELECT is_admin FROM users WHERE id = ?', (user_id,)).fetchone()
+    if not u:
         return jsonify({'success': False, 'error': 'Joueur introuvable'}), 404
+    if valeur and not u['is_admin'] and c.execute('SELECT COUNT(*) FROM users WHERE is_admin = 1').fetchone()[0] >= ADMINS_MAX:
+        return jsonify({'success': False, 'error': f'Il y a déjà {ADMINS_MAX} admins (le maximum). Retire les droits à quelqu\'un d\'abord.'}), 400
+    c.execute('UPDATE users SET is_admin = ? WHERE id = ?', (1 if valeur else 0, user_id))
+    if valeur:
+        donner_objet(c, user_id, 'admin', equiper=not c.execute('SELECT 1 FROM users WHERE id = ? AND badge_equipe = ?', (user_id, 'fondateur')).fetchone())
+        notifier(c, [user_id], "Tu fais maintenant partie de l'équipe d'orga : badge Admin débloqué.", '/admin')
+    else:
+        retirer_objet(c, user_id, 'admin')
+    db.commit()
+    return jsonify({'success': True}), 200
+
+
+@app.route('/api/admin/users/<int:user_id>/fondateur', methods=['POST'])
+@api_admin
+def api_admin_set_fondateur(user_id):
+    """Donne ou retire le badge Fondateur (3 comptes maximum)."""
+    valeur = donnees_json().get('fondateur')
+    if not isinstance(valeur, bool):
+        return jsonify({'success': False, 'error': 'Valeur invalide'}), 400
+    db = get_db()
+    c = db.cursor()
+    if not c.execute('SELECT 1 FROM users WHERE id = ?', (user_id,)).fetchone():
+        return jsonify({'success': False, 'error': 'Joueur introuvable'}), 404
+    if valeur:
+        if possede(db, user_id, 'fondateur'):
+            return jsonify({'success': True}), 200
+        if porteurs(db, 'fondateur') >= FONDATEURS_MAX:
+            return jsonify({'success': False, 'error': f'Les {FONDATEURS_MAX} badges Fondateur sont déjà donnés. Retire-le à quelqu\'un d\'abord.'}), 400
+        donner_objet(c, user_id, 'fondateur')
+        notifier(c, [user_id], 'Badge Fondateur débloqué : merci d\'avoir lancé la XHQ League !', '/shop')
+    else:
+        retirer_objet(c, user_id, 'fondateur')
     db.commit()
     return jsonify({'success': True}), 200
 
@@ -2415,6 +2743,31 @@ def classement_poule_tournoi(db, tournoi_id, poule, noms):
 def qualifies_par_poule(nb_poules):
     # Une seule poule : les 4 premiers vont en demi-finales. Sinon les 2 premiers de chaque poule.
     return 4 if nb_poules == 1 else 2
+
+
+def porteurs(db, code):
+    return db.execute("""SELECT COUNT(*) FROM inventory i JOIN shop_items s ON s.id = i.item_id
+                         WHERE s.code = ?""", (code,)).fetchone()[0]
+
+
+def donner_objet(c, user_id, code, equiper=True):
+    """Ajoute un objet à l'inventaire (s'il n'y est pas) et l'équipe si demandé."""
+    item = c.execute('SELECT id, type FROM shop_items WHERE code = ?', (code,)).fetchone()
+    if not item:
+        return
+    if not c.execute('SELECT 1 FROM inventory WHERE user_id = ? AND item_id = ?', (user_id, item['id'])).fetchone():
+        c.execute("INSERT INTO inventory (user_id, item_id, bought_at) VALUES (?, ?, datetime('now'))", (user_id, item['id']))
+    if equiper and item['type'] in ('badge', 'cadre'):
+        c.execute(f"UPDATE users SET {item['type']}_equipe = ? WHERE id = ?", (code, user_id))
+
+
+def retirer_objet(c, user_id, code):
+    item = c.execute('SELECT id, type FROM shop_items WHERE code = ?', (code,)).fetchone()
+    if not item:
+        return
+    c.execute('DELETE FROM inventory WHERE user_id = ? AND item_id = ?', (user_id, item['id']))
+    if item['type'] in ('badge', 'cadre'):
+        c.execute(f"UPDATE users SET {item['type']}_equipe = NULL WHERE id = ? AND {item['type']}_equipe = ?", (user_id, code))
 
 
 def donner_badge_champion(c, team_id):
@@ -3264,10 +3617,15 @@ def api_admin_exporter():
 
 def promouvoir_admin(email):
     conn = sqlite3.connect(DB_PATH)
-    cur = conn.execute('UPDATE users SET is_admin = 1 WHERE lower(email) = lower(?)', (email.strip(),))
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    u = c.execute('SELECT id FROM users WHERE lower(email) = lower(?)', (email.strip(),)).fetchone()
+    if u:
+        c.execute('UPDATE users SET is_admin = 1 WHERE id = ?', (u['id'],))
+        donner_objet(c, u['id'], 'admin', equiper=False)
     conn.commit()
     conn.close()
-    return cur.rowcount > 0
+    return u is not None
 
 
 if __name__ == '__main__':
