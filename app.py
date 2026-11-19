@@ -654,6 +654,9 @@ def init_db():
     c.execute('CREATE UNIQUE INDEX IF NOT EXISTS inventory_unique ON inventory (user_id, item_id)')
     c.execute('CREATE INDEX IF NOT EXISTS limites_cle ON limites (cle, created_at)')
     ajouter_colonne(c, 'users', 'session_v', 'INTEGER DEFAULT 0')
+    ajouter_colonne(c, 'users', 'email_verifie', 'INTEGER DEFAULT 1')     # comptes d'avant : déjà valables
+    ajouter_colonne(c, 'users', 'verif_jeton', 'TEXT')                    # empreinte du lien de confirmation
+    ajouter_colonne(c, 'users', 'verif_envoye_at', 'TEXT')
     ajouter_colonne(c, 'users', 'echecs_connexion', 'INTEGER DEFAULT 0')
     ajouter_colonne(c, 'users', 'verrou_niveau', 'INTEGER DEFAULT 0')
     ajouter_colonne(c, 'users', 'verrou_definitif', 'INTEGER DEFAULT 0')
@@ -807,7 +810,7 @@ def utilisateur_connecte():
     if uid is None:
         return None
     if 'user' not in g:
-        g.user = get_db().execute('SELECT id, username, email, profile_pic, is_admin, photo, handle, bloque, session_v FROM users WHERE id = ?', (uid,)).fetchone()
+        g.user = get_db().execute('SELECT id, username, email, profile_pic, is_admin, photo, handle, bloque, session_v, email_verifie FROM users WHERE id = ?', (uid,)).fetchone()
         # Compte supprimé, suspendu, ou mot de passe changé depuis l'ouverture de cette session : on déconnecte
         if g.user is None or g.user['bloque'] or version_session(uid) != (g.user['session_v'] or 0):
             session.clear()
@@ -931,6 +934,8 @@ def injecter_utilisateur():
                         'handle': user['handle'], 'autres_comptes': autres_comptes(get_db(), user['id']),
                         'notifs': get_db().execute('SELECT COUNT(*) FROM notifications WHERE user_id = ? AND lu = 0',
                                                    (user['id'],)).fetchone()[0],
+                        'email_a_confirmer': email_a_confirmer(user),
+                        'email_masque': user['email'][:3] + '•' * max(3, len(user['email'].split('@')[0]) - 3) + '@' + user['email'].split('@')[-1],
                         **apparence(get_db(), user['id'])}
     db = get_db()
     jeux = liste_jeux(db)
@@ -1080,7 +1085,7 @@ def mot_interdit(texte_brut, db=None):
         return None
     db = db or get_db()
     r = db.execute("SELECT valeur FROM parametres WHERE cle = 'mots_interdits'").fetchone()
-    mots = [simplifier(m.strip()) for m in (r['valeur'] if r else '').splitlines() if m.strip()]
+    mots = [simplifier(m.strip()) for m in (r['valeur'] if r else MOTS_INTERDITS_DEFAUT).splitlines() if m.strip()]
     if not mots:
         return None
     simple = simplifier(texte_brut)
@@ -1252,41 +1257,120 @@ def js_requis():
 # ---------------------------------------------------------------------------
 REGLEMENT_DEFAUT = """# Les teams
 - Une team compte de 3 à {max_membres} joueurs (titulaires et remplaçants). Le capitaine gère la team et déclare les scores.
-- Un joueur ne joue que dans une seule team par jeu.
+- Un joueur ne joue que dans une seule team par jeu. Pas de compte multiple, pas de joueur prêté.
 
 # Les ligues
-- Toute nouvelle team commence en Ligue 5. Il y a 5 ligues, découpées en poules de 8 teams.
-- Une victoire rapporte {points_victoire} points, une défaite {points_defaite}. Pas de match nul.
-- Le calendrier de la saison est publié sur le site : chaque team affronte une fois les autres teams de sa poule.
+- Il y a 5 ligues : Ligue 1 (la meilleure), 2, 3, puis les Ligues 4 et 5 avec 2 poules chacune. Une poule = 8 teams.
+- Une nouvelle team prend la plus haute ligue encore libre : la Ligue 1 se remplit en premier, puis la 2, et ainsi de suite.
+- Quand toutes les places sont prises, les nouvelles teams passent en liste d'attente (les premières inscrites entrent en premier).
 
-# Les scores
-- Après chaque match, le capitaine déclare le score. L'équipe adverse confirme ou conteste.
+# Le lancement d'une ligue
+- Une ligue démarre quand elle est pleine. Le calendrier est publié le dimanche à 15h et les matchs commencent le lundi à 9h.
+- Chaque team affronte une fois chaque autre team de sa poule : 7 matchs, un tous les 3 jours. Une saison dure 3 semaines.
+- Quand toutes les ligues tournent, elles finissent et recommencent ensemble : fin le dimanche à 15h, reprise le lundi à 9h.
+
+# Les matchs et les scores
+- Un match se joue entre la date prévue et la journée suivante. Mettez-vous d'accord sur l'heure entre capitaines.
+- Une victoire rapporte {points_victoire} points, une défaite {points_defaite}. Pas de match nul.
+- Après le match, le capitaine gagnant déclare le score. L'équipe adverse confirme ou conteste.
 - Sans réponse sous {delai_h} heures, le score est validé automatiquement.
-- En cas de désaccord, un admin tranche. Garde des captures d'écran de tes matchs.
+- En cas de désaccord, un admin tranche. Gardez toujours des captures d'écran de vos matchs.
 
 # Fin de saison
-- Les premiers de chaque poule montent, les derniers descendent.
-- Une team qui n'a joué aucun match est retirée du classement.
+- Les premiers de chaque poule montent, les derniers descendent. Le champion de Ligue 1 gagne le titre de la saison.
+- Une team qui n'a joué aucun match de la saison est retirée du classement.
 - Chaque match non joué coûte {penalite_par_match} point de pénalité (jusqu'à {penalite_max}), doublé en cas de récidive.
+- S'il y a des teams en liste d'attente, le dernier de chaque poule de Ligue 5 leur laisse sa place.
 
 # Fair-play
-- Pas d'insultes, de triche ni de comptes multiples. L'orga peut retirer des points, exclure une team ou suspendre un compte.
+- Pas d'insultes, de triche, de bug exploité volontairement ni de comptes multiples.
+- L'orga peut retirer des points, annuler un match, exclure une team ou suspendre un compte.
+- Un doute, un litige ? Écris-nous par la page Contact ou sur le Discord.
 """
 
-FAQ_DEFAUT = """Comment inscrire ma team ?
-Crée ton compte, puis va dans Teams → Créer une team. Tes amis te rejoignent depuis la même page.
+FAQ_DEFAUT = """C'est payant ?
+Non. Tout est gratuit : l'inscription, les ligues, les tournois et les badges du Shop.
 
-C'est payant ?
-Non. Tout est gratuit, y compris les badges du Shop.
+Comment inscrire ma team ?
+Crée ton compte, confirme ton email, puis va dans Teams → Créer une team. Tes amis te rejoignent depuis la même page.
+
+Dans quelle ligue va ma team ?
+Dans la plus haute ligue encore libre : la Ligue 1 se remplit en premier, puis la 2, la 3… Si tout est plein, ta team est en liste d'attente et entre dès qu'une place se libère.
+
+Quand commencent les matchs ?
+Dès que ta ligue est pleine : le calendrier sort le dimanche à 15h et le premier match a lieu le lundi à 9h. Tu reçois une notification.
+
+Combien de temps dure une saison ?
+3 semaines : 7 matchs, un tous les 3 jours. Ensuite, les premiers montent, les derniers descendent, et tout repart le lundi suivant.
 
 Qui déclare les scores ?
-Le capitaine, juste après le match. L'équipe adverse confirme ou conteste ; un admin tranche en cas de litige.
+Le capitaine, juste après le match. L'équipe adverse confirme ou conteste ; sans réponse, le score est validé tout seul. En cas de litige, un admin tranche.
+
+Et si on ne peut pas jouer un match ?
+Préviens l'autre capitaine pour trouver un autre moment. Un match jamais joué coûte un point de pénalité en fin de saison.
+
+Je n'ai pas reçu l'email de confirmation.
+Regarde dans tes spams, puis clique sur « Renvoyer l'email » dans le bandeau en haut du site.
 
 J'ai oublié mon mot de passe.
 Sur la page de connexion, clique sur « Mot de passe oublié » : tu reçois un lien par email.
 
 Comment contacter l'orga ?
 Par la page Contact du site ou sur notre Discord."""
+
+# Liste de départ des mots interdits (Admin → Réglages, modifiable). Les variantes en l33t, avec des points
+# ou des lettres répétées sont attrapées automatiquement : inutile de les écrire.
+MOTS_INTERDITS_DEFAUT = """connard
+connasse
+salope
+salaud
+encule
+enculer
+batard
+fdp
+ntm
+niquer
+pute
+putain
+pd
+pede
+tapette
+gouine
+negro
+negre
+bougnoule
+youpin
+bicot
+chinetoque
+nazi
+hitler
+mongol
+abruti
+debile
+cul
+bite
+couille
+chatte
+porn
+porno
+sexe
+viol
+violer
+pedophile
+terroriste
+fuck
+fucker
+bitch
+nigger
+nigga
+faggot
+cunt
+whore
+slut
+dick
+pussy
+rape
+"""
 
 ACCUEIL_DEFAUT = {'accueil_ligne1': 'La ligue où', 'accueil_ligne2': 'chaque match', 'accueil_ligne3': 'compte.',
                   'accueil_texte': "Monte ta team, prends ta place dans la ligue et vise la Ligue 1. Des saisons de 3 semaines, "
@@ -1393,7 +1477,7 @@ def api_admin_reglages():
     mots = db.execute("SELECT valeur FROM parametres WHERE cle = 'mots_interdits'").fetchone()
     return jsonify({'reglages': [{'cle': k, 'valeur': reglage(k), 'defaut': d, 'min': mi, 'max': ma, 'libelle': l}
                                  for k, (d, mi, ma, l) in REGLAGES.items()],
-                    'mots_interdits': mots['valeur'] if mots else ''}), 200
+                    'mots_interdits': mots['valeur'] if mots else MOTS_INTERDITS_DEFAUT.strip()}), 200
 
 
 @app.route('/api/admin/statistiques', methods=['GET'])
@@ -1589,12 +1673,79 @@ def api_signup():
             (email, username, generate_password_hash(password), AVATAR_DEFAUT, SOLDE_DEPART))
         attribuer_handle(db, cur.lastrowid, username)
         noter_action('signup:' + ip_client())
+        if config_mail():
+            db.execute('UPDATE users SET email_verifie = 0 WHERE id = ?', (cur.lastrowid,))
         db.commit()
     except sqlite3.IntegrityError:
         return jsonify({'success': False, 'error': 'Email ou nom d\'utilisateur déjà pris'}), 400
 
     connecter(cur.lastrowid)
-    return jsonify({'success': True}), 201
+    envoye = envoyer_confirmation_email(db, cur.lastrowid) if config_mail() else False
+    return jsonify({'success': True, 'confirmation': bool(config_mail()), 'mail_envoye': envoye}), 201
+
+
+# ---------------------------------------------------------------------------
+# Confirmation de l'email : sans elle, pas de team ni de badge (bloque les faux comptes en série)
+# ---------------------------------------------------------------------------
+def email_a_confirmer(user):
+    """Vrai si ce compte doit encore confirmer son email (seulement quand l'envoi d'emails est activé)."""
+    return bool(user) and not user['email_verifie'] and config_mail() is not None
+
+
+def exiger_email_confirme():
+    """Réponse d'erreur si le joueur connecté n'a pas encore confirmé son email, sinon None."""
+    if email_a_confirmer(utilisateur_connecte()):
+        return jsonify({'success': False, 'email_a_confirmer': True,
+                        'error': "Confirme d'abord ton email : clique sur le lien qu'on t'a envoyé (pense aux spams)."}), 403
+    return None
+
+
+def envoyer_confirmation_email(db, user_id):
+    u = db.execute('SELECT username, email FROM users WHERE id = ?', (user_id,)).fetchone()
+    conf = config_mail()
+    if not u or not conf:
+        return False
+    jeton = secrets.token_urlsafe(32)
+    db.execute("UPDATE users SET verif_jeton = ?, verif_envoye_at = datetime('now') WHERE id = ?", (hash_jeton(jeton), user_id))
+    db.commit()
+    site = (conf.get('site') or SITE_URL_DEFAUT).rstrip('/')
+    return envoyer_mail(u['email'], 'XHQ League · Confirme ton email', f"""Salut {u['username']},
+
+Bienvenue sur XHQ League ! Clique sur ce lien pour confirmer ton email et débloquer ton compte
+(créer ou rejoindre une team, récupérer tes badges) :
+
+{site}/confirmer-email/{jeton}
+
+Si tu ne t'es pas inscrit, ignore ce message.
+
+L'équipe XHQ""")
+
+
+@app.route('/confirmer-email/<jeton>')
+def confirmer_email(jeton):
+    db = get_db()
+    u = db.execute('SELECT id FROM users WHERE verif_jeton = ? AND email_verifie = 0', (hash_jeton(jeton[:100]),)).fetchone()
+    if u:
+        db.execute('UPDATE users SET email_verifie = 1, verif_jeton = NULL WHERE id = ?', (u['id'],))
+        db.commit()
+    texte_page = ("# C'est confirmé !\nTon email est validé : tu peux créer ou rejoindre une team et récupérer tes badges dans le Shop."
+                  if u else "# Lien expiré\nCe lien a déjà servi ou n'est plus valable. Connecte-toi : si ton email n'est pas encore confirmé, "
+                            "le bandeau en haut du site te permet de recevoir un nouveau lien.")
+    return render_template('page_texte.html', titre='Confirmation de l\'email', kicker='Compte', blocs=mettre_en_forme(texte_page))
+
+
+@app.route('/api/email/renvoyer', methods=['POST'])
+@api_connectee
+def api_renvoyer_confirmation():
+    db = get_db()
+    if not email_a_confirmer(utilisateur_connecte()):
+        return jsonify({'success': True, 'deja': True}), 200
+    if limite_atteinte(f"verif:{session['user_id']}", 3, 60):
+        return jsonify({'success': False, 'error': 'Déjà 3 emails envoyés : attends un peu, et regarde dans tes spams.'}), 429
+    noter_action(f"verif:{session['user_id']}")
+    if not envoyer_confirmation_email(db, session['user_id']):
+        return jsonify({'success': False, 'error': "L'email n'a pas pu partir. Réessaie dans quelques minutes."}), 503
+    return jsonify({'success': True}), 200
 
 
 @app.route('/api/login', methods=['POST'])
@@ -2211,6 +2362,8 @@ def api_create_team():
     jeu, erreur = jeu_ou_erreur(db)
     if erreur:
         return erreur
+    if exiger_email_confirme():
+        return exiger_email_confirme()
     c = db.cursor()
     if c.execute('SELECT 1 FROM team_members WHERE user_id = ? AND jeu_id = ?', (uid, jeu['id'])).fetchone():
         return jsonify({'success': False, 'error': f"Vous êtes déjà dans une team {jeu['nom']}"}), 400
@@ -2239,6 +2392,8 @@ def api_join_team(team_id):
     jeu_id = jeu_de_team(db, team_id)
     if jeu_id is None:
         return jsonify({'success': False, 'error': 'Team introuvable'}), 404
+    if exiger_email_confirme():
+        return exiger_email_confirme()
     if db.execute('SELECT 1 FROM team_members WHERE user_id = ? AND jeu_id = ?', (uid, jeu_id)).fetchone():
         return jsonify({'success': False, 'error': 'Vous êtes déjà dans une team pour ce jeu'}), 400
     if db.execute("""SELECT 1 FROM team_exclusions WHERE team_id = ? AND user_id = ?
@@ -2652,6 +2807,8 @@ def api_shop_buy(item_id):
     item = db.execute('SELECT id, code, nom, type FROM shop_items WHERE id = ? AND code IS NOT NULL', (item_id,)).fetchone()
     if not item:
         return jsonify({'success': False, 'error': 'Objet introuvable'}), 404
+    if exiger_email_confirme():
+        return exiger_email_confirme()
     if possede(db, uid, item['code']):
         return jsonify({'success': False, 'error': 'Tu as déjà cet objet'}), 400
     dispo, raison = disponibilite(db, uid, item['code'])
@@ -4010,9 +4167,12 @@ def debut_saison_paris(db, jeu_id):
 def programme_ligue(db, jeu_id, saison, ligue_num):
     """(calendrier, coup d'envoi) prévus pour une ligue pleine pas encore lancée, en heure de France."""
     r = db.execute('SELECT valeur FROM parametres WHERE cle = ?', (f'pleine_{jeu_id}_{saison}_{ligue_num}',)).fetchone()
-    if not r:
+    if r:
+        pleine = datetime.strptime(r['valeur'], '%Y-%m-%d %H:%M:%S')
+    elif ligue_pleine(db, jeu_id, ligue_num):
+        pleine = maintenant_paris()      # vient d'être remplie : la tâche automatique la notera à la prochaine visite
+    else:
         return None, None
-    pleine = datetime.strptime(r['valeur'], '%Y-%m-%d %H:%M:%S')
     debut_saison = debut_saison_paris(db, jeu_id)
     if debut_saison and pleine <= debut_saison + timedelta(hours=2):
         calendrier = pleine        # pleine dès la fin de la saison d'avant : on repart tous ensemble tout de suite

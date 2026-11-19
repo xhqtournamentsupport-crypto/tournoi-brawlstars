@@ -67,3 +67,9 @@
             <button class="burger" type="button" id="burger" aria-label="Menu" aria-expanded="false" aria-controls="nav-capsule"><i></i><i></i><i></i></button>
         </div>
     </nav>
+    {% if current_user and current_user.email_a_confirmer %}
+    <div class="bandeau-email" id="bandeau-email" role="status">
+        <span>📩 <strong>Confirme ton email</strong> : clique sur le lien envoyé à {{ current_user.email_masque }} (regarde aussi dans les spams). Sans ça, pas de team ni de badge.</span>
+        <button type="button" class="btn secondaire petit" id="renvoyer-email">Renvoyer l'email</button>
+    </div>
+    {% endif %}

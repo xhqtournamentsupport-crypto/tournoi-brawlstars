@@ -80,7 +80,7 @@
             const { ok, data } = await api('/api/signup', { method: 'POST', body, noRedirect: true });
             
             if (ok && data.success) {
-                window.location.href = '/';
+                window.location.href = data.confirmation ? '/teams' : '/';   // le bandeau du haut demande de confirmer l'email
                 return;
             }
             btn.disabled = false;

@@ -483,6 +483,18 @@ function editeurBanniere(racine, { url, pos = 50, zoom = 100, routes, message })
     });
 })();
 
+// Bandeau « Confirme ton email » : renvoyer le lien
+document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('renvoyer-email');
+    if (!btn) return;
+    btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        const { ok, data } = await api('/api/email/renvoyer', { method: 'POST' });
+        btn.textContent = ok && data.success ? (data.deja ? 'Déjà confirmé ✓' : 'Email renvoyé ✓') : (data.error || 'Erreur');
+        if (!(ok && data.success)) setTimeout(() => { btn.disabled = false; btn.textContent = "Renvoyer l'email"; }, 4000);
+    });
+});
+
 // Thème du site (Profil → Apparence) : sombre, clair, ou comme l'appareil. Gardé dans ce navigateur.
 (() => {
     const racine = document.documentElement;

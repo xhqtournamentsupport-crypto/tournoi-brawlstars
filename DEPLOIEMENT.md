@@ -116,3 +116,19 @@ Tout ce qui est automatique se déclenche pendant les visites du site (pas besoi
 - **Admin → Saison → « Programmer »** (fondateurs) : la saison se clôture toute seule à la date choisie, joueurs prévenus. Annulable.
 - **Admin → Stats** : joueurs, teams actives, matchs, tournois, part des scores réglés par un admin,
   et deux graphiques sur 12 semaines (inscriptions, matchs), avec un tableau pour les chiffres exacts.
+
+## Lancement automatique des ligues (rien à faire)
+- Une nouvelle team prend la **plus haute ligue libre** : la Ligue 1 se remplit en premier, puis la 2, la 3…
+- Une ligue **pleine depuis au moins 24 h** reçoit son calendrier le **dimanche à 15h** et commence le **lundi à 9h** :
+  7 journées, une tous les 3 jours (lun, jeu, dim, mer, sam, mar, ven), soit 3 semaines.
+- Quand **toutes** les ligues ont leur calendrier, la fin de saison commune est programmée toute seule
+  (le dimanche 15h après la dernière journée). Ensuite, toutes les ligues repartent ensemble le lundi à 9h.
+- Tout est plein : les nouvelles teams vont en **liste d'attente**. À chaque fin de saison, le dernier de chaque
+  poule de Ligue 5 leur laisse sa place. Suivi dans **Admin → Saison → Lancement des ligues**.
+- Si le site ne se remplit jamais complètement, tu peux toujours clôturer ou programmer la fin de saison à la main.
+
+## Confirmation de l'email
+- Quand l'envoi d'emails est activé, chaque nouveau compte reçoit un lien de confirmation. Tant qu'il n'a pas cliqué,
+  il ne peut ni créer / rejoindre une team, ni récupérer de badge (ça empêche les faux comptes en série pour le badge OG).
+- Un bandeau en haut du site lui rappelle, avec un bouton « Renvoyer l'email » (3 fois par heure maximum).
+- Les comptes créés avant cette mise à jour sont déjà considérés comme confirmés.
