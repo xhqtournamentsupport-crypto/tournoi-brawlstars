@@ -27,16 +27,22 @@
         .scene-grille { max-width: 1180px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 3rem; align-items: center; }
         .scene .jeux-switch { margin: 0 0 2rem; background: rgba(var(--fond), 0.45); backdrop-filter: blur(10px); }
         /* Bandeau de la dernière annonce de l'orga */
-        .bandeau-annonce { display: inline-flex; align-items: center; gap: 0.6rem; max-width: 100%; margin: 0 0 1.4rem; padding: 0.3rem 0.9rem 0.3rem 0.3rem;
-            border: 1px solid rgba(124, 108, 255, 0.45); border-radius: 999px; background: rgba(var(--fond), 0.55); backdrop-filter: blur(10px);
-            color: var(--text); text-decoration: none; font-size: 0.92rem; animation: entree 0.9s var(--courbe) both; box-sizing: border-box;
-            transition: border-color 0.25s, transform 0.25s var(--courbe), box-shadow 0.25s; }
-        .bandeau-annonce:hover { border-color: var(--violet); transform: translateY(-1px); box-shadow: 0 8px 26px rgba(124, 108, 255, 0.25); }
-        .scene-texte { min-width: 0; }   /* une annonce au titre long ne doit pas élargir la colonne */
+        /* Dernière annonce de l'orga : carte en haut de la colonne de droite */
+        .scene-droite { display: flex; flex-direction: column; gap: 1.2rem; min-width: 0; }
+        .scene-droite.avec-annonce .compo { height: 400px; }
+        .scene-droite.avec-annonce .carte-top { top: 40px; }
+        .carte-annonce { position: relative; display: flex; flex-direction: column; gap: 0.45rem; padding: 1.1rem 1.25rem; color: var(--text); text-decoration: none;
+            border-color: rgba(124, 108, 255, 0.45); background: radial-gradient(circle at 0% 0%, rgba(124, 108, 255, 0.22), transparent 60%), rgba(var(--fond-2), 0.78);
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35); animation: entree 0.9s var(--courbe) 0.25s both; transition: border-color 0.25s, transform 0.3s var(--courbe), box-shadow 0.3s; }
+        .carte-annonce:hover { border-color: var(--violet); transform: translateY(-3px); box-shadow: 0 30px 70px rgba(124, 108, 255, 0.25); }
+        .ca-tete { display: flex; align-items: center; justify-content: space-between; gap: 0.8rem; }
+        .ca-tete small { color: var(--muted); font-size: 0.78rem; }
         .ba-tag { flex-shrink: 0; padding: 0.2rem 0.65rem; border-radius: 999px; background: var(--violet); color: #fff; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
-        .ba-titre { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
-        .ba-voir { flex-shrink: 0; color: var(--bleu-clair); transition: transform 0.25s var(--courbe); }
-        .bandeau-annonce:hover .ba-voir { transform: translateX(3px); }
+        .carte-annonce strong { font-family: var(--display); font-size: 1.2rem; line-height: 1.25; overflow-wrap: anywhere; }
+        .carte-annonce p { margin: 0; color: var(--text-soft); font-size: 0.93rem; line-height: 1.5; overflow-wrap: anywhere; }
+        .ca-lire { margin-top: 0.2rem; color: var(--bleu-clair); font-weight: 700; font-size: 0.9rem; }
+        .ca-lire span { display: inline-block; transition: transform 0.25s var(--courbe); }
+        .carte-annonce:hover .ca-lire span { transform: translateX(4px); }
         .titre-geant { font-size: clamp(2.8rem, 6.1vw, 5.3rem); line-height: 0.98; letter-spacing: -0.045em; }
         .titre-geant span { display: block; animation: entree 0.9s var(--courbe) both; }
         .titre-geant span:nth-child(2) { animation-delay: 0.1s; }
@@ -270,15 +276,7 @@
         <div class="scene-grille">
             <div class="scene-texte">
                 {% include '_jeux.html' %}
-                {% if annonce %}
-                <a class="bandeau-annonce" href="/annonces#annonce-{{ annonce.id }}" title="{{ annonce.titre }}">
-                    <span class="ba-tag">Annonce</span>
-                    <span class="ba-titre">{{ annonce.titre }}</span>
-                    <span class="ba-voir" aria-hidden="true">→</span>
-                </a>
-                {% else %}
                 <span class="kicker"><i class="direct"></i>{{ jeu_actuel.nom }} · Saison {{ chiffres.saison }} en cours</span>
-                {% endif %}
                 <h1 class="titre-geant"><span>{{ textes.accueil_ligne1 }}</span><span class="brille">{{ textes.accueil_ligne2 }}</span><span>{{ textes.accueil_ligne3 }}</span></h1>
                 <p>{{ textes.accueil_texte }}</p>
                 <div class="scene-actions">
@@ -295,6 +293,15 @@
                 </div>
             </div>
 
+            <div class="scene-droite{% if annonce %} avec-annonce{% endif %}">
+            {% if annonce %}
+            <a class="verre carte-annonce bandeau-annonce" href="/annonces#annonce-{{ annonce.id }}">
+                <span class="ca-tete"><span class="ba-tag">📢 Annonce</span><small>{{ annonce.quand }}</small></span>
+                <strong class="ba-titre">{{ annonce.titre }}</strong>
+                {% if annonce.texte %}<p>{{ annonce.texte | truncate(140) }}</p>{% endif %}
+                <span class="ca-lire">Lire l'annonce <span aria-hidden="true">→</span></span>
+            </a>
+            {% endif %}
             <div class="compo" aria-hidden="true">
                 <div class="compo-plateau" id="plateau">
                     <div class="verre carte-top">
@@ -331,6 +338,7 @@
                     </div>
                     {% endif %}
                 </div>
+            </div>
             </div>
         </div>
     </section>
