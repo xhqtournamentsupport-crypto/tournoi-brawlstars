@@ -30,19 +30,22 @@
         /* Dernière annonce de l'orga : carte en haut de la colonne de droite */
         .scene-droite { display: flex; flex-direction: column; gap: 1.2rem; min-width: 0; }
         .scene-droite.avec-annonce .compo { height: 400px; }
-        .scene-droite.avec-annonce .carte-top { top: 40px; }
-        .carte-annonce { position: relative; display: flex; flex-direction: column; gap: 0.45rem; padding: 1.1rem 1.25rem; color: var(--text); text-decoration: none;
-            border-color: rgba(124, 108, 255, 0.45); background: radial-gradient(circle at 0% 0%, rgba(124, 108, 255, 0.22), transparent 60%), rgba(var(--fond-2), 0.78);
-            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35); animation: entree 0.9s var(--courbe) 0.25s both; transition: border-color 0.25s, transform 0.3s var(--courbe), box-shadow 0.3s; }
-        .carte-annonce:hover { border-color: var(--violet); transform: translateY(-3px); box-shadow: 0 30px 70px rgba(124, 108, 255, 0.25); }
-        .ca-tete { display: flex; align-items: center; justify-content: space-between; gap: 0.8rem; }
-        .ca-tete small { color: var(--muted); font-size: 0.78rem; }
-        .ba-tag { flex-shrink: 0; padding: 0.2rem 0.65rem; border-radius: 999px; background: var(--violet); color: #fff; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
-        .carte-annonce strong { font-family: var(--display); font-size: 1.2rem; line-height: 1.25; overflow-wrap: anywhere; }
-        .carte-annonce p { margin: 0; color: var(--text-soft); font-size: 0.93rem; line-height: 1.5; overflow-wrap: anywhere; }
-        .ca-lire { margin-top: 0.2rem; color: var(--bleu-clair); font-weight: 700; font-size: 0.9rem; }
+        .scene-droite.avec-annonce .carte-top { top: 14px; }
+        .scene-droite.avec-annonce .compo { height: 380px; }
+        /* Même style que la carte « Top teams » : même verre, même inclinaison 3D, même largeur */
+        .annonce-3d { perspective: 1400px; animation: entree 1.1s var(--courbe) 0.3s both; }
+        .carte-annonce { position: relative; display: flex; flex-direction: column; gap: 0.4rem; width: 78%; margin-left: 6%; padding: 1.2rem 1.2rem 1rem;
+            color: var(--text); text-decoration: none; box-sizing: border-box; transform: rotateY(-14deg) rotateX(8deg); transform-origin: 60% 50%;
+            transition: transform 0.4s var(--courbe), border-color 0.25s; }
+        .carte-annonce:hover { border-color: rgba(124, 108, 255, 0.6); }
+        .ca-tete { display: flex; align-items: center; justify-content: space-between; gap: 0.8rem; margin-bottom: 0.3rem; }
+        .ca-tete h3 { font-size: 1.1rem; }
+        .carte-annonce strong { padding-top: 0.6rem; border-top: 1px solid rgba(var(--encre), 0.06); font-family: var(--display); font-size: 1.05rem; line-height: 1.3; overflow-wrap: anywhere; }
+        .carte-annonce p { margin: 0; color: var(--text-soft); font-size: 0.9rem; line-height: 1.5; overflow-wrap: anywhere; }
+        .ca-lire { margin-top: 0.15rem; color: var(--bleu-clair); font-weight: 700; font-size: 0.88rem; }
         .ca-lire span { display: inline-block; transition: transform 0.25s var(--courbe); }
         .carte-annonce:hover .ca-lire span { transform: translateX(4px); }
+        @media (max-width: 620px) { .carte-annonce { width: 100%; margin-left: 0; transform: none; } }
         .titre-geant { font-size: clamp(2.8rem, 6.1vw, 5.3rem); line-height: 0.98; letter-spacing: -0.045em; }
         .titre-geant span { display: block; animation: entree 0.9s var(--courbe) both; }
         .titre-geant span:nth-child(2) { animation-delay: 0.1s; }
@@ -295,12 +298,14 @@
 
             <div class="scene-droite{% if annonce %} avec-annonce{% endif %}">
             {% if annonce %}
-            <a class="verre carte-annonce bandeau-annonce" href="/annonces#annonce-{{ annonce.id }}">
-                <span class="ca-tete"><span class="ba-tag">📢 Annonce</span><small>{{ annonce.quand }}</small></span>
+            <div class="annonce-3d">
+            <a class="verre carte-annonce bandeau-annonce" id="carte-annonce" href="/annonces#annonce-{{ annonce.id }}">
+                <span class="ca-tete"><h3>📢 Annonce</h3><span class="live">{{ annonce.quand.split(' à ')[0] }}</span></span>
                 <strong class="ba-titre">{{ annonce.titre }}</strong>
                 {% if annonce.texte %}<p>{{ annonce.texte | truncate(140) }}</p>{% endif %}
                 <span class="ca-lire">Lire l'annonce <span aria-hidden="true">→</span></span>
             </a>
+            </div>
             {% endif %}
             <div class="compo" aria-hidden="true">
                 <div class="compo-plateau" id="plateau">
@@ -552,14 +557,16 @@
 
             // La composition 3D du bandeau suit la souris
             const plateau = document.getElementById('plateau');
+            const carteAnnonce = document.getElementById('carte-annonce');
             const scene = document.querySelector('.scene');
             if (plateau && scene && matchMedia('(pointer: fine)').matches) {
                 scene.addEventListener('mousemove', e => {
                     const r = scene.getBoundingClientRect();
                     const x = (e.clientX - r.left) / r.width - 0.5, y = (e.clientY - r.top) / r.height - 0.5;
                     plateau.style.transform = `rotateY(${-14 + x * 12}deg) rotateX(${8 - y * 10}deg)`;
+                    if (carteAnnonce) carteAnnonce.style.transform = plateau.style.transform;
                 });
-                scene.addEventListener('mouseleave', () => { plateau.style.transform = ''; });
+                scene.addEventListener('mouseleave', () => { plateau.style.transform = ''; if (carteAnnonce) carteAnnonce.style.transform = ''; });
             }
 
             // Projecteur qui suit la souris sur les tuiles
