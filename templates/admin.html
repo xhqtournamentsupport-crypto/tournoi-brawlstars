@@ -89,6 +89,8 @@
         .mvt.repechage { color: var(--bleu); }
         .mvt.inactive { color: var(--muted); }
 
+        .etapes-relais { margin: 0 0 1rem; padding-left: 1.3rem; color: var(--text-soft); line-height: 1.65; }
+        .etapes-relais li { margin-bottom: 0.3rem; }
         .texte-long { width: 100%; font-family: ui-monospace, Menlo, monospace; font-size: 0.88rem; line-height: 1.55; margin-bottom: 0.8rem; }
         .reglages-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 0.9rem; margin-bottom: 1rem; }
         .reglages-grille > div { display: flex; flex-direction: column; justify-content: flex-end; }
@@ -385,6 +387,28 @@
                 </div>
                 <button class="btn secondaire petit" type="button" onclick="testerDiscord()">Renvoyer un message de test</button>
                 <div class="sauvegarde-auto" id="discord-diag" hidden></div>
+            </div>
+            <div class="section">
+                <h2 class="section-title">Relais Google <span class="muted" id="relais-etat" style="font-size:.9rem"></span></h2>
+                <p class="hint">Si Discord bloque le serveur (erreur <strong>429</strong> / <strong>1015</strong>, fréquent sur un compte gratuit), les messages passent par un petit script sur ton compte Google, que Discord ne bloque pas. Gratuit. Réservé aux fondateurs.</p>
+                <ol class="etapes-relais">
+                    <li>Clique sur <strong>« Afficher le code du script »</strong> puis <strong>« Copier le code »</strong>.</li>
+                    <li>Va sur <a href="https://script.google.com" target="_blank" rel="noopener">script.google.com</a> (connecté à ton compte Google) → <strong>Nouveau projet</strong>. Efface tout ce qui est écrit, colle le code, puis 💾 <strong>Enregistrer</strong>.</li>
+                    <li>En haut à droite : <strong>Déployer → Nouveau déploiement</strong>. Roue dentée ⚙️ → <strong>Application Web</strong>. « Exécuter en tant que » : <strong>Moi</strong>. « Qui a accès » : <strong>Tout le monde</strong>. Clique sur <strong>Déployer</strong>.</li>
+                    <li>Google demande l'autorisation : <strong>Autoriser l'accès</strong> → choisis ton compte → « Paramètres avancés » → « Accéder au projet (non sécurisé) » → <strong>Autoriser</strong>. (C'est ton propre script, c'est normal.)</li>
+                    <li>Copie l'<strong>URL de l'application Web</strong> (elle finit par <code>/exec</code>), colle-la ci-dessous et clique sur <strong>« Enregistrer et tester »</strong>.</li>
+                </ol>
+                <button class="btn secondaire petit" type="button" onclick="afficherRelais()">Afficher le code du script</button>
+                <div id="relais-code-zone" hidden style="margin-top:.8rem">
+                    <textarea id="relais-code" class="texte-long" rows="14" readonly></textarea>
+                    <button class="btn secondaire petit" type="button" onclick="copierRelais()">Copier le code</button>
+                    <span class="muted">Ce code contient une clé secrète : ne le partage pas.</span>
+                </div>
+                <div class="cal-form" style="margin-top:1rem">
+                    <div style="grid-column: span 2"><label for="relais-url">URL de l'application Web</label><input type="text" id="relais-url" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off"></div>
+                    <button class="btn secondaire" type="button" onclick="enregistrerRelais()">Enregistrer et tester</button>
+                </div>
+                <button class="btn-mini" type="button" id="relais-retirer" onclick="enregistrerRelais(true)" hidden>Retirer le relais</button>
             </div>
         </div>
 
@@ -1231,6 +1255,7 @@
             const { ok, data } = await api('/api/admin/annonces');
             if (!ok) return;
             annonces = data.annonces;
+            majEtatRelais(data.relais_actif);
             document.getElementById('an-discord-etat').textContent = data.discord_relie ? '(Discord relié ✓)' : '(relie d\'abord le Discord, plus bas)';
             document.getElementById('an-discord').disabled = !data.discord_relie;
             document.getElementById('liste-annonces').innerHTML = annonces.length ? annonces.map(a => {
@@ -1274,6 +1299,34 @@
             const { ok, data } = await api(`/api/admin/annonces/${id}`, { method: 'POST', body: { [action]: true } });
             showMessage(ok ? 'C\'est fait.' : (data.error || 'Erreur'), ok ? 'success' : 'error');
             chargerAnnonces();
+        }
+        async function afficherRelais() {
+            const { ok, data } = await api('/api/admin/discord/relais');
+            if (!ok) { showMessage(data.error || 'Erreur', 'error'); return; }
+            document.getElementById('relais-code').value = data.code;
+            document.getElementById('relais-code-zone').hidden = false;
+            majEtatRelais(data.actif);
+        }
+        function majEtatRelais(actif) {
+            document.getElementById('relais-etat').textContent = actif ? '(activé ✓)' : '';
+            document.getElementById('relais-retirer').hidden = !actif;
+        }
+        async function copierRelais() {
+            const zone = document.getElementById('relais-code');
+            try { await navigator.clipboard.writeText(zone.value); } catch (e) { zone.select(); document.execCommand('copy'); }
+            showMessage('Code copié : colle-le dans script.google.com', 'success');
+        }
+        async function enregistrerRelais(retirer) {
+            if (retirer && !confirm('Retirer le relais Google ? Les messages repartiront directement vers Discord.')) return;
+            const url = retirer ? '' : document.getElementById('relais-url').value.trim();
+            if (!retirer && !url) return showMessage("Colle d'abord l'URL de l'application Web", 'error');
+            const { ok, data } = await api('/api/admin/discord/relais', { method: 'POST', body: { url } });
+            if (!ok) { showMessage(data.error || 'Erreur', 'error'); return; }
+            document.getElementById('relais-url').value = '';
+            majEtatRelais(!retirer);
+            if (retirer) showMessage('Relais retiré.', 'success');
+            else if (data.test === undefined) showMessage('Relais enregistré. Relie aussi le Discord (au-dessus) pour tester.', 'success');
+            else showMessage(data.test ? 'Relais Google OK : un message de test est parti dans ton salon Discord.' : 'Le test par le relais a échoué : ' + (data.raison || ''), data.test ? 'success' : 'error');
         }
         async function annonceDiscord(id) {
             const { ok, data } = await api(`/api/admin/annonces/${id}`, { method: 'POST', body: { discord: true } });

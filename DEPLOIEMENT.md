@@ -132,3 +132,9 @@ Tout ce qui est automatique se déclenche pendant les visites du site (pas besoi
   il ne peut ni créer / rejoindre une team, ni récupérer de badge (ça empêche les faux comptes en série pour le badge OG).
 - Un bandeau en haut du site lui rappelle, avec un bouton « Renvoyer l'email » (3 fois par heure maximum).
 - Les comptes créés avant cette mise à jour sont déjà considérés comme confirmés.
+
+## Discord bloqué (erreur 429 / 1015) : relais Google
+Sur un compte gratuit PythonAnywhere, Discord bloque souvent le serveur (adresse partagée). Solution gratuite :
+Admin → Annonces → **Relais Google** : copier le code du script, le coller dans script.google.com (Nouveau projet),
+Déployer → Application Web (Exécuter en tant que : Moi ; Accès : Tout le monde), puis coller l'URL `…/exec` dans le site.
+Diagnostic depuis la console : `python3.10 app.py discord`.

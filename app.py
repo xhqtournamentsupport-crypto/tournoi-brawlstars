@@ -3000,8 +3000,81 @@ DISCORD_WEBHOOK_REGEX = re.compile(r'^https://(discord\.com|discordapp\.com)/api
 UA_DISCORD = 'DiscordBot (https://xhqtounament.pythonanywhere.com, 1.0)'
 
 
+RELAIS_REGEX = re.compile(r'^https://script\.google\.com/macros/s/[A-Za-z0-9_\-]+/exec$')
+
+
+def relais_google():
+    """(adresse du relais, secret) si un relais Google est réglé, sinon (None, None)."""
+    try:
+        db = get_db()
+    except RuntimeError:      # hors du site (console) : pas de relais
+        return None, None
+    r = dict(db.execute("SELECT cle, valeur FROM parametres WHERE cle IN ('relais_url', 'relais_secret')").fetchall())
+    return (r.get('relais_url'), r.get('relais_secret')) if r.get('relais_url') and r.get('relais_secret') else (None, None)
+
+
+def code_relais(secret):
+    """Script à coller dans Google Apps Script : il reçoit le message du site et le poste sur Discord."""
+    return """// Relais XHQ League -> Discord (à coller dans script.google.com, voir Admin -> Annonces)
+const SECRET = '%s';
+
+function doPost(e) {
+  const d = JSON.parse(e.postData.contents);
+  if (d.secret !== SECRET) return ContentService.createTextOutput('refus');
+  if (!/^https:\\/\\/(discord\\.com|discordapp\\.com)\\/api\\/webhooks\\//.test(d.webhook)) return ContentService.createTextOutput('adresse');
+  const r = UrlFetchApp.fetch(d.webhook, {
+    method: 'post', contentType: 'application/json', muteHttpExceptions: true,
+    payload: JSON.stringify({ content: d.content, allowed_mentions: { parse: [] } })
+  });
+  return ContentService.createTextOutput(String(r.getResponseCode()));
+}
+""" % secret
+
+
+def poster_via_relais(relais, secret, url, contenu, delai=15):
+    """Envoi par le relais Google. Google répond par une redirection vers la page de résultat :
+    le message est déjà parti à ce moment-là, on lit le résultat si on peut."""
+    import json
+    import urllib.error
+    import urllib.request
+
+    class SansRedirection(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, *args, **kwargs):
+            return None
+    corps = json.dumps({'secret': secret, 'webhook': url, 'content': contenu[:1900]}).encode()
+    req = urllib.request.Request(relais, data=corps, headers={'Content-Type': 'application/json', 'User-Agent': UA_DISCORD})
+    try:
+        rep = urllib.request.build_opener(SansRedirection).open(req, timeout=delai)
+        resultat = rep.read(200).decode('utf-8', 'replace').strip()
+    except urllib.error.HTTPError as e:
+        if e.code not in (301, 302, 303, 307):
+            return False, f"Le relais Google a répondu une erreur (code {e.code}). Vérifie qu'il est déployé en « Application Web », accès « Tout le monde »."
+        try:   # page de résultat du script
+            with urllib.request.urlopen(urllib.request.Request(e.headers.get('Location', ''), headers={'User-Agent': UA_DISCORD}), timeout=delai) as r2:
+                resultat = r2.read(200).decode('utf-8', 'replace').strip()
+        except Exception:
+            return True, ''          # le script a tourné, mais sa réponse n'est pas lisible depuis le serveur
+    except Exception as e:
+        return False, f"Impossible de joindre le relais Google ({e.__class__.__name__}). Réessaie dans une minute."
+    if resultat == 'refus':
+        return False, 'Le relais Google refuse le message : le code du script n\'est pas le bon (recopie-le depuis Admin → Annonces).'
+    if resultat == 'adresse':
+        return False, "Le relais Google trouve l'adresse du webhook invalide : recolle-la dans « Relier le Discord »."
+    if resultat.isdigit() and not 200 <= int(resultat) < 300:
+        if resultat in ('401', '404'):
+            return False, f"Discord ne connaît pas ce webhook (code {resultat}) : recrée-le et recolle l'adresse."
+        return False, f'Discord a refusé le message envoyé par le relais Google (code {resultat}).'
+    if resultat and not resultat.isdigit() and '<' in resultat:
+        return False, "Le relais Google demande une connexion : redéploie-le avec l'accès « Tout le monde »."
+    return True, ''
+
+
 def poster_discord(url, contenu, delai=8):
-    """Envoie un message au webhook. Renvoie (True, '') ou (False, raison en clair pour l'admin)."""
+    """Envoie un message au webhook (par le relais Google s'il est réglé).
+    Renvoie (True, '') ou (False, raison en clair pour l'admin)."""
+    relais, secret = relais_google()
+    if relais:
+        return poster_via_relais(relais, secret, url, contenu)
     import json
     import urllib.error
     import urllib.request
@@ -3675,7 +3748,8 @@ def api_admin_annonces():
         a['etat'] = 'programmee' if not a['publiee'] else ('terminee' if a['fin_at'] and a['fin_at'] <= datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S') else 'en_ligne')
         lignes.append(a)
     w = db.execute("SELECT valeur FROM parametres WHERE cle = 'discord_webhook'").fetchone()
-    return jsonify({'annonces': lignes, 'discord_relie': bool(w and w['valeur'])}), 200
+    return jsonify({'annonces': lignes, 'discord_relie': bool(w and w['valeur']),
+                    'relais_actif': bool(db.execute("SELECT 1 FROM parametres WHERE cle = 'relais_url'").fetchone())}), 200
 
 
 @app.route('/api/admin/annonces/<int:annonce_id>', methods=['POST'])
@@ -3738,6 +3812,39 @@ def api_admin_discord():
     db.commit()
     if url and donnees_json().get('tester'):
         ok, raison = poster_discord(url, '✅ **Test XHQ League**\nLe site est bien relié à ce salon.')
+        return jsonify({'success': True, 'test': ok, 'raison': raison}), 200
+    return jsonify({'success': True}), 200
+
+
+@app.route('/api/admin/discord/relais', methods=['GET', 'POST'])
+@api_admin
+def api_admin_relais():
+    """Relais Google (quand Discord bloque le serveur gratuit) : code du script et adresse. Fondateurs seulement."""
+    db = get_db()
+    if fondateur_requis(db):
+        return jsonify({'success': False, 'error': 'Seuls les fondateurs peuvent régler le relais'}), 403
+    secret = db.execute("SELECT valeur FROM parametres WHERE cle = 'relais_secret'").fetchone()
+    if not secret:
+        db.execute("INSERT INTO parametres (cle, valeur) VALUES ('relais_secret', ?)", (secrets.token_urlsafe(24),))
+        db.commit()
+        secret = db.execute("SELECT valeur FROM parametres WHERE cle = 'relais_secret'").fetchone()
+    if request.method == 'GET':
+        url = db.execute("SELECT valeur FROM parametres WHERE cle = 'relais_url'").fetchone()
+        return jsonify({'code': code_relais(secret['valeur']), 'actif': bool(url and url['valeur'])}), 200
+    url = texte(donnees_json(), 'url', 300)
+    if url and not RELAIS_REGEX.match(url):
+        return jsonify({'success': False, 'error': "Adresse invalide : elle doit ressembler à https://script.google.com/macros/s/…/exec"}), 400
+    if url:
+        db.execute("INSERT OR REPLACE INTO parametres (cle, valeur) VALUES ('relais_url', ?)", (url,))
+    else:
+        db.execute("DELETE FROM parametres WHERE cle = 'relais_url'")
+    db.execute("DELETE FROM parametres WHERE cle IN ('discord_pause', 'discord_erreur')")
+    db.execute('UPDATE discord_file SET essais = 0 WHERE envoye_at IS NULL')    # on retente tout avec le relais
+    journaliser(db, 'Relais Google réglé' if url else 'Relais Google retiré')
+    db.commit()
+    w = db.execute("SELECT valeur FROM parametres WHERE cle = 'discord_webhook'").fetchone()
+    if url and w and DISCORD_WEBHOOK_REGEX.match(w['valeur'] or ''):
+        ok, raison = poster_discord(w['valeur'], '✅ **Test XHQ League**\nLe relais Google fonctionne : les messages du site arrivent ici.')
         return jsonify({'success': True, 'test': ok, 'raison': raison}), 200
     return jsonify({'success': True}), 200
 
