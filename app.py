@@ -180,6 +180,14 @@ LIGUES = {
 }
 LIGUE_MAX = max(LIGUES)
 
+# Lancement automatique des ligues (heure de France)
+# Une ligue pleine depuis au moins 24 h reçoit son calendrier le dimanche à 15h et commence le lundi à 9h.
+# Une journée de matchs tous les 3 jours : lun, jeu, dim, mer, sam, mar, ven -> une saison dure 3 semaines.
+DELAI_LIGUE_PLEINE_H = 24
+JOUR_CALENDRIER, HEURE_CALENDRIER = 6, 15     # dimanche 15h
+JOUR_DEBUT, HEURE_DEBUT = 0, 9                # lundi 9h
+JOURS_ENTRE_JOURNEES = 3
+
 # ---------------------------------------------------------------------------
 # Jeux : chaque jeu a ses teams, ses ligues, ses saisons et son palmarès.
 # Pour ajouter un jeu plus tard : une ligne ici (code, nom, format), puis redémarrer.
@@ -343,7 +351,7 @@ def reparer_coherence(c):
     c.execute(f'UPDATE ligue SET ligue_num = {LIGUE_DEPART}, poule = NULL WHERE ligue_num IS NULL OR ligue_num NOT BETWEEN 1 AND {LIGUE_MAX}')
     c.execute(f"""INSERT INTO ligue (team_id, ligue_num, points)
                   SELECT id, {LIGUE_DEPART}, 0 FROM teams
-                  WHERE COALESCE(hors_classement, 0) = 0 AND id NOT IN (SELECT team_id FROM ligue)""")
+                  WHERE COALESCE(hors_classement, 0) = 0 AND attente_depuis IS NULL AND id NOT IN (SELECT team_id FROM ligue)""")
     for row in c.execute('SELECT l.id, l.ligue_num, l.poule, t.jeu_id FROM ligue l JOIN teams t ON t.id = l.team_id '
                          'ORDER BY l.id').fetchall():
         if not row['poule'] or row['poule'] not in lettres_poules(row['ligue_num']):
@@ -599,6 +607,7 @@ def init_db():
     ajouter_colonne(c, 'contact_messages', 'traite', 'INTEGER DEFAULT 0')
     ajouter_colonne(c, 'matchs', 'saison', 'INTEGER DEFAULT 1')
     ajouter_colonne(c, 'teams', 'hors_classement', 'INTEGER DEFAULT 0')
+    ajouter_colonne(c, 'teams', 'attente_depuis', 'TEXT')          # liste d'attente (toutes les places prises)
     ajouter_colonne(c, 'saison_classements', 'penalite', 'INTEGER DEFAULT 0')
     ajouter_colonne(c, 'saison_classements', 'matchs_manques', 'INTEGER DEFAULT 0')
     ajouter_colonne(c, 'saison_classements', 'points_avant', 'INTEGER')
@@ -1114,6 +1123,7 @@ def chiffres_jeu(db, jeu_id):
         'matchs': db.execute('SELECT COUNT(*) FROM matchs WHERE jeu_id = ? AND saison = ?',
                              (jeu_id, saison)).fetchone()[0],
         'places': sum(c['poules'] for c in LIGUES.values()) * TEAMS_PAR_POULE,
+        'attente': db.execute('SELECT COUNT(*) FROM teams WHERE jeu_id = ? AND attente_depuis IS NOT NULL', (jeu_id,)).fetchone()[0],
     }
 
 
@@ -1279,7 +1289,7 @@ Comment contacter l'orga ?
 Par la page Contact du site ou sur notre Discord."""
 
 ACCUEIL_DEFAUT = {'accueil_ligne1': 'La ligue où', 'accueil_ligne2': 'chaque match', 'accueil_ligne3': 'compte.',
-                  'accueil_texte': "Monte ta team, joue ta poule et grimpe de la Ligue 5 à la Ligue 1. Des tournois réguliers, "
+                  'accueil_texte': "Monte ta team, prends ta place dans la ligue et vise la Ligue 1. Des saisons de 3 semaines, "
                                    "des résultats vérifiés par l'orga, et un palmarès qui reste."}
 
 
@@ -2120,7 +2130,7 @@ def api_teams():
     rows = db.execute("""
         SELECT t.id, t.nom, t.bio, t.createur_id, t.created_at, u.username AS createur, t.logo, t.embleme,
                t.banniere, t.banniere_pos, t.banniere_zoom,
-               l.ligue_num, l.poule, l.points,
+               l.ligue_num, l.poule, l.points, t.attente_depuis, t.hors_classement,
                (SELECT COUNT(*) FROM team_members tm WHERE tm.team_id = t.id) AS nb_membres
         FROM teams t
         LEFT JOIN users u ON u.id = t.createur_id
@@ -2140,6 +2150,8 @@ def api_teams():
         team['is_creator'] = team['createur_id'] == uid
         team['max_membres'] = max_membres_jeu(db, jeu['id'])
         team['pleine'] = team['nb_membres'] >= team['max_membres']
+        team['attente'] = position_attente(db, team['id']) if team.pop('attente_depuis') else None
+        team['hors_classement'] = bool(team['hors_classement'])
         teams_list.append(team)
 
     mine = db.execute('SELECT team_id FROM team_members WHERE user_id = ? AND jeu_id = ?', (uid, jeu['id'])).fetchone()
@@ -2176,6 +2188,7 @@ def api_teams():
                     'teams': teams_list, 'user_team_id': user_team_id, 'emblemes': EMBLEMES, 'user_id': uid, 'membres': membres,
                     'matchs': matchs, 'prochains': prochains, 'max_membres': max_membres_jeu(db, jeu['id']), 'participation': participation,
                     'derniere_penalite': derniere_penalite,
+                    'lancement': etat_lancement(db, jeu['id']),
                     'regle_penalite': {'par_match': reglage('penalite_par_match'), 'recidive': MULTIPLICATEUR_RECIDIVE,
                                        'max': reglage('penalite_max')}}), 200
 
@@ -2209,13 +2222,13 @@ def api_create_team():
         team_id = c.lastrowid
         c.execute("INSERT INTO team_members (team_id, user_id, jeu_id, joined_at) VALUES (?, ?, ?, datetime('now'))",
                   (team_id, uid, jeu['id']))
-        c.execute('INSERT INTO ligue (team_id, ligue_num, points, poule) VALUES (?, ?, 0, ?)',
-                  (team_id, LIGUE_DEPART, choisir_poule(c, jeu['id'], LIGUE_DEPART)))
+        place = inscrire_en_ligue(c, jeu['id'], team_id)
         db.commit()
     except sqlite3.IntegrityError:
         db.rollback()
         return jsonify({'success': False, 'error': 'Impossible de créer la team'}), 400
-    return jsonify({'success': True, 'team_id': team_id}), 201
+    return jsonify({'success': True, 'team_id': team_id, 'ligue_num': place[0] if place else None,
+                    'poule': place[1] if place else None, 'attente': place is None}), 201
 
 
 @app.route('/api/teams/<int:team_id>/join', methods=['POST'])
@@ -2348,11 +2361,12 @@ def api_reintegrer_team(team_id):
     c = db.cursor()
     if c.execute('SELECT 1 FROM ligue WHERE team_id = ?', (team_id,)).fetchone():
         return jsonify({'success': False, 'error': 'Votre team est déjà au classement'}), 400
-    poule = choisir_poule(c, jeu_de_team(db, team_id), LIGUE_DEPART)
-    c.execute('INSERT INTO ligue (team_id, ligue_num, points, poule) VALUES (?, ?, 0, ?)', (team_id, LIGUE_DEPART, poule))
-    c.execute('UPDATE teams SET hors_classement = 0 WHERE id = ?', (team_id,))
+    if c.execute('SELECT attente_depuis FROM teams WHERE id = ?', (team_id,)).fetchone()['attente_depuis']:
+        return jsonify({'success': False, 'error': "Votre team est déjà en liste d'attente"}), 400
+    place = inscrire_en_ligue(c, jeu_de_team(db, team_id), team_id)
     db.commit()
-    return jsonify({'success': True, 'ligue_num': LIGUE_DEPART, 'poule': poule}), 200
+    return jsonify({'success': True, 'ligue_num': place[0] if place else None, 'poule': place[1] if place else None,
+                    'attente': place is None}), 200
 
 
 @app.route('/api/teams/<int:team_id>/update', methods=['POST'])
@@ -2597,6 +2611,7 @@ def api_ligue():
         'poules': poules,
         'saison': saison_actuelle(db, jeu['id']),
         'palmares': palmares(db, jeu['id'], 5),
+        'etat': etat_lancement(db, jeu['id'])['ligues'][ligue_num],
     }), 200
 
 
@@ -3313,7 +3328,7 @@ def api_admin_move_team(team_id):
     if not actuelle:  # team hors classement : on la remet dans la ligue choisie
         c.execute('INSERT INTO ligue (team_id, ligue_num, points, poule) VALUES (?, ?, 0, ?)',
                   (team_id, ligue_num, choisir_poule(c, jeu_id, ligue_num)))
-        c.execute('UPDATE teams SET hors_classement = 0 WHERE id = ?', (team_id,))
+        c.execute('UPDATE teams SET hors_classement = 0, attente_depuis = NULL WHERE id = ?', (team_id,))
         db.commit()
         poule = c.execute('SELECT poule FROM ligue WHERE team_id = ?', (team_id,)).fetchone()['poule']
         return jsonify({'success': True, 'ligue_num': ligue_num, 'poule': poule}), 200
@@ -3876,16 +3891,248 @@ def palmares(db, jeu_id, limite=20):
     return [dict(r) for r in rows]
 
 
+# ---------------------------------------------------------------------------
+# Remplissage des ligues, liste d'attente et lancement automatique
+# ---------------------------------------------------------------------------
+def places_ligue(ligue_num):
+    return LIGUES[ligue_num]['poules'] * TEAMS_PAR_POULE
+
+
+def ligues_lancees(db, jeu_id, saison=None, avec_matchs=False):
+    """Ligues lancées cette saison (calendrier publié) -> 1re date de match. avec_matchs : compte aussi
+    les ligues où un match a été saisi à la main (pour la fin de saison)."""
+    saison = saison or saison_actuelle(db, jeu_id)
+    lancees = {r[0]: r[1] or '' for r in db.execute(
+        'SELECT ligue_num, MIN(date) FROM rencontres WHERE jeu_id = ? AND saison = ? GROUP BY ligue_num', (jeu_id, saison))}
+    if avec_matchs:
+        for r in db.execute('SELECT DISTINCT ligue_num FROM matchs WHERE jeu_id = ? AND saison = ?', (jeu_id, saison)):
+            lancees.setdefault(r[0], '')
+    return lancees
+
+
+def compte_par_poule(db, jeu_id, ligue_num):
+    compte = {l: 0 for l in lettres_poules(ligue_num)}
+    for r in db.execute("""SELECT l.poule, COUNT(*) FROM ligue l JOIN teams t ON t.id = l.team_id
+                           WHERE t.jeu_id = ? AND l.ligue_num = ? GROUP BY l.poule""", (jeu_id, ligue_num)):
+        if r[0] in compte:
+            compte[r[0]] = r[1]
+    return compte
+
+
+def ligue_pleine(db, jeu_id, ligue_num):
+    return all(n >= TEAMS_PAR_POULE for n in compte_par_poule(db, jeu_id, ligue_num).values())
+
+
+def place_libre(c, jeu_id):
+    """Plus haute ligue pas encore lancée qui a de la place : (ligue, poule), sinon None (tout est pris)."""
+    lancees = ligues_lancees(c, jeu_id)
+    for n in sorted(LIGUES):
+        if n not in lancees and not ligue_pleine(c, jeu_id, n):
+            return n, choisir_poule(c, jeu_id, n)
+    return None
+
+
+def inscrire_en_ligue(c, jeu_id, team_id):
+    """Met la team dans la plus haute ligue libre (Ligue 1 d'abord), sinon en liste d'attente. Renvoie (ligue, poule) ou None."""
+    place = place_libre(c, jeu_id)
+    if place:
+        c.execute('INSERT INTO ligue (team_id, ligue_num, points, poule) VALUES (?, ?, 0, ?)', (team_id, place[0], place[1]))
+        c.execute('UPDATE teams SET hors_classement = 0, attente_depuis = NULL WHERE id = ?', (team_id,))
+    else:
+        c.execute("UPDATE teams SET hors_classement = 0, attente_depuis = COALESCE(attente_depuis, datetime('now')) WHERE id = ?", (team_id,))
+    return place
+
+
+def position_attente(db, team_id):
+    r = db.execute('SELECT jeu_id, attente_depuis FROM teams WHERE id = ?', (team_id,)).fetchone()
+    if not r or not r['attente_depuis']:
+        return None
+    return db.execute("""SELECT COUNT(*) FROM teams WHERE jeu_id = ? AND attente_depuis IS NOT NULL
+                         AND (attente_depuis < ? OR (attente_depuis = ? AND id <= ?))""",
+                      (r['jeu_id'], r['attente_depuis'], r['attente_depuis'], team_id)).fetchone()[0]
+
+
+def placer_liste_attente(c, jeu_id, exclure=()):
+    """Les teams en attente (les plus anciennes d'abord) prennent les places libres. Renvoie leurs noms.
+    `exclure` : teams qui viennent de sortir à cette fin de saison (elles ne reprennent pas leur place)."""
+    entrees = []
+    for t in c.execute("""SELECT id, nom FROM teams WHERE jeu_id = ? AND attente_depuis IS NOT NULL
+                          ORDER BY attente_depuis, id""", (jeu_id,)).fetchall():
+        if t['id'] in exclure:
+            continue
+        place = place_libre(c, jeu_id)
+        if not place:
+            break
+        inscrire_en_ligue(c, jeu_id, t['id'])
+        notifier(c, membres_de(c, t['id']), f"Bonne nouvelle : ta team quitte la liste d'attente et entre en Ligue {place[0]} (poule {place[1]}) !", '/ligue')
+        entrees.append(t['nom'])
+    return entrees
+
+
+def sortie_derniers_ligue_max(c, jeu_id, saison, classement):
+    """Fin de saison : s'il y a des teams en attente, le dernier de chaque poule de la dernière ligue
+    leur laisse sa place (le moins bon d'abord) et passe en liste d'attente."""
+    attente = c.execute('SELECT COUNT(*) FROM teams WHERE jeu_id = ? AND attente_depuis IS NOT NULL', (jeu_id,)).fetchone()[0]
+    if not attente:
+        return []
+    derniers = []
+    for poule in lettres_poules(LIGUE_MAX):
+        restants = [p for p in classement if p['ligue_num'] == LIGUE_MAX and p['poule'] == poule and p['destination'] == LIGUE_MAX]
+        if restants:
+            derniers.append(max(restants, key=lambda p: p['rang']))
+    derniers.sort(key=lambda p: (p['points'], p['diff'], p['victoires']))
+    sorties = []
+    for p in derniers[:attente]:
+        c.execute('DELETE FROM ligue WHERE team_id = ?', (p['team_id'],))
+        c.execute("UPDATE teams SET attente_depuis = datetime('now') WHERE id = ?", (p['team_id'],))
+        c.execute("UPDATE saison_classements SET mouvement = 'sortie' WHERE saison = ? AND team_id = ? AND jeu_id = ?", (saison, p['team_id'], jeu_id))
+        notifier(c, membres_de(c, p['team_id']), f"Fin de saison : dernière de Ligue {LIGUE_MAX}, ta team laisse sa place et passe en liste d'attente.", '/teams')
+        sorties.append((p['team_id'], p['team_name']))
+    return sorties
+
+
+def maintenant_paris():
+    return datetime.now(fuseau_paris()).replace(tzinfo=None, microsecond=0)
+
+
+def prochain(apres, jour, heure):
+    """Premier « jour de la semaine à heure:00 » (heure de France) à partir de `apres` (inclus)."""
+    d = apres.replace(hour=heure, minute=0, second=0, microsecond=0) + timedelta(days=(jour - apres.weekday()) % 7)
+    return d if d >= apres else d + timedelta(days=7)
+
+
+def debut_saison_paris(db, jeu_id):
+    """Heure (France) à laquelle la saison actuelle a commencé = clôture de la précédente, sinon None."""
+    r = db.execute('SELECT MAX(cloturee_at) FROM saisons WHERE jeu_id = ?', (jeu_id,)).fetchone()[0]
+    return datetime.strptime(date_paris(r, True), '%Y-%m-%dT%H:%M') if r else None
+
+
+def programme_ligue(db, jeu_id, saison, ligue_num):
+    """(calendrier, coup d'envoi) prévus pour une ligue pleine pas encore lancée, en heure de France."""
+    r = db.execute('SELECT valeur FROM parametres WHERE cle = ?', (f'pleine_{jeu_id}_{saison}_{ligue_num}',)).fetchone()
+    if not r:
+        return None, None
+    pleine = datetime.strptime(r['valeur'], '%Y-%m-%d %H:%M:%S')
+    debut_saison = debut_saison_paris(db, jeu_id)
+    if debut_saison and pleine <= debut_saison + timedelta(hours=2):
+        calendrier = pleine        # pleine dès la fin de la saison d'avant : on repart tous ensemble tout de suite
+    else:
+        calendrier = prochain(pleine + timedelta(hours=DELAI_LIGUE_PLEINE_H), JOUR_CALENDRIER, HEURE_CALENDRIER)
+    return calendrier, prochain(calendrier + timedelta(minutes=1), JOUR_DEBUT, HEURE_DEBUT)
+
+
+def lancer_ligue(c, jeu, saison, ligue_num, coup_envoi):
+    """Publie le calendrier d'une ligue : 7 journées, une tous les 3 jours à partir du coup d'envoi."""
+    crees = 0
+    for poule in lettres_poules(ligue_num):
+        teams = [r[0] for r in c.execute("""SELECT l.team_id FROM ligue l JOIN teams t ON t.id = l.team_id
+                                             WHERE t.jeu_id = ? AND l.ligue_num = ? AND l.poule = ? ORDER BY l.id""",
+                                          (jeu['id'], ligue_num, poule)).fetchall()]
+        for n, tour in enumerate(journees(teams)):
+            date = (coup_envoi + timedelta(days=JOURS_ENTRE_JOURNEES * n)).strftime('%Y-%m-%dT%H:%M')
+            for a, b in tour:
+                crees += c.execute("""INSERT OR IGNORE INTO rencontres (jeu_id, saison, ligue_num, poule, journee, team1_id, team2_id, date, created_at)
+                                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))""",
+                                   (jeu['id'], saison, ligue_num, poule, n + 1, a, b, date)).rowcount
+    quand = date_fr(coup_envoi.strftime('%Y-%m-%dT%H:%M'))
+    joueurs = [r[0] for r in c.execute("""SELECT tm.user_id FROM team_members tm JOIN ligue l ON l.team_id = tm.team_id
+                                          WHERE tm.jeu_id = ? AND l.ligue_num = ?""", (jeu['id'], ligue_num)).fetchall()]
+    notifier(c, joueurs, f"📅 Calendrier de la Ligue {ligue_num} publié ! Premier match {quand}.", '/calendrier?team=moi')
+    enfiler_discord(c, 'saison', f"📅 **Ligue {ligue_num}** ({jeu['nom']}) : le calendrier est publié, coup d'envoi {quand} !")
+    ecrire_journal(c, None, 'automatique', f'Ligue {ligue_num} lancée ({crees} matchs)', jeu['nom'])
+    return crees
+
+
+def lancement_auto(db):
+    """À chaque visite (au plus toutes les 30 s) : liste d'attente -> places libres, ligues pleines -> calendrier
+    le dimanche 15h et début le lundi 9h, et quand toutes les ligues tournent, fin de saison commune programmée."""
+    faites = 0
+    maintenant = maintenant_paris()
+    for jeu in [dict(j) for j in db.execute('SELECT id, code, nom FROM jeux').fetchall()]:
+        c = db.cursor()
+        saison = saison_actuelle(db, jeu['id'])
+        placer_liste_attente(c, jeu['id'])
+        lancees = ligues_lancees(db, jeu['id'], saison)
+        for n in LIGUES:
+            cle = f"pleine_{jeu['id']}_{saison}_{n}"
+            if n in lancees or not ligue_pleine(db, jeu['id'], n):
+                c.execute('DELETE FROM parametres WHERE cle = ?', (cle,))
+                continue
+            c.execute('INSERT OR IGNORE INTO parametres (cle, valeur) VALUES (?, ?)', (cle, maintenant.strftime('%Y-%m-%d %H:%M:%S')))
+            calendrier, coup_envoi = programme_ligue(db, jeu['id'], saison, n)
+            # « On prend » le lancement d'abord : deux visites en même temps ne lancent jamais deux fois
+            if calendrier and maintenant >= calendrier and c.execute(
+                    'INSERT OR IGNORE INTO parametres (cle, valeur) VALUES (?, ?)', (f"lancee_{jeu['id']}_{saison}_{n}", 'oui')).rowcount:
+                lancer_ligue(c, jeu, saison, n, coup_envoi)
+                faites += 1
+        db.commit()
+        # Toutes les ligues ont leur calendrier : fin de saison commune le dimanche 15h après la dernière journée
+        lancees = ligues_lancees(db, jeu['id'], saison)
+        cle_fin = f"fin_planifiee_{jeu['id']}_{saison}"
+        if all(n in lancees for n in LIGUES) and not db.execute('SELECT 1 FROM parametres WHERE cle = ?', (cle_fin,)).fetchone():
+            derniere = db.execute('SELECT MAX(date) FROM rencontres WHERE jeu_id = ? AND saison = ?', (jeu['id'], saison)).fetchone()[0]
+            c.execute('INSERT INTO parametres (cle, valeur) VALUES (?, ?)', (cle_fin, 'oui'))
+            if derniere:
+                fin = prochain(datetime.strptime(derniere, '%Y-%m-%dT%H:%M') + timedelta(days=1), JOUR_CALENDRIER, HEURE_CALENDRIER)
+                if c.execute('INSERT OR IGNORE INTO parametres (cle, valeur) VALUES (?, ?)',
+                             (f"cloture_auto_{jeu['id']}", paris_vers_utc(fin.strftime('%Y-%m-%dT%H:%M')))).rowcount:
+                    ecrire_journal(c, None, 'automatique', f"Fin de saison {saison} programmée : {date_fr(fin.strftime('%Y-%m-%dT%H:%M'))}", jeu['nom'])
+            db.commit()
+    return faites
+
+
+def etat_lancement(db, jeu_id):
+    """Où en est chaque ligue (pour l'accueil, les classements et l'admin)."""
+    saison = saison_actuelle(db, jeu_id)
+    lancees = ligues_lancees(db, jeu_id, saison)
+    ligues = {}
+    for n in LIGUES:
+        inscrites = sum(compte_par_poule(db, jeu_id, n).values())
+        etat = {'ligue_num': n, 'places': places_ligue(n), 'inscrites': inscrites}
+        if n in lancees:
+            premier = lancees[n]
+            etat['statut'] = 'en_cours' if not premier or premier <= maintenant_paris().strftime('%Y-%m-%dT%H:%M') else 'programmee'
+            etat['debut'] = date_fr(premier) if premier else None
+        else:
+            calendrier, coup_envoi = programme_ligue(db, jeu_id, saison, n)
+            etat['statut'] = 'pleine' if calendrier else 'remplissage'
+            if calendrier:
+                etat['calendrier'] = date_fr(calendrier.strftime('%Y-%m-%dT%H:%M'))
+                etat['debut'] = date_fr(coup_envoi.strftime('%Y-%m-%dT%H:%M'))
+        ligues[n] = etat
+    fin = db.execute('SELECT valeur FROM parametres WHERE cle = ?', (f'cloture_auto_{jeu_id}',)).fetchone()
+    return {'ligues': ligues, 'attente': db.execute('SELECT COUNT(*) FROM teams WHERE jeu_id = ? AND attente_depuis IS NOT NULL',
+                                                    (jeu_id,)).fetchone()[0],
+            'fin_saison': date_paris(fin['valeur']) if fin else None}
+
+
+@app.route('/api/admin/lancement', methods=['GET'])
+@api_admin
+def api_admin_lancement():
+    db = get_db()
+    jeu, erreur = jeu_ou_erreur(db)
+    if erreur:
+        return erreur
+    attente = [{'id': r['id'], 'nom': r['nom'], 'depuis': date_paris(r['attente_depuis'])}
+               for r in db.execute("""SELECT id, nom, attente_depuis FROM teams WHERE jeu_id = ? AND attente_depuis IS NOT NULL
+                                      ORDER BY attente_depuis, id""", (jeu['id'],))]
+    return jsonify({**etat_lancement(db, jeu['id']), 'liste_attente': attente, 'saison': saison_actuelle(db, jeu['id'])}), 200
+
+
 def calculer_fin_saison(db, jeu_id):
     """Classement final de chaque poule + destination de chaque team (sans rien modifier)."""
     resultats = []
+    lancees = ligues_lancees(db, jeu_id, avec_matchs=True)
     for ligue_num in LIGUES:
         for poule in lettres_poules(ligue_num):
-            for place in classement_poule(db, jeu_id, ligue_num, poule, penalites=True):
+            for place in classement_poule(db, jeu_id, ligue_num, poule, penalites=ligue_num in lancees):
                 if not place['team_id']:
                     continue
                 destination, mouvement = ligue_num, place['statut'] or 'reste'
-                if place['joues'] == 0:
+                if ligue_num not in lancees:
+                    # Ligue pas encore lancée (pas pleine) : ses teams gardent leur place, sans pénalité
+                    destination, mouvement = ligue_num, 'reste'
+                elif place['joues'] == 0:
                     # Inactive (aucun match de toute la saison) : retirée du classement, quelle que
                     # soit sa ligue. Sa place est libérée pour le repêchage.
                     destination, mouvement = None, 'retiree'
@@ -4002,8 +4249,12 @@ def cloturer_saison(db, jeu, par_user_id):
         for p in sorted(partants, key=lambda p: (p['destination'], p['rang'], p['poule'])):
             c.execute('UPDATE ligue SET poule = ? WHERE team_id = ?',
                       (choisir_poule(c, jeu['id'], p['destination']), p['team_id']))
-        # 3) nouvelle saison : toutes les teams de ce jeu repartent à 0
+        # 3) liste d'attente : les derniers de chaque poule de Ligue 5 laissent leur place aux teams qui attendent
+        sorties = sortie_derniers_ligue_max(c, jeu['id'], saison, classement)
+        # 4) nouvelle saison : toutes les teams de ce jeu repartent à 0
         c.execute('UPDATE ligue SET points = 0 WHERE team_id IN (SELECT id FROM teams WHERE jeu_id = ?)', (jeu['id'],))
+        entrees = placer_liste_attente(c, jeu['id'], exclure={tid for tid, _ in sorties})
+        sorties = [nom for _, nom in sorties]
         champion = next((p['team_name'] for p in classement if p['mouvement'] == 'champion'), None)
         montees = [p['team_name'] for p in classement if p['mouvement'] in ('monte', 'repechage')]
         enfiler_discord(c, 'saison', f"🏁 **Fin de la saison {saison}** ({jeu['nom']})" + (f"\n👑 Champion de Ligue 1 : **{champion}**" if champion else '')
@@ -4021,6 +4272,7 @@ def cloturer_saison(db, jeu, par_user_id):
         'descentes': sum(p['mouvement'] == 'descend' for p in partants),
         'repechages': sum(p['mouvement'] == 'repechage' for p in partants),
         'retirees': len(retirees),
+        'sorties': sorties, 'entrees': entrees,
         'penalisees': sum(p['penalite'] > 0 for p in classement),
         'champion': next((p['team_name'] for p in classement if p['mouvement'] == 'champion'), None),
     }, None
@@ -4910,7 +5162,7 @@ def _sauvegarde_quotidienne():
         import time
         if time.time() - _controle_annonces['t'] > 30:
             _controle_annonces['t'] = time.time()
-            for tache_auto in (publier_annonces_dues, creer_tournois_recurrents, clotures_programmees, envoyer_file_discord):
+            for tache_auto in (publier_annonces_dues, creer_tournois_recurrents, clotures_programmees, lancement_auto, envoyer_file_discord):
                 try:
                     tache_auto(get_db())
                 except Exception as e:   # une tâche automatique ratée ne doit jamais casser une page

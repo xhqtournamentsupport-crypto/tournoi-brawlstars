@@ -268,8 +268,19 @@
         <!-- ============ SAISON ============ -->
         <div class="panel" id="panel-saison">
             <div class="section">
+                <h2 class="section-title">Lancement des ligues</h2>
+                <p class="hint">Tout est automatique. Une nouvelle team prend la plus haute ligue libre (Ligue 1 d'abord). Une ligue pleine depuis au moins 24 h reçoit son calendrier le <strong>dimanche à 15h</strong> et commence le <strong>lundi à 9h</strong>, avec un match tous les 3 jours (7 journées, 3 semaines). Quand toutes les ligues ont leur calendrier, la fin de saison commune est programmée toute seule. Si tout est plein, les nouvelles teams vont en <strong>liste d'attente</strong> : à chaque fin de saison, les derniers de Ligue {{ ligues | max }} leur laissent leur place.</p>
+                <div class="table-wrap"><table>
+                    <thead><tr><th>Ligue</th><th>Teams</th><th>État</th></tr></thead>
+                    <tbody id="liste-lancement"></tbody>
+                </table></div>
+                <p id="lancement-fin" class="muted" style="margin-top:0.8rem"></p>
+                <h3 class="sous-titre">Liste d'attente</h3>
+                <div id="liste-attente" class="muted">…</div>
+            </div>
+            <div class="section">
                 <h2 class="section-title" id="saison-titre">Fin de saison</h2>
-                <p class="hint">Aperçu de ce qui se passera si tu clôtures la saison maintenant. Rien n'est modifié tant que tu n'as pas confirmé. Une team doit avoir joué au moins 1 match pour monter ou être championne. Une team <strong>inactive</strong> (aucun match de la saison, quelle que soit sa ligue) est <strong>retirée du classement</strong> ; son capitaine pourra la réinscrire en Ligue {{ ligue_depart }}. Sa place est donnée à la meilleure team active de la ligue du dessous (<strong>repêchage</strong>, une seule ligue par saison). <strong>Pénalité</strong> : −<span id="s-pen">1</span> pt par match non joué (matchs attendus = teams de la poule − 1), doublée en cas de récidive, plafond −<span id="s-penmax">15</span> (modifiable dans Réglages). Elle est appliquée avant le classement final.</p>
+                <p class="hint">Aperçu de ce qui se passera si tu clôtures la saison maintenant. Rien n'est modifié tant que tu n'as pas confirmé. Une team doit avoir joué au moins 1 match pour monter ou être championne. Une team <strong>inactive</strong> (aucun match de la saison, quelle que soit sa ligue) est <strong>retirée du classement</strong> ; son capitaine pourra la réinscrire (plus haute ligue libre, sinon liste d'attente). Sa place est donnée à la meilleure team active de la ligue du dessous (<strong>repêchage</strong>, une seule ligue par saison). <strong>Pénalité</strong> : −<span id="s-pen">1</span> pt par match non joué (matchs attendus = teams de la poule − 1), doublée en cas de récidive, plafond −<span id="s-penmax">15</span> (modifiable dans Réglages). Elle est appliquée avant le classement final.</p>
                 <div class="saison-resume">
                     <div class="stat"><div class="stat-label">Matchs joués</div><div class="stat-value" id="s-matchs">…</div></div>
                     <div class="stat"><div class="stat-label">Teams classées</div><div class="stat-value" id="s-teams">…</div></div>
@@ -876,7 +887,27 @@
             retiree: () => '<span class="mvt inactive">Retirée du classement (0 match)</span>'
         };
         
+        async function chargerLancement() {
+            const { ok, data } = await api('/api/admin/lancement');
+            if (!ok) return;
+            const ETAT = {
+                remplissage: () => '<span class="muted">En remplissage</span>',
+                pleine: e => `Complète · calendrier <strong>${escapeHtml(e.calendrier)}</strong> · début ${escapeHtml(e.debut)}`,
+                programmee: e => `Calendrier publié · début <strong>${escapeHtml(e.debut)}</strong>`,
+                en_cours: e => '<span class="tag">En cours</span>' + (e.debut ? ` <span class="muted">depuis ${escapeHtml(e.debut)}</span>` : '')
+            };
+            document.getElementById('liste-lancement').innerHTML = Object.values(data.ligues).map(e => `
+                <tr><td><strong>Ligue ${Number(e.ligue_num)}</strong></td><td>${Number(e.inscrites)} / ${Number(e.places)}</td>
+                <td>${(ETAT[e.statut] || ETAT.remplissage)(e)}</td></tr>`).join('');
+            document.getElementById('lancement-fin').innerHTML = data.fin_saison
+                ? `⏰ Fin de la saison ${Number(data.saison)} : <strong>${escapeHtml(data.fin_saison)}</strong>` : 'La fin de saison sera programmée dès que toutes les ligues auront leur calendrier.';
+            document.getElementById('liste-attente').innerHTML = data.liste_attente.length
+                ? '<ol style="margin:0;padding-left:1.2rem">' + data.liste_attente.map(t => `<li><strong>${escapeHtml(t.nom)}</strong> <span class="muted">depuis le ${escapeHtml(t.depuis)}</span></li>`).join('') + '</ol>'
+                : "Personne n'attend.";
+        }
+
         async function chargerSaison() {
+            chargerLancement();
             const { ok, data } = await api('/api/admin/saison');
             if (!ok) return;
             document.getElementById('saison-titre').textContent = `Fin de la saison ${data.saison}`;

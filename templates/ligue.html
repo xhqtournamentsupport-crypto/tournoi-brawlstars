@@ -155,12 +155,24 @@
                 </div>`).join('') + '</div></div>';
         }
 
+        // Où en est la ligue : remplissage, calendrier programmé, ou saison en cours
+        function etatLigue(data) {
+            const e = data.etat || {};
+            if (e.statut === 'remplissage')
+                return `<span class="saison-tag attente">Inscriptions ouvertes · ${Number(e.inscrites)}/${Number(e.places)} teams · la ligue démarre dès qu'elle est pleine</span>`;
+            if (e.statut === 'pleine')
+                return `<span class="saison-tag">Ligue complète · calendrier ${escapeHtml(e.calendrier)} · coup d'envoi ${escapeHtml(e.debut)}</span>`;
+            if (e.statut === 'programmee')
+                return `<span class="saison-tag">Saison ${Number(data.saison) || 1} · coup d'envoi ${escapeHtml(e.debut)}</span>`;
+            return `<span class="saison-tag">Saison ${Number(data.saison) || 1} en cours</span>`;
+        }
+
         function renderLigue(data, matchs) {
             const unique = data.poules.length === 1;
             const palmares = (data.palmares || []).filter(p => p.champion);
             let html = `<h2 class="ligue-title">Ligue ${data.ligue_num}</h2>`;
             html += `<div class="saison-bandeau">
-                <span class="saison-tag">Saison ${Number(data.saison) || 1} en cours</span>
+                ${etatLigue(data)}
                 ${palmares.length ? `<span class="palmares">Derniers champions : ${palmares.map(p => `S${Number(p.numero)} <strong>${escapeHtml(p.champion)}</strong>`).join(' · ')}</span>` : ''}
             </div>`;
             html += '<div class="poules-grid">';

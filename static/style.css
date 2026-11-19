@@ -659,6 +659,7 @@ tbody tr:hover td { background: rgba(var(--encre), 0.025); }
 
 .saison-bandeau { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.6rem 1rem; margin-bottom: 1.4rem; color: var(--muted); font-size: 0.95rem; }
 .saison-tag { display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.2rem 0.75rem; border-radius: 999px; background: var(--accent-dim); color: var(--bleu-clair); font-weight: 700; font-size: 0.85rem; }
+.saison-tag.attente::before { animation: none; background: var(--muted); }
 .saison-tag::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--violet); animation: pulse 1.8s infinite; }
 .palmares strong { color: var(--text); }
 

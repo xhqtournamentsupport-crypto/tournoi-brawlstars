@@ -290,8 +290,10 @@
             container.style.display = 'block';
             const ligue = myTeam.ligue_num
                 ? `Ligue ${myTeam.ligue_num} · Poule ${escapeHtml(myTeam.poule || '-')} · ${Number(myTeam.points) || 0} pts`
+                : myTeam.attente
+                ? `<span class="hors-classement">Liste d'attente : <strong>${Number(myTeam.attente)}${Number(myTeam.attente) === 1 ? 're' : 'e'}</strong>. Toutes les ligues sont pleines : ta team entre dès qu'une place se libère (au plus tard à la fin de la saison).</span>`
                 : `<span class="hors-classement">Hors classement : votre team n'a joué aucun match la saison dernière.
-                   ${myTeam.is_creator ? `<button class="btn-mini" type="button" onclick="reintegrer(${myTeam.id})">Réintégrer la Ligue ${ligueDepart}</button>` : `Le capitaine peut la réinscrire en Ligue ${ligueDepart}.`}</span>`;
+                   ${myTeam.is_creator ? `<button class="btn-mini" type="button" onclick="reintegrer(${myTeam.id})">Se réinscrire</button>` : `Le capitaine peut la réinscrire.`}</span>`;
             const banniere = myTeam.banniere
                 ? `<img src="${escapeHtml(myTeam.banniere)}" alt="" style="object-position:50% ${Number(myTeam.banniere_pos)}%;transform:scale(${Number(myTeam.banniere_zoom) / 100});transform-origin:50% ${Number(myTeam.banniere_pos)}%">` : '';
             const chiffres = myTeam.ligue_num ? `
@@ -574,7 +576,8 @@
             if (ok && data.success) {
                 document.getElementById('team-name').value = '';
                 document.getElementById('team-bio').value = '';
-                showMessage(`Team créée. Elle démarre en Ligue ${ligueDepart}.`, 'success');
+                showMessage(data.attente ? "Team créée. Toutes les ligues sont pleines : elle est en liste d'attente et entrera dès qu'une place se libère."
+                                         : `Team créée : elle joue en Ligue ${Number(data.ligue_num)}, poule ${escapeHtml(data.poule)}.`, 'success');
                 loadTeams();
             } else {
                 showMessage(data.error || 'Erreur lors de la création', 'error');
@@ -640,7 +643,7 @@
         
         async function reintegrer(teamId) {
             const { ok, data } = await api(`/api/teams/${teamId}/reintegrer`, { method: 'POST' });
-            showMessage(ok && data.success ? `Team réinscrite en Ligue ${data.ligue_num}, poule ${data.poule}.` : (data.error || 'Erreur'),
+            showMessage(ok && data.success ? (data.attente ? "Team réinscrite : toutes les ligues sont pleines, elle est en liste d'attente." : `Team réinscrite en Ligue ${data.ligue_num}, poule ${data.poule}.`) : (data.error || 'Erreur'),
                 ok && data.success ? 'success' : 'error');
             loadTeams();
         }

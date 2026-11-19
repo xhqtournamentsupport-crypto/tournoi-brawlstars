@@ -287,7 +287,7 @@
                 </div>
                 <div class="preuve">
                     {% if top %}<span class="pastilles">{% for t in top[:4] %}<i>{{ t.nom[:2] | upper }}</i>{% endfor %}</span>{% endif %}
-                    <span><strong>{{ chiffres.teams }}</strong> teams et <strong>{{ chiffres.joueurs }}</strong> joueurs en lice<br>{{ chiffres.places - chiffres.teams }} places encore libres cette saison</span>
+                    <span><strong>{{ chiffres.teams }}</strong> teams et <strong>{{ chiffres.joueurs }}</strong> joueurs en lice<br>{% if chiffres.places > chiffres.teams %}{{ chiffres.places - chiffres.teams }} places encore libres cette saison{% else %}Ligues complètes{% if chiffres.attente %} · {{ chiffres.attente }} team{{ 's' if chiffres.attente > 1 }} en liste d'attente{% endif %}{% endif %}</span>
                 </div>
             </div>
 
@@ -502,9 +502,9 @@
         <section>
             <div class="titre-sec"><div><h2>Comment ça marche</h2><p>Trois étapes, et ta team est en jeu.</p></div></div>
             <div class="etapes">
-                <div class="etape"><h3>Monte ta team</h3><p>Un compte, une team de 3 à 5 joueurs. C'est gratuit. Tu démarres en Ligue {{ ligue_depart }}, dans une poule de {{ par_poule }}.</p></div>
-                <div class="etape"><h3>Joue tes matchs</h3><p>Un BO3 contre chaque team de ta poule. 3 points par victoire, et un match non joué coûte un point.</p></div>
-                <div class="etape"><h3>Grimpe</h3><p>Le 1er de chaque poule monte en fin de saison, jusqu'à la Ligue 1. Entre deux saisons, les tournois.</p></div>
+                <div class="etape"><h3>Monte ta team</h3><p>Un compte, une team de 3 à 5 joueurs. C'est gratuit. Ta team prend la plus haute ligue encore libre (la Ligue 1 se remplit en premier), dans une poule de {{ par_poule }}.</p></div>
+                <div class="etape"><h3>Joue tes matchs</h3><p>Dès que ta ligue est pleine : calendrier le dimanche à 15h, coup d'envoi le lundi à 9h, un match tous les 3 jours.</p></div>
+                <div class="etape"><h3>Grimpe</h3><p>En fin de saison, les premiers montent, les derniers descendent. Une saison dure 3 semaines, et toutes les ligues repartent ensemble.</p></div>
             </div>
         </section>
     </div>
