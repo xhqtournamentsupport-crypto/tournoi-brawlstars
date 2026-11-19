@@ -383,6 +383,8 @@
                     <div style="grid-column: span 2"><label for="discord-url">Adresse du webhook</label><input type="password" id="discord-url" placeholder="https://discord.com/api/webhooks/…" autocomplete="off"></div>
                     <button class="btn secondaire" type="button" onclick="relierDiscord()">Relier et tester</button>
                 </div>
+                <button class="btn secondaire petit" type="button" onclick="testerDiscord()">Renvoyer un message de test</button>
+                <div class="sauvegarde-auto" id="discord-diag" hidden></div>
             </div>
         </div>
 
@@ -1276,8 +1278,20 @@
             const champ = document.getElementById('discord-url');
             const { ok, data } = await api('/api/admin/discord', { method: 'POST', body: { webhook: champ.value.trim(), tester: true } });
             champ.value = '';
-            showMessage(ok ? (data.test === false ? 'Relié, mais le message de test n\'est pas parti : vérifie l\'adresse.' : data.test ? 'Discord relié : un message de test est parti dans le salon.' : 'Discord délié.') : (data.error || 'Erreur'), ok && data.test !== false ? 'success' : 'error');
+            showMessage(ok ? (data.test === false ? 'Adresse enregistrée, mais le message de test n\'est pas parti (voir la raison sous le bouton).' : data.test ? 'Discord relié : un message de test est parti dans le salon.' : 'Discord délié.') : (data.error || 'Erreur'), ok && data.test !== false ? 'success' : 'error');
+            diagDiscord(ok ? data : null);
             chargerAnnonces();
+        }
+        async function testerDiscord() {
+            const { ok, data } = await api('/api/admin/discord/tester', { method: 'POST' });
+            if (!ok) { showMessage(data.error || 'Erreur', 'error'); return; }
+            showMessage(data.test ? 'Message de test envoyé : regarde ton salon Discord.' : 'Le message de test n\'est pas parti (voir la raison sous le bouton).', data.test ? 'success' : 'error');
+            diagDiscord(data);
+        }
+        function diagDiscord(data) {
+            const zone = document.getElementById('discord-diag');
+            zone.hidden = !data || data.test !== false;
+            if (data && data.test === false) zone.innerHTML = '<strong>Pourquoi ça ne marche pas</strong><p>' + escapeHtml(data.raison || 'Raison inconnue') + '</p>';
         }
 
         // ---------- boutique ----------

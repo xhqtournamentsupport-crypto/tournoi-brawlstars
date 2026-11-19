@@ -2997,23 +2997,47 @@ def date_paris(utc_texte, format_court=False):
 DISCORD_WEBHOOK_REGEX = re.compile(r'^https://(discord\.com|discordapp\.com)/api/webhooks/\d+/[A-Za-z0-9_\-]+$')
 
 
+UA_DISCORD = 'DiscordBot (https://xhqtounament.pythonanywhere.com, 1.0)'
+
+
+def poster_discord(url, contenu, delai=8):
+    """Envoie un message au webhook. Renvoie (True, '') ou (False, raison en clair pour l'admin)."""
+    import json
+    import urllib.error
+    import urllib.request
+    corps = json.dumps({'content': contenu[:1900], 'allowed_mentions': {'parse': []}}).encode()
+    req = urllib.request.Request(url, data=corps, headers={'Content-Type': 'application/json', 'User-Agent': UA_DISCORD})
+    try:
+        with urllib.request.urlopen(req, timeout=delai) as rep:
+            return 200 <= rep.status < 300, ''
+    except urllib.error.HTTPError as e:
+        app.logger.warning('Discord a refusé le message : %s', e)
+        if e.code in (401, 404):
+            return False, ("Discord ne connaît pas ce webhook (code %d) : il a été supprimé ou l'adresse est incomplète. "
+                           "Recrée-le et recolle l'adresse en entier." % e.code)
+        if e.code == 429:
+            return False, 'Discord limite les envois (code 429) : réessaie dans quelques minutes.'
+        return False, f"Discord a refusé le message (code {e.code}). Réessaie dans quelques minutes ; si ça continue, envoie-moi ce code."
+    except urllib.error.URLError as e:
+        app.logger.warning('Discord injoignable : %s', e)
+        raison = str(getattr(e, 'reason', e))
+        if 'Tunnel' in raison or '403' in raison or 'proxy' in raison.lower():
+            return False, ("Le serveur n'a pas le droit de joindre discord.com (compte gratuit PythonAnywhere : "
+                           f"seuls certains sites sont autorisés). Détail : {raison}")
+        return False, f"Impossible de joindre discord.com depuis le serveur. Détail : {raison}"
+    except Exception as e:   # délai dépassé, coupure…
+        app.logger.warning('Discord : %s', e)
+        return False, f"Discord n'a pas répondu à temps ({e.__class__.__name__}). Réessaie dans une minute."
+
+
 def envoyer_discord(titre, texte, lien):
     """Publie l'annonce sur le salon Discord relié (webhook réglé par un fondateur). Vrai si c'est parti."""
-    import json
-    import urllib.request
     db = get_db()
     r = db.execute("SELECT valeur FROM parametres WHERE cle = 'discord_webhook'").fetchone()
     if not r or not DISCORD_WEBHOOK_REGEX.match(r['valeur'] or ''):
         return False
     contenu = f"📢 **{titre}**\n{texte or ''}" + (f"\n{lien}" if lien else '')
-    corps = json.dumps({'content': contenu[:1900], 'allowed_mentions': {'parse': []}}).encode()
-    req = urllib.request.Request(r['valeur'], data=corps, headers={'Content-Type': 'application/json', 'User-Agent': 'XHQLeague'})
-    try:
-        with urllib.request.urlopen(req, timeout=8) as rep:
-            return 200 <= rep.status < 300
-    except Exception as e:
-        app.logger.warning('Annonce non envoyée sur Discord : %s', e)
-        return False
+    return poster_discord(r['valeur'], contenu)[0]
 
 
 AUTO_DISCORD = {'resultats': 'Résultats des matchs', 'tournois': 'Nouveaux tournois et champions', 'saison': 'Fin de saison (champions, montées)'}
@@ -3045,7 +3069,7 @@ def envoyer_file_discord(db, maximum=2):
             continue
         db.commit()
         corps = json.dumps({'content': m['contenu'], 'allowed_mentions': {'parse': []}}).encode()
-        req = urllib.request.Request(w['valeur'], data=corps, headers={'Content-Type': 'application/json', 'User-Agent': 'XHQLeague'})
+        req = urllib.request.Request(w['valeur'], data=corps, headers={'Content-Type': 'application/json', 'User-Agent': UA_DISCORD})
         try:
             with urllib.request.urlopen(req, timeout=4) as rep:
                 if 200 <= rep.status < 300:
@@ -3685,8 +3709,24 @@ def api_admin_discord():
     journaliser(db, 'Discord relié' if url else 'Discord délié')
     db.commit()
     if url and donnees_json().get('tester'):
-        return jsonify({'success': True, 'test': envoyer_discord('Test XHQ League', 'Le site est bien relié à ce salon.', None)}), 200
+        ok, raison = poster_discord(url, '✅ **Test XHQ League**\nLe site est bien relié à ce salon.')
+        return jsonify({'success': True, 'test': ok, 'raison': raison}), 200
     return jsonify({'success': True}), 200
+
+
+@app.route('/api/admin/discord/tester', methods=['POST'])
+@api_admin
+def api_admin_discord_tester():
+    """Renvoie un message de test sur le Discord déjà relié, et dit pourquoi si ça échoue."""
+    db = get_db()
+    r = db.execute("SELECT valeur FROM parametres WHERE cle = 'discord_webhook'").fetchone()
+    if not r or not DISCORD_WEBHOOK_REGEX.match(r['valeur'] or ''):
+        return jsonify({'success': False, 'error': "Aucun Discord relié : colle d'abord l'adresse du webhook."}), 400
+    if limite_atteinte(f"test-discord:{session['user_id']}", 10, 10):
+        return jsonify({'success': False, 'error': TROP}), 429
+    noter_action(f"test-discord:{session['user_id']}")
+    ok, raison = poster_discord(r['valeur'], '✅ **Test XHQ League**\nLe site est bien relié à ce salon.')
+    return jsonify({'success': True, 'test': ok, 'raison': raison}), 200
 
 
 # ---------- admin : boutique (badges créés depuis l'admin) ----------
