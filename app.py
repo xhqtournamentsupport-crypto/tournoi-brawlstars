@@ -1042,6 +1042,27 @@ def nom_team(db, team_id):
     return f"{r['nom']} (#{team_id})" if r else f'#{team_id}'
 
 
+# Ce qu'un admin (non fondateur) peut faire : uniquement la compétition (résultats, litiges, tournois,
+# calendrier) et consulter la saison. TOUT le reste est réservé aux fondateurs, y compris toute nouvelle
+# action admin ajoutée plus tard tant qu'elle n'est pas inscrite ici (interdit par défaut).
+ACTIONS_ADMIN = {
+    'api_admin_stats',                                                        # tableau de bord
+    'api_admin_teams',                                                        # liste des teams (formulaires de match)
+    'api_admin_create_match', 'api_admin_delete_match',                       # résultats
+    'api_admin_declarations', 'api_admin_trancher',                           # scores déclarés et litiges
+    'api_admin_creer_tournoi', 'api_admin_tournoi_poules', 'api_admin_tournoi_bracket',
+    'api_admin_tournoi_score', 'api_admin_supprimer_tournoi',                 # tournois
+    'api_admin_generer_calendrier', 'api_admin_modifier_rencontre',          # calendrier
+    'api_admin_saison', 'api_admin_lancement',                                # saison (lecture seule)
+}
+ONGLETS_ADMIN = ('matchs', 'calendrier', 'saison')                            # onglets visibles par un admin
+
+
+def est_fondateur():
+    """Fondateur (ou admin tant qu'aucun fondateur n'existe : mise en route du site)."""
+    return est_admin() and fondateur_requis(get_db()) is None
+
+
 def api_admin(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
@@ -1049,6 +1070,8 @@ def api_admin(f):
             return jsonify({'success': False, 'error': 'Non connecté'}), 401
         if not est_admin():
             return jsonify({'success': False, 'error': 'Réservé aux admins'}), 403
+        if f.__name__ not in ACTIONS_ADMIN and not est_fondateur():
+            return jsonify({'success': False, 'error': 'Réservé aux fondateurs : les admins gèrent les résultats, les tournois et le calendrier'}), 403
         return f(*args, **kwargs)
     return wrapper
 
@@ -2066,6 +2089,9 @@ def api_profil_delete():
     erreur = verifier_mot_de_passe_actuel(db, mdp if isinstance(mdp, str) else '')
     if erreur:
         return erreur
+    if possede(db, uid, 'fondateur') and porteurs(db, 'fondateur') <= 1:
+        # Sans fondateur, le site repasserait en « mise en route » : tous les admins auraient tous les droits
+        return jsonify({'success': False, 'error': "Tu es le dernier fondateur : donne d'abord le badge Fondateur à quelqu'un de confiance (Admin → Joueurs)"}), 400
     for t in db.execute('SELECT team_id FROM team_members WHERE user_id = ?', (uid,)).fetchall():
         seul = db.execute('SELECT COUNT(*) FROM team_members WHERE team_id = ?', (t['team_id'],)).fetchone()[0] == 1
         tournoi = en_tournoi_actif(db, t['team_id'])
@@ -2983,7 +3009,7 @@ def api_matchs():
 @page_admin
 def admin_page():
     return render_template('admin.html', ligues=LIGUES, points_victoire=reglage('points_victoire'), points_defaite=reglage('points_defaite'),
-                           ligue_depart=LIGUE_DEPART)
+                           ligue_depart=LIGUE_DEPART, fondateur=est_fondateur(), onglets_admin=ONGLETS_ADMIN)
 
 
 def entier(valeur):
@@ -3007,16 +3033,21 @@ def api_admin_stats():
     compter = lambda req, *p: db.execute(req, p).fetchone()[0]
     saison = saison_actuelle(db, jeu['id'])
     valider_declarations_expirees(db)
+    fondateur = est_fondateur()
+    a_faire = a_faire_admin(db, jeu['id'], saison)
+    if not fondateur:   # un admin ne voit que la compétition (pas les versions du serveur ni les sauvegardes)
+        a_faire = {k: v for k, v in a_faire.items() if k not in ('outils_vieux', 'sauvegarde_jours')}
+        a_faire['sauvegarde_jours'] = 0
     return jsonify({
-        'jeu': jeu,
+        'jeu': jeu, 'fondateur': fondateur,
         'joueurs': compter('SELECT COUNT(*) FROM users'),
         'teams': compter('SELECT COUNT(*) FROM teams WHERE jeu_id = ?', jeu['id']),
         'matchs': compter('SELECT COUNT(*) FROM matchs WHERE jeu_id = ? AND saison = ?', jeu['id'], saison),
         'saison': saison,
-        'messages_non_traites': compter('SELECT COUNT(*) FROM contact_messages WHERE traite = 0 OR traite IS NULL'),
+        'messages_non_traites': compter('SELECT COUNT(*) FROM contact_messages WHERE traite = 0 OR traite IS NULL') if fondateur else 0,
         'litiges': compter("SELECT COUNT(*) FROM declarations WHERE jeu_id = ? AND statut = 'conteste'", jeu['id']),
-        'verrouilles': compter("SELECT COUNT(*) FROM users WHERE verrou_definitif = 1"),
-        'a_faire': a_faire_admin(db, jeu['id'], saison),
+        'verrouilles': compter("SELECT COUNT(*) FROM users WHERE verrou_definitif = 1") if fondateur else 0,
+        'a_faire': a_faire,
     }), 200
 
 
@@ -4513,6 +4544,8 @@ def lancement_auto(db):
     for jeu in [dict(j) for j in db.execute('SELECT id, code, nom FROM jeux').fetchall()]:
         c = db.cursor()
         saison = saison_actuelle(db, jeu['id'])
+        for t in c.execute('SELECT id FROM teams WHERE jeu_id = ? AND en_formation = 1', (jeu['id'],)).fetchall():
+            entrer_en_ligue_si_complete(c, t['id'])     # (si le minimum de joueurs a été baissé dans les réglages)
         placer_liste_attente(c, jeu['id'])
         lancees = ligues_lancees(db, jeu['id'], saison)
         for n in LIGUES:
@@ -5089,6 +5122,9 @@ def api_tournoi_inscription(tournoi_id):
         return jsonify({'success': False, 'error': "Tu n'as pas de team pour ce jeu"}), 400
     if not ma_team['capitaine']:
         return jsonify({'success': False, 'error': 'Seul le capitaine peut inscrire la team'}), 403
+    minimum = joueurs_min(db, t['jeu_id'])
+    if nb_membres(db, ma_team['id']) < minimum:   # pas de team fantôme qui prend une place de tournoi
+        return jsonify({'success': False, 'error': f'Il faut au moins {minimum} joueurs dans la team pour s\'inscrire'}), 400
     if db.execute('SELECT 1 FROM tournoi_inscriptions WHERE tournoi_id = ? AND team_id = ?',
                   (t['id'], ma_team['id'])).fetchone():
         return jsonify({'success': False, 'error': 'Ta team est déjà inscrite'}), 400
@@ -5526,7 +5562,7 @@ def api_reinitialiser():
         return jsonify({'success': False, 'error': f'Le mot de passe doit faire au moins {MOT_DE_PASSE_MIN} caractères'}), 400
     db.execute('UPDATE users SET password = ? WHERE id = ?', (generate_password_hash(nouveau), r['user_id']))
     db.execute('UPDATE reinitialisations SET utilise = 1 WHERE user_id = ?', (r['user_id'],))
-    db.execute('UPDATE users SET echecs_connexion = 0, verrou_niveau = 0, bloque_jusqua = NULL WHERE id = ?', (r['user_id'],))
+    db.execute('UPDATE users SET echecs_connexion = 0, verrou_niveau = 0, bloque_jusqua = NULL, email_verifie = 1, verif_jeton = NULL WHERE id = ?', (r['user_id'],))
     invalider_sessions(db, r['user_id'])
     db.commit()
     prevenir_par_mail(db, r['user_id'], 'Ton mot de passe a été réinitialisé',

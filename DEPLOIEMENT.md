@@ -143,3 +143,18 @@ Diagnostic depuis la console : `python3.10 app.py discord`.
 Une team n'entre en ligue qu'avec **3 joueurs** (réglable dans Admin → Réglages, « Joueurs minimum »).
 Avant, elle est « en formation ». Si elle repasse sous ce nombre avant le début de sa ligue, elle perd sa place
 et repasse en formation ; une fois la ligue commencée, elle la garde. Les teams déjà inscrites gardent leur place.
+
+## Fondateurs et admins
+| | Fondateur | Admin |
+|---|---|---|
+| Résultats, litiges, tournois, calendrier | ✅ | ✅ |
+| Voir la saison et le lancement des ligues | ✅ | ✅ |
+| Clôturer / programmer la fin de saison | ✅ | ❌ |
+| Joueurs, teams, messages de contact | ✅ | ❌ |
+| Annonces, boutique, automatique, Discord | ✅ | ❌ |
+| Contenu, réglages, statistiques, journal, sauvegardes | ✅ | ❌ |
+| Donner les droits admin / le badge Fondateur | ✅ | ❌ |
+
+Toute nouvelle action d'administration est réservée aux fondateurs tant qu'elle n'est pas explicitement ouverte
+aux admins (liste `ACTIONS_ADMIN` dans `app.py`). Il reste toujours au moins un fondateur : le dernier ne peut
+ni perdre son badge ni supprimer son compte.
