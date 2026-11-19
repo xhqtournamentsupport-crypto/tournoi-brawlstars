@@ -105,3 +105,14 @@ Conseil : pour ton compte admin, utilise un email **différent** de l'email de c
 - **Jeux** : ajouter un jeu (nom, format 1v1/3v3/5v5, joueurs max par team) : il a ses propres teams, ligues,
   saisons et tournois. Un jeu sans team ni tournoi peut être supprimé.
 Tout ce qui est automatique se déclenche pendant les visites du site (pas besoin de tâche planifiée).
+
+## Textes, réglages et statistiques (sans toucher au code)
+- **Admin → Contenu** : le grand titre de l'accueil (3 lignes, celle du milieu brille) et le texte dessous,
+  le **règlement** (page `/reglement`) et la **FAQ** (page `/faq`). Dans le règlement, `# ` = titre, `- ` = puce,
+  et `{points_victoire}`, `{delai_h}`, `{penalite_max}`… sont remplacés par les vrais réglages. Vider un champ remet le texte d'origine.
+- **Admin → Réglages** (fondateurs) : points par victoire / défaite, délai avant validation automatique d'un score,
+  pénalités de fin de saison. Ça compte à partir du prochain match (rien n'est recalculé).
+  **Mots interdits** : un mot par ligne, refusés dans les pseudos, noms de team et bios (même en l33t ou avec des points).
+- **Admin → Saison → « Programmer »** (fondateurs) : la saison se clôture toute seule à la date choisie, joueurs prévenus. Annulable.
+- **Admin → Stats** : joueurs, teams actives, matchs, tournois, part des scores réglés par un admin,
+  et deux graphiques sur 12 semaines (inscriptions, matchs), avec un tableau pour les chiffres exacts.

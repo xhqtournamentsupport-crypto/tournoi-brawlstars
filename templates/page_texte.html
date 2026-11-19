@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ titre }} · XHQ League</title>
+    {% include '_head.html' %}
+    <style>
+        .container { max-width: 820px; }
+        .texte-bloc { padding: 1.6rem 1.7rem; background: var(--panel); border: 1px solid var(--line); border-radius: 20px; }
+        .texte-bloc h2 { margin: 1.6rem 0 0.6rem; font-size: 1.2rem; }
+        .texte-bloc h2:first-child { margin-top: 0; }
+        .texte-bloc p, .texte-bloc li { color: var(--text-soft); line-height: 1.65; white-space: pre-line; overflow-wrap: anywhere; }
+        .texte-bloc ul { margin: 0 0 0.8rem; padding-left: 1.2rem; }
+        .texte-bloc li::marker { color: var(--violet); }
+        .faq details { margin-bottom: 0.7rem; background: var(--panel); border: 1px solid var(--line); border-radius: 18px; transition: border-color 0.2s; }
+        .faq details[open] { border-color: rgba(124, 108, 255, 0.5); }
+        .faq summary { cursor: pointer; padding: 1.1rem 1.3rem; font-weight: 700; list-style: none; display: flex; justify-content: space-between; gap: 1rem; }
+        .faq summary::-webkit-details-marker { display: none; }
+        .faq summary::after { content: '+'; color: var(--bleu-clair); font-size: 1.3rem; line-height: 1; transition: transform 0.2s; }
+        .faq details[open] summary::after { transform: rotate(45deg); }
+        .faq details p { margin: 0; padding: 0 1.3rem 1.2rem; color: var(--text-soft); line-height: 1.6; white-space: pre-line; overflow-wrap: anywhere; }
+    </style>
+</head>
+<body>
+    {% include '_nav.html' %}
+    <main class="xhq-main">
+    <div class="container">
+        <div class="header-nav">
+            <h1><span class="kicker">{{ kicker }}</span>{{ titre }}</h1>
+        </div>
+        {% if faq is defined %}
+        <div class="faq">
+            {% for q in faq %}
+            <details><summary>{{ q.q }}</summary>{% if q.r %}<p>{{ q.r }}</p>{% endif %}</details>
+            {% else %}
+            <p class="empty">Pas encore de questions.</p>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="texte-bloc">
+            {% for b in blocs %}
+            {% if b.type == 'titre' %}<h2>{{ b.texte }}</h2>
+            {% elif b.type == 'liste' %}<ul>{% for i in b['items'] %}<li>{{ i }}</li>{% endfor %}</ul>
+            {% else %}<p>{{ b.texte }}</p>{% endif %}
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+    </main>
+    {% include '_footer.html' %}
+</body>
+</html>

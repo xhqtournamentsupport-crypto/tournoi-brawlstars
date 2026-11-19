@@ -272,8 +272,8 @@
             <div class="scene-texte">
                 {% include '_jeux.html' %}
                 <span class="kicker"><i class="direct"></i>{{ jeu_actuel.nom }} · Saison {{ chiffres.saison }} en cours</span>
-                <h1 class="titre-geant"><span>La ligue où</span><span class="brille">chaque match</span><span>compte.</span></h1>
-                <p>Monte ta team, joue ta poule et grimpe de la Ligue {{ ligue_depart }} à la Ligue 1. Des tournois réguliers, des résultats vérifiés par l'orga, et un palmarès qui reste.</p>
+                <h1 class="titre-geant"><span>{{ textes.accueil_ligne1 }}</span><span class="brille">{{ textes.accueil_ligne2 }}</span><span>{{ textes.accueil_ligne3 }}</span></h1>
+                <p>{{ textes.accueil_texte }}</p>
                 <div class="scene-actions">
                     {% if current_user %}
                     <a href="/teams?jeu={{ jeu_actuel.code }}" class="btn btn-fleche">Ma team</a>

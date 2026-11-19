@@ -89,6 +89,25 @@
         .mvt.repechage { color: var(--bleu); }
         .mvt.inactive { color: var(--muted); }
 
+        .texte-long { width: 100%; font-family: ui-monospace, Menlo, monospace; font-size: 0.88rem; line-height: 1.55; margin-bottom: 0.8rem; }
+        .reglages-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 0.9rem; margin-bottom: 1rem; }
+        .reglages-grille > div { display: flex; flex-direction: column; justify-content: flex-end; }
+        .reglages-grille label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 0.35rem; }
+        .reglages-grille small { color: var(--muted); font-size: 0.75rem; }
+        .graphe-tete { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
+        .graphe-tete .section-title { margin: 0; }
+        .graphe { position: relative; margin-top: 0.6rem; }
+        .graphe svg { display: block; width: 100%; height: auto; overflow: visible; }
+        .graphe .axe { fill: var(--muted); font-size: 11px; font-family: var(--body); }
+        .graphe .grille { stroke: rgba(255, 255, 255, 0.08); stroke-width: 1; }
+        .graphe .barre { fill: #7c6cff; transition: opacity 0.15s; }
+        .graphe .barre-zone { fill: transparent; cursor: default; }
+        .graphe svg:hover .barre { opacity: 0.45; }
+        .graphe svg .barre.survol { opacity: 1; }
+        .graphe .valeur-max { fill: var(--text); font-size: 11px; font-weight: 700; font-family: var(--body); }
+        .bulle { position: absolute; pointer-events: none; padding: 0.45rem 0.65rem; background: #15151f; border: 1px solid var(--line); border-radius: 10px; font-size: 0.82rem; white-space: nowrap; transform: translate(-50%, -110%); box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+        .bulle strong { display: block; font-size: 1rem; }
+        .graphe table { width: 100%; }
         .cloture { margin-top: 1.6rem; padding: 1.2rem; border: 1px solid var(--indigo); border-radius: var(--radius); }
         .cloture p { color: var(--muted); }
         .cloture p strong { color: var(--text); }
@@ -166,6 +185,9 @@
             <button class="tab" type="button" data-tab="annonces"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v2a1 1 0 0 0 1 1h3l5 4V6L7 10H4a1 1 0 0 0-1 1zM16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12"/></svg>Annonces</button>
             <button class="tab" type="button" data-tab="boutique"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1.2 12H6.2L5 8zM9 8V6a3 3 0 0 1 6 0v2"/></svg>Boutique</button>
             <button class="tab" type="button" data-tab="auto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/><circle cx="12" cy="12" r="3"/></svg>Automatique</button>
+            <button class="tab" type="button" data-tab="contenu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16v4zM13 7l4 4"/></svg>Contenu</button>
+            <button class="tab" type="button" data-tab="reglages"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>Réglages</button>
+            <button class="tab" type="button" data-tab="stats"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V12M10 20V6M16 20v-9M21 20H3"/></svg>Stats</button>
             <button class="tab" type="button" data-tab="journal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6zM9 9h6M9 13h6M9 17h4"/></svg>Journal</button>
             <button class="tab" type="button" data-tab="sauvegardes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M4 19h16"/></svg>Sauvegardes</button>
         </div>
@@ -247,7 +269,7 @@
         <div class="panel" id="panel-saison">
             <div class="section">
                 <h2 class="section-title" id="saison-titre">Fin de saison</h2>
-                <p class="hint">Aperçu de ce qui se passera si tu clôtures la saison maintenant. Rien n'est modifié tant que tu n'as pas confirmé. Une team doit avoir joué au moins 1 match pour monter ou être championne. Une team <strong>inactive</strong> (aucun match de la saison, quelle que soit sa ligue) est <strong>retirée du classement</strong> ; son capitaine pourra la réinscrire en Ligue {{ ligue_depart }}. Sa place est donnée à la meilleure team active de la ligue du dessous (<strong>repêchage</strong>, une seule ligue par saison). <strong>Pénalité</strong> : −1 pt par match non joué (matchs attendus = teams de la poule − 1), doublée en cas de récidive, plafond −15. Elle est appliquée avant le classement final.</p>
+                <p class="hint">Aperçu de ce qui se passera si tu clôtures la saison maintenant. Rien n'est modifié tant que tu n'as pas confirmé. Une team doit avoir joué au moins 1 match pour monter ou être championne. Une team <strong>inactive</strong> (aucun match de la saison, quelle que soit sa ligue) est <strong>retirée du classement</strong> ; son capitaine pourra la réinscrire en Ligue {{ ligue_depart }}. Sa place est donnée à la meilleure team active de la ligue du dessous (<strong>repêchage</strong>, une seule ligue par saison). <strong>Pénalité</strong> : −<span id="s-pen">1</span> pt par match non joué (matchs attendus = teams de la poule − 1), doublée en cas de récidive, plafond −<span id="s-penmax">15</span> (modifiable dans Réglages). Elle est appliquée avant le classement final.</p>
                 <div class="saison-resume">
                     <div class="stat"><div class="stat-label">Matchs joués</div><div class="stat-value" id="s-matchs">…</div></div>
                     <div class="stat"><div class="stat-label">Teams classées</div><div class="stat-value" id="s-teams">…</div></div>
@@ -266,6 +288,15 @@
                     <div class="ligne">
                         <input type="text" id="s-confirmation" placeholder="Tape CLOTURER" autocomplete="off">
                         <button class="btn danger" type="button" id="s-cloturer" onclick="cloturerSaison()" disabled>Clôturer la saison</button>
+                    </div>
+                </div>
+                <div class="cloture" id="s-programme-zone">
+                    <p><strong>Ou programme la fin de saison</strong> : le site la clôture tout seul à la date choisie (heure de France), joueurs et admins sont prévenus. Tu peux annuler jusqu'au dernier moment.</p>
+                    <p id="s-programme-etat"></p>
+                    <div class="ligne">
+                        <input type="datetime-local" id="s-programme-date" style="letter-spacing:normal;text-transform:none">
+                        <button class="btn" type="button" onclick="programmerCloture()">Programmer</button>
+                        <button class="btn secondary" type="button" id="s-programme-annuler" onclick="programmerCloture(true)" hidden>Annuler la programmation</button>
                     </div>
                 </div>
             </div>
@@ -421,6 +452,66 @@
             </div>
         </div>
 
+        <!-- ============ CONTENU ============ -->
+        <div class="panel" id="panel-contenu">
+            <div class="section">
+                <h2 class="section-title">Accueil</h2>
+                <p class="hint">Le grand titre de la page d'accueil, sur 3 lignes (celle du milieu brille), et le texte en dessous.</p>
+                <div class="cal-form">
+                    <div><label for="ct-l1">Ligne 1</label><input type="text" id="ct-l1" maxlength="200"></div>
+                    <div><label for="ct-l2">Ligne 2 (brille)</label><input type="text" id="ct-l2" maxlength="200"></div>
+                </div>
+                <div class="form-group"><label for="ct-l3">Ligne 3</label><input type="text" id="ct-l3" maxlength="200"></div>
+                <div class="form-group"><label for="ct-texte">Texte sous le titre</label><textarea id="ct-texte" maxlength="400" rows="3"></textarea></div>
+            </div>
+            <div class="section">
+                <h2 class="section-title">Règlement</h2>
+                <p class="hint">Page <a href="/reglement" target="_blank">/reglement</a>. Une ligne qui commence par <code># </code> = un titre, par <code>- </code> = une puce. Les mots entre accolades sont remplacés par tes réglages : <code>{points_victoire}</code> <code>{points_defaite}</code> <code>{delai_h}</code> <code>{penalite_par_match}</code> <code>{penalite_max}</code> <code>{max_membres}</code>.</p>
+                <textarea id="ct-reglement" maxlength="8000" rows="16" class="texte-long"></textarea>
+            </div>
+            <div class="section">
+                <h2 class="section-title">FAQ</h2>
+                <p class="hint">Page <a href="/faq" target="_blank">/faq</a>. Écris la question sur une ligne, la réponse sur les lignes d'après, et laisse une ligne vide entre deux questions.</p>
+                <textarea id="ct-faq" maxlength="8000" rows="14" class="texte-long"></textarea>
+            </div>
+            <button class="btn" type="button" onclick="enregistrerContenu()">Enregistrer les textes</button>
+            <span class="muted">Vider un champ remet le texte d'origine.</span>
+        </div>
+
+        <!-- ============ RÉGLAGES ============ -->
+        <div class="panel" id="panel-reglages">
+            <div class="section">
+                <h2 class="section-title">Réglages de la ligue</h2>
+                <p class="hint">Seuls les fondateurs peuvent les changer. Ils s'appliquent aux <strong>prochains</strong> matchs : les points déjà gagnés ne sont pas recalculés. Le règlement affiché sur le site se met à jour tout seul.</p>
+                <div id="liste-reglages" class="reglages-grille">…</div>
+                <button class="btn" type="button" onclick="enregistrerReglages()">Enregistrer les réglages</button>
+            </div>
+            <div class="section">
+                <h2 class="section-title">Mots interdits</h2>
+                <p class="hint">Un mot par ligne. Ils sont refusés dans les pseudos, noms de team et bios, même écrits en l33t, avec des accents, des points ou des lettres répétées (« c.o.n », « c0nnn »). Les mots de 4 lettres ou moins ne sont bloqués que seuls (« con » ne bloque pas « Conor »).</p>
+                <textarea id="mots-interdits" rows="10" maxlength="5000" class="texte-long" placeholder="un mot par ligne"></textarea>
+                <button class="btn" type="button" onclick="enregistrerMots()">Enregistrer la liste</button>
+            </div>
+        </div>
+
+        <!-- ============ STATS ============ -->
+        <div class="panel" id="panel-stats">
+            <div class="section">
+                <h2 class="section-title" id="st-titre">Statistiques</h2>
+                <div class="saison-resume" id="st-chiffres"></div>
+            </div>
+            <div class="section graphe-bloc">
+                <div class="graphe-tete"><h2 class="section-title">Inscriptions par semaine</h2><button class="btn secondary petit" type="button" data-vue="inscriptions">Voir le tableau</button></div>
+                <p class="hint">Nouveaux comptes, sur les 12 dernières semaines (semaine du lundi indiqué).</p>
+                <div class="graphe" id="graphe-inscriptions"></div>
+            </div>
+            <div class="section graphe-bloc">
+                <div class="graphe-tete"><h2 class="section-title">Matchs joués par semaine</h2><button class="btn secondary petit" type="button" data-vue="matchs">Voir le tableau</button></div>
+                <p class="hint">Résultats de ligue enregistrés pour le jeu choisi, sur les 12 dernières semaines.</p>
+                <div class="graphe" id="graphe-matchs"></div>
+            </div>
+        </div>
+
         <!-- ============ JOURNAL ============ -->
         <div class="panel" id="panel-journal">
             <div class="section">
@@ -516,6 +607,9 @@
             if (nom === 'auto') chargerAuto();
             if (nom === 'annonces') chargerAnnonces();
             if (nom === 'boutique') chargerBoutique();
+            if (nom === 'contenu') chargerContenu();
+            if (nom === 'reglages') chargerReglages();
+            if (nom === 'stats') chargerStatistiques();
             history.replaceState(null, '', nom === 'matchs' ? location.pathname : '#' + nom);
         }
         document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => ouvrirOnglet(t.dataset.tab)));
@@ -793,6 +887,12 @@
             document.getElementById('s-descentes').textContent = data.nb_descentes;
             document.getElementById('s-retirees').textContent = data.nb_retirees;
             document.getElementById('s-penalisees').textContent = data.nb_penalisees;
+            document.getElementById('s-pen').textContent = Number(data.penalite_par_match);
+            document.getElementById('s-penmax').textContent = Number(data.penalite_max);
+            document.getElementById('s-programme-etat').innerHTML = data.cloture_programmee
+                ? `⏰ Clôture automatique prévue le <strong>${escapeHtml(data.cloture_programmee)}</strong>.` : 'Aucune clôture programmée.';
+            document.getElementById('s-programme-annuler').hidden = !data.cloture_programmee;
+            if (data.cloture_programmee_court) document.getElementById('s-programme-date').value = data.cloture_programmee_court;
             
             const tbody = document.getElementById('liste-mouvements');
             tbody.innerHTML = data.mouvements.length ? data.mouvements.map(m => `
@@ -845,6 +945,125 @@
         }
         
         document.getElementById('s-confirmation').addEventListener('input', majBoutonCloture);
+
+        async function programmerCloture(annuler) {
+            const quand = annuler ? '' : document.getElementById('s-programme-date').value;
+            if (!annuler && !quand) return showMessage('Choisis la date et l\'heure de fin de saison', 'error');
+            if (annuler && !confirm('Annuler la fin de saison programmée ?')) return;
+            const { ok, data } = await api('/api/admin/saison/programmer', { method: 'POST', body: { quand } });
+            if (ok && data.success) {
+                showMessage(annuler ? 'Programmation annulée.' : `Fin de saison programmée le ${data.quand_fr}.`, 'success');
+                if (annuler) document.getElementById('s-programme-date').value = '';
+                chargerSaison();
+            } else showMessage(data.error || 'Erreur', 'error');
+        }
+
+        // ---------- contenu ----------
+        const CHAMPS_CONTENU = { 'ct-l1': 'accueil_ligne1', 'ct-l2': 'accueil_ligne2', 'ct-l3': 'accueil_ligne3', 'ct-texte': 'accueil_texte', 'ct-reglement': 'reglement', 'ct-faq': 'faq' };
+        async function chargerContenu() {
+            const { ok, data } = await api('/api/admin/contenu');
+            if (!ok) return;
+            for (const [id, cle] of Object.entries(CHAMPS_CONTENU)) document.getElementById(id).value = data[cle] || '';
+        }
+        async function enregistrerContenu() {
+            const body = {};
+            for (const [id, cle] of Object.entries(CHAMPS_CONTENU)) body[cle] = document.getElementById(id).value;
+            const { ok, data } = await api('/api/admin/contenu', { method: 'POST', body });
+            if (ok && data.success) { showMessage('Textes enregistrés : ils sont déjà en ligne.', 'success'); chargerContenu(); }
+            else showMessage(data.error || 'Erreur', 'error');
+        }
+
+        // ---------- réglages ----------
+        async function chargerReglages() {
+            const { ok, data } = await api('/api/admin/reglages');
+            if (!ok) return;
+            document.getElementById('liste-reglages').innerHTML = data.reglages.map(r => `
+                <div><label for="rg-${escapeHtml(r.cle)}">${escapeHtml(r.libelle)}</label>
+                <input type="number" id="rg-${escapeHtml(r.cle)}" data-reglage="${escapeHtml(r.cle)}" min="${Number(r.min)}" max="${Number(r.max)}" value="${Number(r.valeur)}">
+                <small>de ${Number(r.min)} à ${Number(r.max)} · d'origine : ${Number(r.defaut)}</small></div>`).join('');
+            document.getElementById('mots-interdits').value = data.mots_interdits || '';
+        }
+        async function envoyerReglages(body, texteOk) {
+            const { ok, data } = await api('/api/admin/reglages', { method: 'POST', body });
+            if (ok && data.success) { await chargerReglages(); showMessage(texteOk, 'success'); }
+            else showMessage(data.error || 'Erreur', 'error');
+        }
+        function enregistrerReglages() {
+            const body = {};
+            document.querySelectorAll('[data-reglage]').forEach(i => body[i.dataset.reglage] = Number(i.value));
+            envoyerReglages(body, 'Réglages enregistrés : ils comptent dès le prochain match.');
+        }
+        function enregistrerMots() {
+            envoyerReglages({ mots_interdits: document.getElementById('mots-interdits').value }, 'Liste des mots interdits enregistrée.');
+        }
+
+        // ---------- statistiques ----------
+        let statistiques = null;
+        async function chargerStatistiques() {
+            const { ok, data } = await api('/api/admin/statistiques');
+            if (!ok) return;
+            statistiques = data;
+            document.getElementById('st-titre').textContent = `Statistiques · ${data.jeu} · saison ${data.saison}`;
+            const tuiles = [['Joueurs inscrits', data.joueurs], ['Joueurs en team', data.en_team], ['Teams', data.teams],
+                            ['Teams actives cette saison', data.teams_actives], ['Matchs cette saison', data.matchs_saison],
+                            ['Tournois terminés', data.tournois], ['Scores réglés par un admin', data.part_litiges + ' %']];
+            document.getElementById('st-chiffres').innerHTML = tuiles.map(([l, v]) =>
+                `<div class="stat"><div class="stat-label">${escapeHtml(l)}</div><div class="stat-value">${escapeHtml(String(v))}</div></div>`).join('');
+            dessinerBarres('inscriptions', 'inscription', 'inscriptions');
+            dessinerBarres('matchs', 'match', 'matchs');
+        }
+
+        // Histogramme simple : une seule série violette, barres arrondies en haut, bulle au survol
+        function dessinerBarres(cle, singulier, pluriel, enTableau) {
+            const zone = document.getElementById('graphe-' + cle);
+            const pts = statistiques.semaines;
+            if (enTableau) {
+                zone.innerHTML = `<div class="table-wrap"><table><thead><tr><th>Semaine du</th><th>${escapeHtml(pluriel[0].toUpperCase() + pluriel.slice(1))}</th></tr></thead><tbody>` +
+                    pts.map(p => `<tr><td>${escapeHtml(p.semaine)}</td><td>${Number(p[cle])}</td></tr>`).join('') + '</tbody></table></div>';
+                return;
+            }
+            const L = 720, H = 220, g = 34, b = 26, h = 10, plotW = L - g - 4, plotH = H - b - h;
+            const max = Math.max(...pts.map(p => Number(p[cle])), 0);
+            const pas = max <= 4 ? 1 : Math.ceil(max / 4);
+            const haut = Math.max(pas * Math.ceil(max / pas), 1);
+            const largeur = plotW / pts.length, barre = Math.max(4, largeur - 2 * Math.max(2, largeur * 0.18));
+            let svg = `<svg viewBox="0 0 ${L} ${H}" role="img" aria-label="${escapeHtml(pluriel)} par semaine">`;
+            for (let v = 0; v <= haut; v += pas) {
+                const y = h + plotH - v / haut * plotH;
+                svg += `<line class="grille" x1="${g}" x2="${L}" y1="${y}" y2="${y}"/><text class="axe" x="${g - 8}" y="${y + 4}" text-anchor="end">${v}</text>`;
+            }
+            pts.forEach((p, i) => {
+                const v = Number(p[cle]), x = g + i * largeur + (largeur - barre) / 2, hb = v / haut * plotH, y = h + plotH - hb, r = Math.min(4, barre / 2, hb);
+                const chemin = hb > 0 ? `M${x},${h + plotH}V${y + r}Q${x},${y} ${x + r},${y}H${x + barre - r}Q${x + barre},${y} ${x + barre},${y + r}V${h + plotH}Z` : '';
+                svg += `<g data-i="${i}">` + (chemin ? `<path class="barre" d="${chemin}"/>` : '') +
+                       `<rect class="barre-zone" x="${g + i * largeur}" y="${h}" width="${largeur}" height="${plotH}"/>` +
+                       (i % 2 === pts.length % 2 || pts.length < 8 ? `<text class="axe" x="${g + i * largeur + largeur / 2}" y="${H - 6}" text-anchor="middle">${escapeHtml(p.semaine)}</text>` : '') + '</g>';
+            });
+            svg += '</svg>';
+            zone.innerHTML = svg + '<div class="bulle" hidden></div>';
+            const bulle = zone.querySelector('.bulle'), dessin = zone.querySelector('svg');
+            dessin.querySelectorAll('g[data-i]').forEach(grp => {
+                grp.addEventListener('mouseenter', () => {
+                    const p = pts[grp.dataset.i], v = Number(p[cle]), bt = grp.querySelector('.barre');
+                    dessin.querySelectorAll('.barre').forEach(e => e.classList.remove('survol'));
+                    if (bt) bt.classList.add('survol');
+                    const zoneR = grp.querySelector('.barre-zone').getBoundingClientRect(), base = zone.getBoundingClientRect();
+                    const cible = (bt || grp.querySelector('.barre-zone')).getBoundingClientRect();
+                    bulle.innerHTML = `<strong>${v}</strong>${v > 1 ? escapeHtml(pluriel) : escapeHtml(singulier)} · semaine du ${escapeHtml(p.semaine)}`;
+                    bulle.style.left = (zoneR.left + zoneR.width / 2 - base.left) + 'px';
+                    bulle.style.top = (bt ? cible.top - base.top : zoneR.bottom - base.top - 10) + 'px';
+                    bulle.hidden = false;
+                });
+            });
+            dessin.addEventListener('mouseleave', () => { bulle.hidden = true; dessin.querySelectorAll('.barre').forEach(e => e.classList.remove('survol')); });
+        }
+        document.querySelectorAll('[data-vue]').forEach(btn => btn.addEventListener('click', () => {
+            if (!statistiques) return;
+            const tableau = btn.textContent.includes('tableau');
+            btn.textContent = tableau ? 'Voir le graphique' : 'Voir le tableau';
+            const cle = btn.dataset.vue;
+            dessinerBarres(cle, cle === 'matchs' ? 'match' : 'inscription', cle, tableau);
+        }));
         
         // ---------- joueurs ----------
         let timerRecherche;

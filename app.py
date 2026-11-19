@@ -205,6 +205,14 @@ MAX_MEMBRES = 5
 # Barème des matchs (pas de match nul : un BO3 a toujours un gagnant)
 POINTS_VICTOIRE = 3
 POINTS_DEFAITE = 0
+# Valeurs par défaut des réglages modifiables dans Admin → Réglages : (défaut, minimum, maximum, libellé)
+REGLAGES = {
+    'points_victoire': (3, 1, 10, 'Points pour une victoire'),
+    'points_defaite': (0, 0, 5, 'Points pour une défaite'),
+    'delai_confirmation_h': (48, 6, 168, 'Heures avant validation automatique d\'un score déclaré'),
+    'penalite_par_match': (1, 0, 5, 'Pénalité par match non joué (fin de saison)'),
+    'penalite_max': (15, 0, 50, 'Pénalité maximum'),
+}
 SCORE_MAX = 99
 
 # Fin de saison : nombre de matchs minimum pour monter (ou être champion)
@@ -790,6 +798,20 @@ def liste_jeux(db):
     return [dict(r) for r in db.execute('SELECT id, code, nom, format FROM jeux ORDER BY ordre, id')]
 
 
+def reglage(cle, db=None):
+    """Valeur d'un réglage de la ligue (Admin → Réglages), mise en cache le temps de la requête."""
+    cache = g.setdefault('reglages', {}) if has_request_context() else {}
+    if cle not in cache:
+        db = db or get_db()
+        r = db.execute('SELECT valeur FROM parametres WHERE cle = ?', (f'reglage_{cle}',)).fetchone()
+        defaut, mini, maxi, _ = REGLAGES[cle]
+        try:
+            cache[cle] = min(maxi, max(mini, int(r['valeur']))) if r else defaut
+        except (TypeError, ValueError):
+            cache[cle] = defaut
+    return cache[cle]
+
+
 def max_membres_jeu(db, jeu_id):
     """Joueurs maximum par team pour ce jeu (réglé dans Admin → Automatique → Jeux)."""
     r = db.execute('SELECT max_membres FROM jeux WHERE id = ?', (jeu_id,)).fetchone() if jeu_id else None
@@ -1022,10 +1044,44 @@ EMAIL_VALIDE = re.compile(r'^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$')
 NOM_AUTORISE = re.compile(r"^[0-9A-Za-zÀ-ÖØ-öø-ÿŒœ _.'\-!?&#]+$")
 
 
+def simplifier(texte_brut):
+    """Texte ramené à des lettres simples (sans accents, majuscules ni « l33t ») pour repérer les mots interdits."""
+    import unicodedata
+    t = unicodedata.normalize('NFKD', texte_brut or '').encode('ascii', 'ignore').decode().lower()
+    return t.translate(str.maketrans({'0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's', '7': 't', '@': 'a', '$': 's', '!': 'i'}))
+
+
+def mot_interdit(texte_brut, db=None):
+    """Le premier mot interdit trouvé (liste réglée dans Admin → Réglages), sinon None.
+    Les mots de 4 lettres ou moins doivent être des mots entiers ; les plus longs sont cherchés partout
+    (« s.a.l.o.p.e » ou « saaaalope » y compris, en ignorant les séparateurs et les lettres répétées)."""
+    if not has_request_context() and db is None:
+        return None
+    db = db or get_db()
+    r = db.execute("SELECT valeur FROM parametres WHERE cle = 'mots_interdits'").fetchone()
+    mots = [simplifier(m.strip()) for m in (r['valeur'] if r else '').splitlines() if m.strip()]
+    if not mots:
+        return None
+    simple = simplifier(texte_brut)
+    serre = re.sub(r'(.)\1+', r'\1', re.sub(r'[^a-z]', '', simple))
+    for mot in mots:
+        mot_serre = re.sub(r'(.)\1+', r'\1', re.sub(r'[^a-z]', '', mot))
+        if not mot_serre:
+            continue
+        if len(mot_serre) <= 4:
+            if re.search(r'(?<![a-z])' + re.escape(mot) + r'(?![a-z])', simple):
+                return mot
+        elif mot_serre in serre:
+            return mot
+    return None
+
+
 def nom_refuse(nom, quoi, admin=False):
     """Message d'erreur si ce nom (pseudo ou team) n'est pas acceptable, sinon None."""
     if not NOM_AUTORISE.match(nom):
         return f"{quoi} : lettres, chiffres, espaces et . _ - ' ! ? & # seulement"
+    if mot_interdit(nom):
+        return f"{quoi} refusé : il contient un mot interdit"
     import unicodedata
     simple = re.sub(r'[^a-z]', '', unicodedata.normalize('NFKD', nom).encode('ascii', 'ignore').decode().lower())
     if not admin and simple.startswith('xhq'):
@@ -1154,7 +1210,8 @@ def index():
         t['forme'] = forme.get(t['id'], [])[:5]
     prochains_matchs = rencontres_a_venir(db, jeu['id'], limite=6)
     annonce = (annonces_actives(db, 1) or [None])[0]
-    return render_template('index.html', jeu_actuel=jeu, chiffres=chiffres, ligue1=ligue1, leader=leader, prochains_matchs=prochains_matchs,
+    textes_accueil = {k: contenu(k, v) for k, v in ACCUEIL_DEFAUT.items()}
+    return render_template('index.html', jeu_actuel=jeu, textes=textes_accueil, chiffres=chiffres, ligue1=ligue1, leader=leader, prochains_matchs=prochains_matchs,
                            en_forme=en_forme, dernier_champion=dernier_champion, prochain=prochain,
                            autres_tournois=actifs[1:3], derniers=derniers, top=top, fil=fil_actu(db, jeu['id']),
                            nb_tournois=nb_tournois, nb_ligues=LIGUE_MAX, par_poule=TEAMS_PAR_POULE,
@@ -1166,6 +1223,187 @@ def js_requis():
     """Formulaires envoyés sans JavaScript : on ne lit rien (le mot de passe n'est jamais dans une adresse)."""
     return ('<p style="font-family:sans-serif;padding:2rem">Le site a besoin de JavaScript pour se connecter. '
             'Active-le (ou mets ton navigateur à jour), puis <a href="/login">réessaie</a>.</p>'), 400
+
+
+# ---------------------------------------------------------------------------
+# Contenus modifiables dans Admin → Contenu : textes de l'accueil, règlement, FAQ
+# ---------------------------------------------------------------------------
+REGLEMENT_DEFAUT = """# Les teams
+- Une team compte de 3 à {max_membres} joueurs (titulaires et remplaçants). Le capitaine gère la team et déclare les scores.
+- Un joueur ne joue que dans une seule team par jeu.
+
+# Les ligues
+- Toute nouvelle team commence en Ligue 5. Il y a 5 ligues, découpées en poules de 8 teams.
+- Une victoire rapporte {points_victoire} points, une défaite {points_defaite}. Pas de match nul.
+- Le calendrier de la saison est publié sur le site : chaque team affronte une fois les autres teams de sa poule.
+
+# Les scores
+- Après chaque match, le capitaine déclare le score. L'équipe adverse confirme ou conteste.
+- Sans réponse sous {delai_h} heures, le score est validé automatiquement.
+- En cas de désaccord, un admin tranche. Garde des captures d'écran de tes matchs.
+
+# Fin de saison
+- Les premiers de chaque poule montent, les derniers descendent.
+- Une team qui n'a joué aucun match est retirée du classement.
+- Chaque match non joué coûte {penalite_par_match} point de pénalité (jusqu'à {penalite_max}), doublé en cas de récidive.
+
+# Fair-play
+- Pas d'insultes, de triche ni de comptes multiples. L'orga peut retirer des points, exclure une team ou suspendre un compte.
+"""
+
+FAQ_DEFAUT = """Comment inscrire ma team ?
+Crée ton compte, puis va dans Teams → Créer une team. Tes amis te rejoignent depuis la même page.
+
+C'est payant ?
+Non. Tout est gratuit, y compris les badges du Shop.
+
+Qui déclare les scores ?
+Le capitaine, juste après le match. L'équipe adverse confirme ou conteste ; un admin tranche en cas de litige.
+
+J'ai oublié mon mot de passe.
+Sur la page de connexion, clique sur « Mot de passe oublié » : tu reçois un lien par email.
+
+Comment contacter l'orga ?
+Par la page Contact du site ou sur notre Discord."""
+
+ACCUEIL_DEFAUT = {'accueil_ligne1': 'La ligue où', 'accueil_ligne2': 'chaque match', 'accueil_ligne3': 'compte.',
+                  'accueil_texte': "Monte ta team, joue ta poule et grimpe de la Ligue 5 à la Ligue 1. Des tournois réguliers, "
+                                   "des résultats vérifiés par l'orga, et un palmarès qui reste."}
+
+
+def contenu(cle, defaut=''):
+    r = get_db().execute('SELECT valeur FROM parametres WHERE cle = ?', (f'contenu_{cle}',)).fetchone()
+    return r['valeur'] if r and r['valeur'] is not None else defaut
+
+
+def valeurs_reglement():
+    return {'points_victoire': reglage('points_victoire'), 'points_defaite': reglage('points_defaite'),
+            'delai_h': reglage('delai_confirmation_h'), 'penalite_par_match': reglage('penalite_par_match'),
+            'penalite_max': reglage('penalite_max'), 'max_membres': max_membres_jeu(get_db(), (trouver_jeu(get_db()) or {'id': None})['id'])}
+
+
+def mettre_en_forme(texte_brut):
+    """Texte simple -> blocs sûrs (titres « # », listes « - », paragraphes). {points_victoire}… remplacés
+    par les vrais réglages. Aucun HTML n'est jamais interprété : le gabarit échappe tout."""
+    valeurs = valeurs_reglement()
+    t = re.sub(r'\{(\w+)\}', lambda m: str(valeurs.get(m.group(1), m.group(0))), texte_brut or '')
+    blocs = []
+    for ligne in t.splitlines():
+        ligne = ligne.rstrip()
+        if not ligne.strip():
+            blocs.append({'type': 'vide'})
+        elif ligne.startswith('# '):
+            blocs.append({'type': 'titre', 'texte': ligne[2:].strip()})
+        elif ligne.lstrip().startswith(('- ', '• ')):
+            if blocs and blocs[-1]['type'] == 'liste':
+                blocs[-1]['items'].append(ligne.lstrip()[2:])
+            else:
+                blocs.append({'type': 'liste', 'items': [ligne.lstrip()[2:]]})
+        elif blocs and blocs[-1]['type'] == 'para':
+            blocs[-1]['texte'] += '\n' + ligne
+        else:
+            blocs.append({'type': 'para', 'texte': ligne})
+    return [b for b in blocs if b['type'] != 'vide']
+
+
+def faq_en_questions(texte_brut):
+    """« Question ?\nRéponse » séparées par une ligne vide -> [{'q', 'r'}]."""
+    sortie = []
+    for bloc in re.split(r'\n\s*\n', (texte_brut or '').strip()):
+        lignes = [l for l in bloc.strip().splitlines() if l.strip()]
+        if lignes:
+            sortie.append({'q': lignes[0], 'r': '\n'.join(lignes[1:])})
+    return sortie
+
+
+@app.route('/reglement')
+def reglement_page():
+    return render_template('page_texte.html', titre='Règlement', kicker='Les règles', blocs=mettre_en_forme(contenu('reglement', REGLEMENT_DEFAUT)))
+
+
+@app.route('/faq')
+def faq_page():
+    return render_template('page_texte.html', titre='Questions fréquentes', kicker='FAQ', faq=faq_en_questions(contenu('faq', FAQ_DEFAUT)))
+
+
+@app.route('/api/admin/contenu', methods=['GET', 'POST'])
+@api_admin
+def api_admin_contenu():
+    db = get_db()
+    cles = {'reglement': (REGLEMENT_DEFAUT, 8000), 'faq': (FAQ_DEFAUT, 8000), **{k: (v, 200 if k != 'accueil_texte' else 400) for k, v in ACCUEIL_DEFAUT.items()}}
+    if request.method == 'POST':
+        data = donnees_json()
+        for cle, (defaut, longueur) in cles.items():
+            if cle in data:
+                valeur = sans_invisibles(data[cle] if isinstance(data[cle], str) else '').strip()[:longueur] or defaut
+                if valeur == contenu(cle, defaut):
+                    continue
+                db.execute('INSERT OR REPLACE INTO parametres (cle, valeur) VALUES (?, ?)', (f'contenu_{cle}', valeur))
+                journaliser(db, 'Texte modifié', {'reglement': 'Règlement', 'faq': 'FAQ'}.get(cle, 'Accueil'))
+        db.commit()
+        return jsonify({'success': True}), 200
+    return jsonify({cle: contenu(cle, defaut) for cle, (defaut, _) in cles.items()}), 200
+
+
+@app.route('/api/admin/reglages', methods=['GET', 'POST'])
+@api_admin
+def api_admin_reglages():
+    db = get_db()
+    if request.method == 'POST':
+        if fondateur_requis(db):
+            return jsonify({'success': False, 'error': 'Seuls les fondateurs peuvent changer les réglages'}), 403
+        data = donnees_json()
+        for cle, (defaut, mini, maxi, libelle) in REGLAGES.items():   # tout vérifier avant d'écrire quoi que ce soit
+            if cle in data and (entier(data[cle]) is None or not mini <= entier(data[cle]) <= maxi):
+                return jsonify({'success': False, 'error': f'{libelle} : entre {mini} et {maxi}'}), 400
+        for cle, (defaut, mini, maxi, libelle) in REGLAGES.items():
+            if cle in data and entier(data[cle]) != reglage(cle):
+                v = entier(data[cle])
+                db.execute('INSERT OR REPLACE INTO parametres (cle, valeur) VALUES (?, ?)', (f'reglage_{cle}', str(v)))
+                journaliser(db, f'Réglage : {libelle} = {v}')
+        if 'mots_interdits' in data:
+            mots = '\n'.join(sorted({m.strip().lower() for m in str(data['mots_interdits']).splitlines() if m.strip()}))[:5000]
+            db.execute("INSERT OR REPLACE INTO parametres (cle, valeur) VALUES ('mots_interdits', ?)", (mots,))
+            journaliser(db, f"Mots interdits mis à jour ({len(mots.splitlines()) if mots else 0} mot(s))")
+        db.commit()
+        g.pop('reglages', None)
+        return jsonify({'success': True}), 200
+    mots = db.execute("SELECT valeur FROM parametres WHERE cle = 'mots_interdits'").fetchone()
+    return jsonify({'reglages': [{'cle': k, 'valeur': reglage(k), 'defaut': d, 'min': mi, 'max': ma, 'libelle': l}
+                                 for k, (d, mi, ma, l) in REGLAGES.items()],
+                    'mots_interdits': mots['valeur'] if mots else ''}), 200
+
+
+@app.route('/api/admin/statistiques', methods=['GET'])
+@api_admin
+def api_admin_statistiques():
+    """Chiffres de la ligue : totaux et évolution sur 12 semaines (inscriptions, matchs)."""
+    db = get_db()
+    jeu, erreur = jeu_ou_erreur(db)
+    if erreur:
+        return erreur
+    compter = lambda req, *p: db.execute(req, p).fetchone()[0]
+    saison = saison_actuelle(db, jeu['id'])
+    lundi = (datetime.utcnow() - timedelta(days=datetime.utcnow().weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+    semaines = []
+    for i in range(11, -1, -1):
+        debut = lundi - timedelta(weeks=i)
+        fin = debut + timedelta(weeks=1)
+        a, b = debut.strftime('%Y-%m-%d %H:%M:%S'), fin.strftime('%Y-%m-%d %H:%M:%S')
+        semaines.append({'semaine': debut.strftime('%d/%m'),
+                         'inscriptions': compter('SELECT COUNT(*) FROM users WHERE created_at >= ? AND created_at < ?', a, b),
+                         'matchs': compter('SELECT COUNT(*) FROM matchs WHERE jeu_id = ? AND created_at >= ? AND created_at < ?', jeu['id'], a, b)})
+    joueurs = compter('SELECT COUNT(*) FROM users')
+    en_team = compter('SELECT COUNT(DISTINCT user_id) FROM team_members WHERE jeu_id = ?', jeu['id'])
+    teams = compter('SELECT COUNT(*) FROM teams WHERE jeu_id = ?', jeu['id'])
+    actives = compter("""SELECT COUNT(*) FROM teams t WHERE t.jeu_id = ? AND EXISTS (SELECT 1 FROM matchs m WHERE m.saison = ?
+                         AND m.jeu_id = t.jeu_id AND (m.team1_id = t.id OR m.team2_id = t.id))""", jeu['id'], saison)
+    decl = compter("SELECT COUNT(*) FROM declarations WHERE jeu_id = ? AND statut IN ('valide', 'refuse')", jeu['id'])
+    litiges = compter("SELECT COUNT(*) FROM declarations WHERE jeu_id = ? AND (motif IS NOT NULL AND reponse = 'admin')", jeu['id'])
+    return jsonify({'jeu': jeu['nom'], 'saison': saison, 'joueurs': joueurs, 'en_team': en_team, 'teams': teams, 'teams_actives': actives,
+                    'matchs_saison': compter('SELECT COUNT(*) FROM matchs WHERE jeu_id = ? AND saison = ?', jeu['id'], saison),
+                    'tournois': compter("SELECT COUNT(*) FROM tournois WHERE jeu_id = ? AND statut = 'termine'", jeu['id']),
+                    'part_litiges': round(100 * litiges / decl) if decl else 0, 'semaines': semaines}), 200
 
 
 @app.route('/annonces')
@@ -1480,6 +1718,8 @@ def api_profil_update():
     if not isinstance(bio, str):
         return jsonify({'success': False, 'error': 'Bio invalide'}), 400
     bio = sans_invisibles(bio).strip()[:500]
+    if mot_interdit(bio):
+        return jsonify({'success': False, 'error': 'Ta bio contient un mot interdit'}), 400
 
     logo = AVATAR_DEFAUT   # l'avatar ne se choisit plus : photo de profil ou avatar par défaut
 
@@ -1924,8 +2164,8 @@ def api_teams():
                     'teams': teams_list, 'user_team_id': user_team_id, 'emblemes': EMBLEMES, 'user_id': uid, 'membres': membres,
                     'matchs': matchs, 'prochains': prochains, 'max_membres': max_membres_jeu(db, jeu['id']), 'participation': participation,
                     'derniere_penalite': derniere_penalite,
-                    'regle_penalite': {'par_match': PENALITE_PAR_MATCH, 'recidive': MULTIPLICATEUR_RECIDIVE,
-                                       'max': PENALITE_MAX}}), 200
+                    'regle_penalite': {'par_match': reglage('penalite_par_match'), 'recidive': MULTIPLICATEUR_RECIDIVE,
+                                       'max': reglage('penalite_max')}}), 200
 
 
 @app.route('/api/teams', methods=['POST'])
@@ -1935,6 +2175,8 @@ def api_create_team():
     data = donnees_json()
     nom = re.sub(r'\s+', ' ', texte(data, 'nom'))
     bio = texte(data, 'bio', 300)
+    if mot_interdit(bio):
+        return jsonify({'success': False, 'error': 'La bio contient un mot interdit'}), 400
     if not 2 <= len(nom) <= 30:
         return jsonify({'success': False, 'error': 'Le nom de la team doit faire entre 2 et 30 caractères'}), 400
     if nom_refuse(nom, 'Nom de team', est_admin()):
@@ -2118,6 +2360,8 @@ def api_update_team(team_id):
         return jsonify({'success': False, 'error': 'Ce nom de team est déjà pris'}), 400
     actuelle = db.execute('SELECT bio FROM teams WHERE id = ?', (team_id,)).fetchone()['bio'] or ''
     bio = texte(data, 'bio', 300) if 'bio' in data else actuelle
+    if mot_interdit(bio):
+        return jsonify({'success': False, 'error': 'La bio contient un mot interdit'}), 400
     try:
         db.execute('UPDATE teams SET nom = ?, bio = ? WHERE id = ?', (nom, bio, team_id))
     except sqlite3.IntegrityError:
@@ -2235,11 +2479,11 @@ def calculer_penalite(db, team_id, joues, attendus, saison):
     manques = max(0, attendus - joues)
     if joues == 0 or manques == 0:  # 0 match = retirée du classement, pas de pénalité en points
         return 0, manques, False
-    penalite = manques * PENALITE_PAR_MATCH
+    penalite = manques * reglage('penalite_par_match', db)
     recidive = deja_penalisee(db, team_id, saison - 1)
     if recidive:
         penalite *= MULTIPLICATEUR_RECIDIVE
-    return min(penalite, PENALITE_MAX), manques, recidive
+    return min(penalite, reglage('penalite_max', db)), manques, recidive
 
 
 def classement_poule(db, jeu_id, ligue_num, poule, penalites=False):
@@ -2485,7 +2729,7 @@ def api_matchs():
 @app.route('/admin')
 @page_admin
 def admin_page():
-    return render_template('admin.html', ligues=LIGUES, points_victoire=POINTS_VICTOIRE, points_defaite=POINTS_DEFAITE,
+    return render_template('admin.html', ligues=LIGUES, points_victoire=reglage('points_victoire'), points_defaite=reglage('points_defaite'),
                            ligue_depart=LIGUE_DEPART)
 
 
@@ -2716,8 +2960,8 @@ def enregistrer_resultat(c, db, team1_id, team2_id, score1, score2, saisi_par):
 
     ligue_num, poule, jeu_id = t1['ligue_num'], t1['poule'], t1['jeu_id']
     saison = saison_actuelle(db, jeu_id)
-    points1 = POINTS_VICTOIRE if score1 > score2 else POINTS_DEFAITE
-    points2 = POINTS_VICTOIRE if score2 > score1 else POINTS_DEFAITE
+    points1 = reglage('points_victoire', db) if score1 > score2 else reglage('points_defaite', db)
+    points2 = reglage('points_victoire', db) if score2 > score1 else reglage('points_defaite', db)
     c.execute("""INSERT INTO matchs (ligue_num, poule, team1_id, team2_id, team1_nom, team2_nom,
                                      score1, score2, points1, points2, saisi_par, created_at, saison, jeu_id)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, ?)""",
@@ -2797,7 +3041,7 @@ def valider_declarations_expirees(db):
     """Les déclarations restées sans réponse 48 h sont validées automatiquement."""
     c = db.cursor()
     rows = c.execute("""SELECT * FROM declarations WHERE statut = 'attente'
-                        AND created_at <= datetime('now', ?)""", (f'-{DELAI_CONFIRMATION_H} hours',)).fetchall()
+                        AND created_at <= datetime('now', ?)""", (f"-{reglage('delai_confirmation_h', db)} hours",)).fetchall()
     for d in rows:
         valider_declaration(c, db, d, reponse='auto')
     if rows:
@@ -2811,7 +3055,7 @@ def declaration_publique(c, d):
     d['team2_nom'] = noms.get(d['team2_id'], 'Team supprimée')
     d['date_fr'] = il_y_a(d['created_at']) if d.get('created_at') else ''
     if d['statut'] == 'attente' and d.get('created_at'):
-        fin = datetime.strptime(d['created_at'][:19], '%Y-%m-%d %H:%M:%S') + timedelta(hours=DELAI_CONFIRMATION_H)
+        fin = datetime.strptime(d['created_at'][:19], '%Y-%m-%d %H:%M:%S') + timedelta(hours=reglage('delai_confirmation_h'))
         d['heures_restantes'] = max(0, int((fin - datetime.utcnow()).total_seconds() // 3600))
     return d
 
@@ -2843,7 +3087,7 @@ def api_resultats():
     liste = lambda cond, *p: [declaration_publique(c, d) for d in c.execute(
         f'SELECT * FROM declarations WHERE jeu_id = ? AND {cond} ORDER BY id DESC LIMIT 10', (jeu['id'], *p)).fetchall()]
     return jsonify({
-        'team': team, 'capitaine': team['capitaine'], 'adversaires': adversaires, 'delai_h': DELAI_CONFIRMATION_H,
+        'team': team, 'capitaine': team['capitaine'], 'adversaires': adversaires, 'delai_h': reglage('delai_confirmation_h'),
         'a_confirmer': liste("statut = 'attente' AND team2_id = ?", tid),
         'en_attente': liste("statut = 'attente' AND team1_id = ?", tid),
         'litiges': liste("statut = 'conteste' AND (team1_id = ? OR team2_id = ?)", tid, tid),
@@ -2900,7 +3144,7 @@ def api_resultats_declarer():
         return jsonify({'success': False, 'error': 'Un résultat est déjà en attente entre vos deux équipes'}), 400
     notifier(c, membres_de(c, adv_id),
              f"{team['nom']} déclare {contre}-{pour} pour vous ({'défaite' if pour > contre else 'victoire'}). "
-             f"Confirme ou conteste sous {DELAI_CONFIRMATION_H} h.", '/teams#resultats')
+             f"Confirme ou conteste sous {reglage('delai_confirmation_h')} h.", '/teams#resultats')
     db.commit()
     return jsonify({'success': True}), 201
 
@@ -3672,9 +3916,13 @@ def api_admin_saison():
     mouvements.sort(key=lambda m: (m['ligue_num'], m['poule'], m['rang']))
     matchs_joues = db.execute('SELECT COUNT(*) FROM matchs WHERE jeu_id = ? AND saison = ?',
                               (jeu['id'], saison)).fetchone()[0]
+    prog = db.execute('SELECT valeur FROM parametres WHERE cle = ?', (f"cloture_auto_{jeu['id']}",)).fetchone()
     return jsonify({
         'jeu': jeu,
         'saison': saison,
+        'cloture_programmee': date_paris(prog['valeur']) if prog else None,
+        'cloture_programmee_court': date_paris(prog['valeur'], True) if prog else None,
+        'penalite_par_match': reglage('penalite_par_match'), 'penalite_max': reglage('penalite_max'),
         'matchs_joues': matchs_joues,
         'teams': len(classement),
         'mouvements': mouvements,
@@ -3698,18 +3946,27 @@ def api_admin_cloturer_saison():
     jeu, erreur = jeu_ou_erreur(db)
     if erreur:
         return erreur
+    journaliser(db, f"Saison {saison_actuelle(db, jeu['id'])} clôturée", jeu['nom'])
+    resultat, message = cloturer_saison(db, jeu, session['user_id'])
+    if message:
+        db.rollback()
+        return jsonify({'success': False, 'error': message}), 400
+    return jsonify({'success': True, 'jeu': jeu, **resultat}), 200
+
+
+def cloturer_saison(db, jeu, par_user_id):
+    """Clôture la saison en cours de ce jeu (classement archivé, montées / descentes, points à 0).
+    Renvoie (résumé, None) ou (None, message d'erreur). Fait le commit en cas de succès."""
     c = db.cursor()
     saison = saison_actuelle(db, jeu['id'])
     if not c.execute('SELECT 1 FROM matchs WHERE jeu_id = ? AND saison = ?', (jeu['id'], saison)).fetchone():
-        return jsonify({'success': False, 'error': 'Aucun match joué cette saison : rien à clôturer'}), 400
-
+        return None, 'Aucun match joué cette saison : rien à clôturer'
     classement = calculer_fin_saison(db, jeu['id'])
-    journaliser(db, f'Saison {saison} clôturée', jeu['nom'])
     c.execute("""UPDATE declarations SET statut = 'annule', motif = 'Saison terminée', traite_at = datetime('now')
                  WHERE jeu_id = ? AND statut IN ('attente', 'conteste')""", (jeu['id'],))
     try:
         c.execute("INSERT INTO saisons (jeu_id, numero, cloturee_at, cloturee_par) VALUES (?, ?, datetime('now'), ?)",
-                  (jeu['id'], saison, session['user_id']))
+                  (jeu['id'], saison, par_user_id))
         for p in classement:
             c.execute("""INSERT INTO saison_classements (saison, team_id, team_nom, ligue_num, poule, rang, points,
                                                          joues, victoires, defaites, diff, mouvement, destination,
@@ -3742,11 +3999,10 @@ def api_admin_cloturer_saison():
         db.commit()
     except sqlite3.IntegrityError:
         db.rollback()
-        return jsonify({'success': False, 'error': 'Cette saison a déjà été clôturée'}), 400
-
-    return jsonify({
-        'success': True,
-        'jeu': jeu,
+        return None, 'Cette saison a déjà été clôturée'
+    c.execute("DELETE FROM parametres WHERE cle = ?", (f"cloture_auto_{jeu['id']}",))
+    db.commit()
+    return {
         'saison_cloturee': saison,
         'nouvelle_saison': saison + 1,
         'montees': sum(p['mouvement'] in ('monte', 'repechage') for p in partants),
@@ -3755,7 +4011,61 @@ def api_admin_cloturer_saison():
         'retirees': len(retirees),
         'penalisees': sum(p['penalite'] > 0 for p in classement),
         'champion': next((p['team_name'] for p in classement if p['mouvement'] == 'champion'), None),
-    }), 200
+    }, None
+
+
+def clotures_programmees(db):
+    """Clôture toute seule la saison d'un jeu quand l'heure programmée (Admin → Saison) est arrivée."""
+    faites = 0
+    for r in db.execute("SELECT cle, valeur FROM parametres WHERE cle LIKE 'cloture_auto_%' AND valeur <= datetime('now')").fetchall():
+        jeu_id = entier(r['cle'].rsplit('_', 1)[1])
+        jeu = db.execute('SELECT id, code, nom FROM jeux WHERE id = ?', (jeu_id,)).fetchone()
+        # On « prend » la clôture d'abord : deux visites simultanées ne clôturent jamais deux fois
+        if not db.execute('DELETE FROM parametres WHERE cle = ? AND valeur = ?', (r['cle'], r['valeur'])).rowcount or not jeu:
+            db.commit()
+            continue
+        db.commit()
+        saison = saison_actuelle(db, jeu['id'])
+        resultat, message = cloturer_saison(db, dict(jeu), None)
+        admins = [x[0] for x in db.execute('SELECT id FROM users WHERE is_admin = 1').fetchall()]
+        if message:
+            notifier(db, admins, f"Clôture automatique de la saison {saison} ({jeu['nom']}) impossible : {message}", '/admin#saison')
+        else:
+            ecrire_journal(db.cursor(), None, 'automatique', f'Saison {saison} clôturée', jeu['nom'])
+            notifier(db, admins, f"Saison {saison} ({jeu['nom']}) clôturée automatiquement", '/admin#saison')
+            joueurs = [x[0] for x in db.execute('SELECT user_id FROM team_members WHERE jeu_id = ?', (jeu['id'],)).fetchall()]
+            notifier(db, joueurs, f"Fin de la saison {saison} : la saison {saison + 1} commence ! Regarde où joue ta team.", '/ligue')
+            faites += 1
+        db.commit()
+    return faites
+
+
+@app.route('/api/admin/saison/programmer', methods=['POST'])
+@api_admin
+def api_admin_programmer_cloture():
+    db = get_db()
+    if fondateur_requis(db):
+        return jsonify({'success': False, 'error': 'Seuls les fondateurs peuvent programmer la fin de saison'}), 403
+    jeu, erreur = jeu_ou_erreur(db)
+    if erreur:
+        return erreur
+    quand = texte(donnees_json(), 'quand', 16)
+    cle = f"cloture_auto_{jeu['id']}"
+    if not quand:
+        db.execute('DELETE FROM parametres WHERE cle = ?', (cle,))
+        journaliser(db, 'Fin de saison programmée annulée', jeu['nom'])
+        db.commit()
+        return jsonify({'success': True}), 200
+    try:
+        utc = paris_vers_utc(quand)
+    except ValueError:
+        return jsonify({'success': False, 'error': 'Date invalide'}), 400
+    if utc <= datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'):
+        return jsonify({'success': False, 'error': 'Choisis une date dans le futur'}), 400
+    db.execute('INSERT OR REPLACE INTO parametres (cle, valeur) VALUES (?, ?)', (cle, utc))
+    journaliser(db, f'Fin de saison programmée : {date_paris(utc)}', jeu['nom'])
+    db.commit()
+    return jsonify({'success': True, 'quand_fr': date_paris(utc)}), 200
 
 
 # ---------------------------------------------------------------------------
@@ -3825,10 +4135,10 @@ def classement_poule_tournoi(db, tournoi_id, poule, noms):
             l['contre'] += s_adv
             if m['vainqueur_id'] == moi:
                 l['victoires'] += 1
-                l['points'] += POINTS_VICTOIRE
+                l['points'] += reglage('points_victoire', db)
             else:
                 l['defaites'] += 1
-                l['points'] += POINTS_DEFAITE
+                l['points'] += reglage('points_defaite', db)
     classement = sorted(lignes.values(), key=lambda l: (-l['points'], -(l['pour'] - l['contre']), -l['pour'],
                                                         l['nom'].lower()))
     for i, l in enumerate(classement, 1):
@@ -4588,7 +4898,7 @@ def _sauvegarde_quotidienne():
         import time
         if time.time() - _controle_annonces['t'] > 30:
             _controle_annonces['t'] = time.time()
-            for tache_auto in (publier_annonces_dues, creer_tournois_recurrents, envoyer_file_discord):
+            for tache_auto in (publier_annonces_dues, creer_tournois_recurrents, clotures_programmees, envoyer_file_discord):
                 try:
                     tache_auto(get_db())
                 except Exception as e:   # une tâche automatique ratée ne doit jamais casser une page
@@ -4859,7 +5169,7 @@ def exporter_site_public():
                                       'WHERE tm.jeu_id = ?', (jeu_id,)).fetchone()[0],
                 'matchs': db.execute('SELECT COUNT(*) FROM matchs WHERE jeu_id = ? AND saison = ?', (jeu_id, saison)).fetchone()[0],
             },
-            'regles': {'points_victoire': POINTS_VICTOIRE, 'max_membres': MAX_MEMBRES, 'penalite_max': PENALITE_MAX,
+            'regles': {'points_victoire': reglage('points_victoire', db), 'max_membres': MAX_MEMBRES, 'penalite_max': reglage('penalite_max', db),
                        'teams_par_poule': TEAMS_PAR_POULE, 'ligue_depart': LIGUE_DEPART},
             'ligues': ligues,
             'teams': teams,
