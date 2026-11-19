@@ -232,7 +232,7 @@
         let mesMatchs = [];
         let prochains = [];
         let maxMembres = 5;
-        let ligueDepart = 5;
+        let ligueDepart = 5, joueursMin = 3;
         let participation = null, dernierePenalite = null;
         let reglePenalite = { par_match: 1, recidive: 2, max: 15 };
         let emblemes = [];
@@ -266,6 +266,7 @@
             prochains = data.prochains || [];
             maxMembres = data.max_membres || maxMembres;
             ligueDepart = data.ligue_depart || ligueDepart;
+            joueursMin = data.joueurs_min || joueursMin;
             participation = data.participation;
             dernierePenalite = data.derniere_penalite;
             reglePenalite = data.regle_penalite || reglePenalite;
@@ -290,6 +291,8 @@
             container.style.display = 'block';
             const ligue = myTeam.ligue_num
                 ? `Ligue ${myTeam.ligue_num} · Poule ${escapeHtml(myTeam.poule || '-')} · ${Number(myTeam.points) || 0} pts`
+                : myTeam.formation
+                ? `<span class="hors-classement">En formation : <strong>${Number(myTeam.nb_membres)}/${Number(joueursMin)} joueurs</strong>. Ta team entre en ligue dès qu'elle a ${Number(joueursMin)} joueurs : invite tes coéquipiers à la rejoindre depuis cette page.</span>`
                 : myTeam.attente
                 ? `<span class="hors-classement">Liste d'attente : <strong>${Number(myTeam.attente)}${Number(myTeam.attente) === 1 ? 're' : 'e'}</strong>. Toutes les ligues sont pleines : ta team entre dès qu'une place se libère (au plus tard à la fin de la saison).</span>`
                 : `<span class="hors-classement">Hors classement : votre team n'a joué aucun match la saison dernière.
@@ -576,7 +579,8 @@
             if (ok && data.success) {
                 document.getElementById('team-name').value = '';
                 document.getElementById('team-bio').value = '';
-                showMessage(data.attente ? "Team créée. Toutes les ligues sont pleines : elle est en liste d'attente et entrera dès qu'une place se libère."
+                showMessage(data.formation ? `Team créée ! Elle entrera en ligue dès qu'elle aura ${Number(data.joueurs_min)} joueurs : fais-la rejoindre par tes coéquipiers.`
+                    : data.attente ? "Team créée. Toutes les ligues sont pleines : elle est en liste d'attente et entrera dès qu'une place se libère."
                                          : `Team créée : elle joue en Ligue ${Number(data.ligue_num)}, poule ${escapeHtml(data.poule)}.`, 'success');
                 loadTeams();
             } else {
@@ -643,7 +647,7 @@
         
         async function reintegrer(teamId) {
             const { ok, data } = await api(`/api/teams/${teamId}/reintegrer`, { method: 'POST' });
-            showMessage(ok && data.success ? (data.attente ? "Team réinscrite : toutes les ligues sont pleines, elle est en liste d'attente." : `Team réinscrite en Ligue ${data.ligue_num}, poule ${data.poule}.`) : (data.error || 'Erreur'),
+            showMessage(ok && data.success ? (data.formation ? `Team réinscrite : elle entrera en ligue dès qu'elle aura ${Number(data.joueurs_min)} joueurs.` : data.attente ? "Team réinscrite : toutes les ligues sont pleines, elle est en liste d'attente." : `Team réinscrite en Ligue ${data.ligue_num}, poule ${data.poule}.`) : (data.error || 'Erreur'),
                 ok && data.success ? 'success' : 'error');
             loadTeams();
         }

@@ -232,6 +232,7 @@ REGLAGES = {
     'delai_confirmation_h': (48, 6, 168, 'Heures avant validation automatique d\'un score déclaré'),
     'penalite_par_match': (1, 0, 5, 'Pénalité par match non joué (fin de saison)'),
     'penalite_max': (15, 0, 50, 'Pénalité maximum'),
+    'joueurs_min': (3, 1, 5, 'Joueurs minimum pour qu\'une team entre en ligue'),
 }
 SCORE_MAX = 99
 
@@ -326,6 +327,9 @@ def retirer_membre(c, user_id, jeu_id):
             c.execute('UPDATE teams SET createur_id = ? WHERE id = ?', (successeur['user_id'], team_id))
         else:
             supprimer_team(c, team_id)
+            return
+    if c.execute('SELECT 1 FROM teams WHERE id = ?', (team_id,)).fetchone():
+        verifier_effectif(c, team_id)
 
 
 def reparer_coherence(c):
@@ -351,7 +355,8 @@ def reparer_coherence(c):
     c.execute(f'UPDATE ligue SET ligue_num = {LIGUE_DEPART}, poule = NULL WHERE ligue_num IS NULL OR ligue_num NOT BETWEEN 1 AND {LIGUE_MAX}')
     c.execute(f"""INSERT INTO ligue (team_id, ligue_num, points)
                   SELECT id, {LIGUE_DEPART}, 0 FROM teams
-                  WHERE COALESCE(hors_classement, 0) = 0 AND attente_depuis IS NULL AND id NOT IN (SELECT team_id FROM ligue)""")
+                  WHERE COALESCE(hors_classement, 0) = 0 AND attente_depuis IS NULL AND COALESCE(en_formation, 0) = 0
+                  AND id NOT IN (SELECT team_id FROM ligue)""")
     for row in c.execute('SELECT l.id, l.ligue_num, l.poule, t.jeu_id FROM ligue l JOIN teams t ON t.id = l.team_id '
                          'ORDER BY l.id').fetchall():
         if not row['poule'] or row['poule'] not in lettres_poules(row['ligue_num']):
@@ -608,6 +613,7 @@ def init_db():
     ajouter_colonne(c, 'matchs', 'saison', 'INTEGER DEFAULT 1')
     ajouter_colonne(c, 'teams', 'hors_classement', 'INTEGER DEFAULT 0')
     ajouter_colonne(c, 'teams', 'attente_depuis', 'TEXT')          # liste d'attente (toutes les places prises)
+    ajouter_colonne(c, 'teams', 'en_formation', 'INTEGER DEFAULT 0')  # pas encore assez de joueurs pour entrer en ligue
     ajouter_colonne(c, 'saison_classements', 'penalite', 'INTEGER DEFAULT 0')
     ajouter_colonne(c, 'saison_classements', 'matchs_manques', 'INTEGER DEFAULT 0')
     ajouter_colonne(c, 'saison_classements', 'points_avant', 'INTEGER')
@@ -1264,7 +1270,8 @@ REGLEMENT_DEFAUT = """# Les teams
 
 # Les ligues
 - Il y a 5 ligues : Ligue 1 (la meilleure), 2, 3, puis les Ligues 4 et 5 avec 2 poules chacune. Une poule = 8 teams.
-- Une nouvelle team prend la plus haute ligue encore libre : la Ligue 1 se remplit en premier, puis la 2, et ainsi de suite.
+- Une team entre en ligue dès qu'elle a {joueurs_min} joueurs (avant, elle est « en formation »). Elle prend alors la plus haute ligue encore libre : la Ligue 1 se remplit en premier, puis la 2, et ainsi de suite.
+- Une team qui repasse sous {joueurs_min} joueurs avant le début de sa ligue perd sa place et repasse en formation.
 - Quand toutes les places sont prises, les nouvelles teams passent en liste d'attente (les premières inscrites entrent en premier).
 
 # Le lancement d'une ligue
@@ -1298,7 +1305,7 @@ Comment inscrire ma team ?
 Crée ton compte, confirme ton email, puis va dans Teams → Créer une team. Tes amis te rejoignent depuis la même page.
 
 Dans quelle ligue va ma team ?
-Dans la plus haute ligue encore libre : la Ligue 1 se remplit en premier, puis la 2, la 3… Si tout est plein, ta team est en liste d'attente et entre dès qu'une place se libère.
+Dès qu'elle a 3 joueurs, dans la plus haute ligue encore libre : la Ligue 1 se remplit en premier, puis la 2, la 3… Si tout est plein, ta team est en liste d'attente et entre dès qu'une place se libère.
 
 Quand commencent les matchs ?
 Dès que ta ligue est pleine : le calendrier sort le dimanche à 15h et le premier match a lieu le lundi à 9h. Tu reçois une notification.
@@ -1388,7 +1395,7 @@ def contenu(cle, defaut=''):
 def valeurs_reglement():
     return {'points_victoire': reglage('points_victoire'), 'points_defaite': reglage('points_defaite'),
             'delai_h': reglage('delai_confirmation_h'), 'penalite_par_match': reglage('penalite_par_match'),
-            'penalite_max': reglage('penalite_max'), 'max_membres': max_membres_jeu(get_db(), (trouver_jeu(get_db()) or {'id': None})['id'])}
+            'penalite_max': reglage('penalite_max'), 'joueurs_min': reglage('joueurs_min'), 'max_membres': max_membres_jeu(get_db(), (trouver_jeu(get_db()) or {'id': None})['id'])}
 
 
 def mettre_en_forme(texte_brut):
@@ -2328,7 +2335,7 @@ def api_teams():
     rows = db.execute("""
         SELECT t.id, t.nom, t.bio, t.createur_id, t.created_at, u.username AS createur, t.logo, t.embleme,
                t.banniere, t.banniere_pos, t.banniere_zoom,
-               l.ligue_num, l.poule, l.points, t.attente_depuis, t.hors_classement,
+               l.ligue_num, l.poule, l.points, t.attente_depuis, t.hors_classement, t.en_formation,
                (SELECT COUNT(*) FROM team_members tm WHERE tm.team_id = t.id) AS nb_membres
         FROM teams t
         LEFT JOIN users u ON u.id = t.createur_id
@@ -2350,6 +2357,7 @@ def api_teams():
         team['pleine'] = team['nb_membres'] >= team['max_membres']
         team['attente'] = position_attente(db, team['id']) if team.pop('attente_depuis') else None
         team['hors_classement'] = bool(team['hors_classement'])
+        team['formation'] = bool(team.pop('en_formation'))
         teams_list.append(team)
 
     mine = db.execute('SELECT team_id FROM team_members WHERE user_id = ? AND jeu_id = ?', (uid, jeu['id'])).fetchone()
@@ -2386,7 +2394,7 @@ def api_teams():
                     'teams': teams_list, 'user_team_id': user_team_id, 'emblemes': EMBLEMES, 'user_id': uid, 'membres': membres,
                     'matchs': matchs, 'prochains': prochains, 'max_membres': max_membres_jeu(db, jeu['id']), 'participation': participation,
                     'derniere_penalite': derniere_penalite,
-                    'lancement': etat_lancement(db, jeu['id']),
+                    'lancement': etat_lancement(db, jeu['id']), 'joueurs_min': joueurs_min(db, jeu['id']),
                     'regle_penalite': {'par_match': reglage('penalite_par_match'), 'recidive': MULTIPLICATEUR_RECIDIVE,
                                        'max': reglage('penalite_max')}}), 200
 
@@ -2422,13 +2430,19 @@ def api_create_team():
         team_id = c.lastrowid
         c.execute("INSERT INTO team_members (team_id, user_id, jeu_id, joined_at) VALUES (?, ?, ?, datetime('now'))",
                   (team_id, uid, jeu['id']))
-        place = inscrire_en_ligue(c, jeu['id'], team_id)
+        minimum = joueurs_min(db, jeu['id'])
+        if minimum <= 1:
+            place, formation = inscrire_en_ligue(c, jeu['id'], team_id), False
+        else:   # pas encore assez de joueurs : elle entrera en ligue quand elle en aura assez
+            c.execute('UPDATE teams SET en_formation = 1 WHERE id = ?', (team_id,))
+            place, formation = None, True
         db.commit()
     except sqlite3.IntegrityError:
         db.rollback()
         return jsonify({'success': False, 'error': 'Impossible de créer la team'}), 400
     return jsonify({'success': True, 'team_id': team_id, 'ligue_num': place[0] if place else None,
-                    'poule': place[1] if place else None, 'attente': place is None}), 201
+                    'poule': place[1] if place else None, 'attente': place is None and not formation,
+                    'formation': formation, 'joueurs_min': minimum}), 201
 
 
 @app.route('/api/teams/<int:team_id>/join', methods=['POST'])
@@ -2461,6 +2475,7 @@ def api_join_team(team_id):
             return jsonify({'success': False, 'error': f'Cette team est complète ({max_membres_jeu(db, jeu_id)} joueurs maximum)'}), 400
         t = db.execute('SELECT createur_id FROM teams WHERE id = ?', (team_id,)).fetchone()
         notifier(db, [t['createur_id']], f"{utilisateur_connecte()['username']} a rejoint ta team", '/teams')
+        entrer_en_ligue_si_complete(db.cursor(), team_id)
         db.commit()
     except sqlite3.IntegrityError:
         db.rollback()
@@ -2565,10 +2580,17 @@ def api_reintegrer_team(team_id):
         return jsonify({'success': False, 'error': 'Votre team est déjà au classement'}), 400
     if c.execute('SELECT attente_depuis FROM teams WHERE id = ?', (team_id,)).fetchone()['attente_depuis']:
         return jsonify({'success': False, 'error': "Votre team est déjà en liste d'attente"}), 400
-    place = inscrire_en_ligue(c, jeu_de_team(db, team_id), team_id)
+    if c.execute('SELECT en_formation FROM teams WHERE id = ?', (team_id,)).fetchone()['en_formation']:
+        return jsonify({'success': False, 'error': 'Votre team est en formation : elle entrera en ligue dès qu\'elle aura assez de joueurs'}), 400
+    jeu_id = jeu_de_team(db, team_id)
+    if nb_membres(c, team_id) < joueurs_min(db, jeu_id):
+        c.execute('UPDATE teams SET hors_classement = 0, en_formation = 1 WHERE id = ?', (team_id,))
+        db.commit()
+        return jsonify({'success': True, 'formation': True, 'joueurs_min': joueurs_min(db, jeu_id), 'ligue_num': None, 'poule': None, 'attente': False}), 200
+    place = inscrire_en_ligue(c, jeu_id, team_id)
     db.commit()
     return jsonify({'success': True, 'ligue_num': place[0] if place else None, 'poule': place[1] if place else None,
-                    'attente': place is None}), 200
+                    'attente': place is None, 'formation': False}), 200
 
 
 @app.route('/api/teams/<int:team_id>/update', methods=['POST'])
@@ -2684,7 +2706,7 @@ def team_publique(team_id):
         'logo': url_media('logos', t['logo']), 'embleme': t['embleme'] if t['embleme'] in EMBLEMES else None,
         'banniere': url_media('bannieres', t['banniere']), 'banniere_pos': t['banniere_pos'] if t['banniere_pos'] is not None else 50,
         'banniere_zoom': t['banniere_zoom'] or 100, 'ligue_num': t['ligue_num'], 'poule': t['poule'],
-        'hors_classement': bool(t['hors_classement']), 'place': place, 'membres': membres, 'max_membres': max_membres_jeu(db, t['jeu_id']),
+        'hors_classement': bool(t['hors_classement']), 'formation': bool(t['en_formation']), 'joueurs_min': joueurs_min(db, t['jeu_id']), 'place': place, 'membres': membres, 'max_membres': max_membres_jeu(db, t['jeu_id']),
         'matchs': matchs_de_team(db, team_id, limite=6), 'titres': titres,
         'cree_le': (t['created_at'] or '')[:10], 'c_est_moi': bool(moi and moi['id'] == t['createur_id'])})
 
@@ -3648,7 +3670,7 @@ def api_admin_move_team(team_id):
     if not actuelle:  # team hors classement : on la remet dans la ligue choisie
         c.execute('INSERT INTO ligue (team_id, ligue_num, points, poule) VALUES (?, ?, 0, ?)',
                   (team_id, ligue_num, choisir_poule(c, jeu_id, ligue_num)))
-        c.execute('UPDATE teams SET hors_classement = 0, attente_depuis = NULL WHERE id = ?', (team_id,))
+        c.execute('UPDATE teams SET hors_classement = 0, attente_depuis = NULL, en_formation = 0 WHERE id = ?', (team_id,))
         db.commit()
         poule = c.execute('SELECT poule FROM ligue WHERE team_id = ?', (team_id,)).fetchone()['poule']
         return jsonify({'success': True, 'ligue_num': ligue_num, 'poule': poule}), 200
@@ -4334,6 +4356,47 @@ def inscrire_en_ligue(c, jeu_id, team_id):
     else:
         c.execute("UPDATE teams SET hors_classement = 0, attente_depuis = COALESCE(attente_depuis, datetime('now')) WHERE id = ?", (team_id,))
     return place
+
+
+def joueurs_min(db, jeu_id):
+    """Joueurs qu'il faut pour entrer en ligue : le réglage (3), sans dépasser le format du jeu (1 en 1v1)."""
+    r = db.execute('SELECT format FROM jeux WHERE id = ?', (jeu_id,)).fetchone()
+    m = re.match(r'\s*(\d+)\s*v', (r['format'] if r else '') or '')
+    titulaires = int(m.group(1)) if m else 3
+    return max(1, min(reglage('joueurs_min', db), titulaires, max_membres_jeu(db, jeu_id)))
+
+
+def nb_membres(c, team_id):
+    return c.execute('SELECT COUNT(*) FROM team_members WHERE team_id = ?', (team_id,)).fetchone()[0]
+
+
+def entrer_en_ligue_si_complete(c, team_id):
+    """Une team en formation qui atteint le nombre de joueurs voulu prend sa place (ou passe en liste d'attente)."""
+    t = c.execute('SELECT jeu_id, en_formation FROM teams WHERE id = ?', (team_id,)).fetchone()
+    if not t or not t['en_formation'] or nb_membres(c, team_id) < joueurs_min(c, t['jeu_id']):
+        return None
+    c.execute('UPDATE teams SET en_formation = 0 WHERE id = ?', (team_id,))
+    place = inscrire_en_ligue(c, t['jeu_id'], team_id)
+    notifier(c, membres_de(c, team_id), f"Ta team est complète : elle entre en Ligue {place[0]} (poule {place[1]}) !" if place
+             else "Ta team est complète, mais toutes les ligues sont pleines : elle est en liste d'attente.", '/teams')
+    return place or 'attente'
+
+
+def verifier_effectif(c, team_id):
+    """Plus assez de joueurs avant le début de sa ligue : la team repasse « en formation » et libère sa place
+    (impossible de réserver une place à 3 puis de partir). Une team qui a déjà commencé à jouer la garde."""
+    t = c.execute('SELECT jeu_id, en_formation, hors_classement FROM teams WHERE id = ?', (team_id,)).fetchone()
+    if not t or t['en_formation'] or t['hors_classement'] or nb_membres(c, team_id) >= joueurs_min(c, t['jeu_id']):
+        return
+    l = c.execute('SELECT ligue_num FROM ligue WHERE team_id = ?', (team_id,)).fetchone()
+    if l and (l['ligue_num'] in ligues_lancees(c, t['jeu_id']) or c.execute(
+            'SELECT 1 FROM matchs WHERE saison = ? AND (team1_id = ? OR team2_id = ?)',
+            (saison_actuelle(c, t['jeu_id']), team_id, team_id)).fetchone()):
+        return
+    c.execute('DELETE FROM ligue WHERE team_id = ?', (team_id,))
+    c.execute('UPDATE teams SET en_formation = 1, attente_depuis = NULL WHERE id = ?', (team_id,))
+    notifier(c, membres_de(c, team_id), f"Ta team n'a plus assez de joueurs ({joueurs_min(c, t['jeu_id'])} minimum) : "
+             "elle repasse en formation et reprendra une place dès qu'elle sera complète.", '/teams')
 
 
 def position_attente(db, team_id):

@@ -138,3 +138,8 @@ Sur un compte gratuit PythonAnywhere, Discord bloque souvent le serveur (adresse
 Admin → Annonces → **Relais Google** : copier le code du script, le coller dans script.google.com (Nouveau projet),
 Déployer → Application Web (Exécuter en tant que : Moi ; Accès : Tout le monde), puis coller l'URL `…/exec` dans le site.
 Diagnostic depuis la console : `python3.10 app.py discord`.
+
+## Teams « en formation »
+Une team n'entre en ligue qu'avec **3 joueurs** (réglable dans Admin → Réglages, « Joueurs minimum »).
+Avant, elle est « en formation ». Si elle repasse sous ce nombre avant le début de sa ligue, elle perd sa place
+et repasse en formation ; une fois la ligue commencée, elle la garde. Les teams déjà inscrites gardent leur place.

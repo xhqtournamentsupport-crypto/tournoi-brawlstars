@@ -65,7 +65,8 @@
             <h1>{{ team.nom }}</h1>
             <div class="tp-sous">
                 <span>{{ team.jeu }} · {{ team.format }}</span>
-                {% if team.hors_classement %}<span>Hors classement</span>
+                {% if team.formation %}<span>En formation · {{ team.membres | length }}/{{ team.joueurs_min }} joueurs pour entrer en ligue</span>
+                {% elif team.hors_classement %}<span>Hors classement</span>
                 {% elif team.ligue_num %}<span class="fort">Ligue {{ team.ligue_num }}{% if team.ligue_num >= 4 %} · Poule {{ team.poule }}{% endif %}</span>
                 {% if team.place %}<span>{{ team.place.rang }}{{ 'er' if team.place.rang == 1 else 'e' }} · {{ team.place.points }} pts</span>{% endif %}{% endif %}
                 {% if team.titres %}<span class="fort">{{ team.titres | length }} tournoi{{ 's' if team.titres | length > 1 }} gagné{{ 's' if team.titres | length > 1 }}</span>{% endif %}
