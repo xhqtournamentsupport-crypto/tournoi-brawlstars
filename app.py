@@ -40,6 +40,18 @@ def charger_secret_key():
 app = Flask(__name__)
 app.secret_key = charger_secret_key()
 app.config['MAX_CONTENT_LENGTH'] = 9 * 1024 * 1024   # taille max d'une requête (images comprises)
+
+
+@app.url_defaults
+def version_fichiers_statiques(endpoint, valeurs):
+    """style.css?v=… : après une mise à jour, les navigateurs (téléphones surtout) prennent tout de suite
+    le nouveau fichier au lieu de garder l'ancien en mémoire."""
+    if endpoint == 'static' and 'filename' in valeurs and 'v' not in valeurs:
+        try:
+            valeurs['v'] = int(os.path.getmtime(os.path.join(app.static_folder, valeurs['filename'])))
+        except (OSError, TypeError, ValueError):
+            pass
+
 # Cookie de session : illisible par JavaScript, jamais envoyé depuis un autre site, HTTPS seulement en ligne
 # (le serveur de test local « python app.py » repasse SECURE à False, voir tout en bas).
 app.config['SESSION_COOKIE_HTTPONLY'] = True

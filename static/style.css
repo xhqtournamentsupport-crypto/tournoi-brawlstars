@@ -109,9 +109,9 @@
     --halo: rgba(124, 108, 255, 0.16);
     color-scheme: light;
 }
-.logo-clair-seul { display: none; }
-:root[data-theme="light"] .logo-sombre-seul { display: none; }
-:root[data-theme="light"] .logo-clair-seul { display: block; }
+.xhq-logo img.logo-clair-seul { display: none; }
+:root[data-theme="light"] .xhq-logo img.logo-sombre-seul { display: none; }
+:root[data-theme="light"] .xhq-logo img.logo-clair-seul { display: block; }
 
 /* Choix du thème (page Profil → Apparence) */
 .choix-theme { display: flex; flex-wrap: wrap; gap: 0.7rem; }
