@@ -1,7 +1,7 @@
 <svg class="decor-bracket gauche" viewBox="0 0 540 765" aria-hidden="true"><path d="M0 10 H110 V95 H0 M0 200 H110 V285 H0 M0 480 H110 V565 H0 M0 670 H110 V755 H0 M110 52 H220 V242 H110 M110 522 H220 V712 H110 M220 147 H470 V360 M220 617 H470 V405 M470 382 H540"/></svg>
     <svg class="decor-bracket droite" viewBox="0 0 540 765" aria-hidden="true"><path d="M0 10 H110 V95 H0 M0 200 H110 V285 H0 M0 480 H110 V565 H0 M0 670 H110 V755 H0 M110 52 H220 V242 H110 M110 522 H220 V712 H110 M220 147 H470 V360 M220 617 H470 V405 M470 382 H540"/></svg>
     <nav class="xhq-nav" id="xhq-nav">
-        <a href="/" class="xhq-logo" aria-label="Accueil XHQ"><img src="{{ url_for('static', filename='logo-xhq-clair.png') }}" alt="XHQ"></a>
+        <a href="/" class="xhq-logo" aria-label="Accueil XHQ"><img class="logo-sombre-seul" src="{{ url_for('static', filename='logo-xhq-clair.png') }}" alt="XHQ"><img class="logo-clair-seul" src="{{ url_for('static', filename='logo-xhq.png') }}" alt="XHQ"></a>
 
         {% set p = request.path %}
         <div class="nav-capsule" id="nav-capsule"><span class="fx-bulle" aria-hidden="true"></span>
@@ -15,9 +15,11 @@
             <a href="/admin" class="xhq-nav-btn admin{% if p == '/admin' %} active{% endif %}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6l8-3z"/></svg>Admin</a>
             {% endif %}
             {% endif %}
+            <button type="button" class="xhq-nav-btn theme-mobile" data-theme-bascule><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2"/></svg><span class="theme-libelle ic-lune">Mode clair</span><span class="theme-libelle ic-soleil">Mode sombre</span></button>
         </div>
 
         <div class="nav-droite">
+            <button type="button" class="theme-btn" data-theme-bascule aria-label="Passer en mode clair" title="Mode clair / sombre"><svg class="ic-lune" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg><svg class="ic-soleil" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
             {% if current_user %}
             <div class="cloche-nav">
                 <button class="cloche-btn" type="button" id="cloche-btn" aria-label="Notifications" aria-haspopup="true" aria-expanded="false">

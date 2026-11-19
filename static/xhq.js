@@ -482,3 +482,28 @@ function editeurBanniere(racine, { url, pos = 50, zoom = 100, routes, message })
         document.addEventListener('mouseleave', () => { quitter(); halo.classList.remove('vu'); });
     });
 })();
+
+// Mode clair / sombre : le bouton soleil-lune bascule et le choix est gardé dans ce navigateur
+(() => {
+    const racine = document.documentElement;
+    const maj = () => {
+        const clair = racine.getAttribute('data-theme') === 'light';
+        document.querySelectorAll('[data-theme-bascule]').forEach(b => {
+            const label = clair ? 'Passer en mode sombre' : 'Passer en mode clair';
+            if (b.getAttribute('aria-label') !== label) b.setAttribute('aria-label', label);
+
+        });
+        const meta = document.querySelector('meta[name="theme-color"]'); if (meta) meta.content = clair ? '#f5f4fa' : '#0a0a0f';
+    };
+    document.addEventListener('DOMContentLoaded', () => {
+        maj();
+        document.querySelectorAll('[data-theme-bascule]').forEach(b => b.addEventListener('click', () => {
+            const nouveau = racine.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+            racine.classList.add('theme-anim');
+            racine.setAttribute('data-theme', nouveau);
+            try { localStorage.setItem('xhq-theme', nouveau); } catch (e) {}
+            maj();
+            setTimeout(() => racine.classList.remove('theme-anim'), 400);
+        }));
+    });
+})();

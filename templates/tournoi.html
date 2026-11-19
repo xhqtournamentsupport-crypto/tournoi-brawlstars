@@ -7,15 +7,15 @@
     {% include '_head.html' %}
     <style>
         .infos { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem 1.2rem; margin: -0.6rem 0 1.6rem; color: var(--muted); }
-        .statut { padding: 0.15rem 0.7rem; border-radius: 999px; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; background: var(--panel-2); border: 1px solid var(--line-2); color: #fff; }
-        .statut.inscriptions { background: var(--accent); }
-        .statut.termine { background: var(--gold); }
+        .statut { padding: 0.15rem 0.7rem; border-radius: 999px; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; background: var(--panel-2); border: 1px solid var(--line-2); color: var(--text); }
+        .statut.inscriptions { background: var(--accent); color: #fff; }
+        .statut.termine { background: var(--gold); color: #fff; }
         .description { max-width: 760px; color: var(--text-soft); white-space: pre-line; margin-bottom: 1.6rem; }
 
         /* Étapes du tournoi : 4 pastilles reliées */
         .etapes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; margin-bottom: 1.8rem; }
         .etape { position: relative; display: flex; align-items: center; gap: 0.55rem; padding: 0.6rem 0.9rem; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; color: var(--dim); font-weight: 700; font-size: 0.92rem; }
-        .etape b { display: inline-grid; place-items: center; width: 1.6rem; height: 1.6rem; border-radius: 50%; background: rgba(255, 255, 255, 0.06); font-size: 0.78rem; }
+        .etape b { display: inline-grid; place-items: center; width: 1.6rem; height: 1.6rem; border-radius: 50%; background: rgba(var(--encre), 0.06); font-size: 0.78rem; }
         .etape.faite { color: var(--text-soft); }
         .etape.faite b { background: var(--accent-dim); color: var(--bleu-clair); }
         .etape.active { color: #fff; border-color: var(--violet); background: var(--accent-dim); }
@@ -89,7 +89,7 @@
         .bm.finale { animation: finale 2.8s ease-in-out infinite; }
         @keyframes finale { 50% { box-shadow: 0 0 46px rgba(124, 108, 255, 0.55), 0 0 0 1px rgba(124, 108, 255, 0.6); } }
         /* Bannière du champion : reflet qui passe + trophée */
-        .champion-banniere::after { content: ''; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 35%, rgba(255, 255, 255, 0.18) 50%, transparent 65%); transform: translateX(-100%); animation: reflet-champion 3.5s ease-in-out 0.8s infinite; pointer-events: none; }
+        .champion-banniere::after { content: ''; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 35%, rgba(var(--encre), 0.18) 50%, transparent 65%); transform: translateX(-100%); animation: reflet-champion 3.5s ease-in-out 0.8s infinite; pointer-events: none; }
         @keyframes reflet-champion { 0%, 60% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
         .champion-banniere strong { text-shadow: 0 0 30px rgba(124, 108, 255, 0.7); }
         .bm-saisie { display: flex; justify-content: center; padding: 0.45rem; border-top: 1px dashed var(--line); background: var(--bg-2); }
