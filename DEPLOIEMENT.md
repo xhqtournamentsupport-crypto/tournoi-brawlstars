@@ -96,3 +96,12 @@ Conseil : pour ton compte admin, utilise un email **différent** de l'email de c
   Si rien n'arrive sur un compte gratuit PythonAnywhere, c'est que discord.com n'est pas joignable depuis le serveur.
 - **Admin → Boutique** : créer des badges (libres, limités aux X premiers, réservés à donner soi-même, ou disponibles
   entre deux dates), les donner à un joueur par son @, les masquer ou les supprimer. Les badges de base sont protégés.
+
+## Automatique (Admin → Automatique)
+- **Discord automatique** : cocher « Résultats des matchs », « Nouveaux tournois et champions », « Fin de saison ».
+  Les messages partent tout seuls dans le salon relié (onglet Annonces), dans la minute.
+- **Tournois récurrents** : « XHQ Cup chaque samedi à 18h, 8 places, inscriptions 5 jours avant » → le tournoi
+  se crée tout seul chaque semaine (#1, #2…), les capitaines sont prévenus. Pause / arrêt possibles.
+- **Jeux** : ajouter un jeu (nom, format 1v1/3v3/5v5, joueurs max par team) : il a ses propres teams, ligues,
+  saisons et tournois. Un jeu sans team ni tournoi peut être supprimé.
+Tout ce qui est automatique se déclenche pendant les visites du site (pas besoin de tâche planifiée).

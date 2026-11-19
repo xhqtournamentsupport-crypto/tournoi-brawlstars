@@ -345,6 +345,7 @@ def migrer_multi_jeux(c):
         else:
             c.execute('INSERT INTO jeux (code, nom, format, ordre) VALUES (?, ?, ?, ?)', (code, nom, format_, i))
     defaut = c.execute('SELECT id FROM jeux WHERE code = ?', (JEU_DEFAUT,)).fetchone()[0]
+    ajouter_colonne(c, 'jeux', 'max_membres', f'INTEGER DEFAULT {MAX_MEMBRES}')
 
     ajouter_colonne(c, 'teams', 'jeu_id', 'INTEGER')
     c.execute('UPDATE teams SET jeu_id = ? WHERE jeu_id IS NULL', (defaut,))
@@ -597,6 +598,11 @@ def init_db():
     c.execute("""CREATE TABLE IF NOT EXISTS annonces (id INTEGER PRIMARY KEY AUTOINCREMENT, titre TEXT NOT NULL, texte TEXT,
                  lien TEXT, publier_at TEXT NOT NULL, fin_at TEXT, notifier INTEGER DEFAULT 1, discord INTEGER DEFAULT 0,
                  publiee INTEGER DEFAULT 0, discord_ok INTEGER, auteur_id INTEGER, created_at TEXT)""")
+    c.execute("""CREATE TABLE IF NOT EXISTS discord_file (id INTEGER PRIMARY KEY AUTOINCREMENT, contenu TEXT,
+                 created_at TEXT, envoye_at TEXT, essais INTEGER DEFAULT 0)""")
+    c.execute("""CREATE TABLE IF NOT EXISTS tournois_recurrents (id INTEGER PRIMARY KEY AUTOINCREMENT, jeu_id INTEGER, nom TEXT,
+                 places INTEGER, description TEXT, jour INTEGER, heure TEXT, ouvrir_avant_jours INTEGER DEFAULT 5,
+                 actif INTEGER DEFAULT 1, dernier_pour TEXT, compteur INTEGER DEFAULT 0, created_at TEXT)""")
     for col, definition in (('actif', 'INTEGER DEFAULT 1'), ('mode', "TEXT DEFAULT 'libre'"), ('quantite_max', 'INTEGER'),
                             ('debut_at', 'TEXT'), ('fin_at', 'TEXT'), ('style', "TEXT DEFAULT 'violet'"), ('perso', 'INTEGER DEFAULT 0')):
         ajouter_colonne(c, 'shop_items', col, definition)
@@ -782,6 +788,12 @@ def utilisateur_connecte():
 
 def liste_jeux(db):
     return [dict(r) for r in db.execute('SELECT id, code, nom, format FROM jeux ORDER BY ordre, id')]
+
+
+def max_membres_jeu(db, jeu_id):
+    """Joueurs maximum par team pour ce jeu (réglé dans Admin → Automatique → Jeux)."""
+    r = db.execute('SELECT max_membres FROM jeux WHERE id = ?', (jeu_id,)).fetchone() if jeu_id else None
+    return (r['max_membres'] if r and r['max_membres'] else MAX_MEMBRES)
 
 
 def trouver_jeu(db, code=None):
@@ -1874,8 +1886,8 @@ def api_teams():
         team['banniere_zoom'] = team['banniere_zoom'] or 100
         team['embleme'] = team['embleme'] if team['embleme'] in EMBLEMES else None
         team['is_creator'] = team['createur_id'] == uid
-        team['max_membres'] = MAX_MEMBRES
-        team['pleine'] = team['nb_membres'] >= MAX_MEMBRES
+        team['max_membres'] = max_membres_jeu(db, jeu['id'])
+        team['pleine'] = team['nb_membres'] >= team['max_membres']
         teams_list.append(team)
 
     mine = db.execute('SELECT team_id FROM team_members WHERE user_id = ? AND jeu_id = ?', (uid, jeu['id'])).fetchone()
@@ -1910,7 +1922,7 @@ def api_teams():
         derniere_penalite = dict(dp) if dp else None
     return jsonify({'jeu': jeu, 'ligue_depart': LIGUE_DEPART,
                     'teams': teams_list, 'user_team_id': user_team_id, 'emblemes': EMBLEMES, 'user_id': uid, 'membres': membres,
-                    'matchs': matchs, 'prochains': prochains, 'max_membres': MAX_MEMBRES, 'participation': participation,
+                    'matchs': matchs, 'prochains': prochains, 'max_membres': max_membres_jeu(db, jeu['id']), 'participation': participation,
                     'derniere_penalite': derniere_penalite,
                     'regle_penalite': {'par_match': PENALITE_PAR_MATCH, 'recidive': MULTIPLICATEUR_RECIDIVE,
                                        'max': PENALITE_MAX}}), 200
@@ -1975,9 +1987,9 @@ def api_join_team(team_id):
         ajout = db.execute("""INSERT INTO team_members (team_id, user_id, jeu_id, joined_at)
                               SELECT ?, ?, ?, datetime('now')
                               WHERE (SELECT COUNT(*) FROM team_members WHERE team_id = ?) < ?""",
-                           (team_id, uid, jeu_id, team_id, MAX_MEMBRES))
+                           (team_id, uid, jeu_id, team_id, max_membres_jeu(db, jeu_id)))
         if not ajout.rowcount:
-            return jsonify({'success': False, 'error': f'Cette team est complète ({MAX_MEMBRES} joueurs maximum)'}), 400
+            return jsonify({'success': False, 'error': f'Cette team est complète ({max_membres_jeu(db, jeu_id)} joueurs maximum)'}), 400
         t = db.execute('SELECT createur_id FROM teams WHERE id = ?', (team_id,)).fetchone()
         notifier(db, [t['createur_id']], f"{utilisateur_connecte()['username']} a rejoint ta team", '/teams')
         db.commit()
@@ -2200,7 +2212,7 @@ def team_publique(team_id):
         'logo': url_media('logos', t['logo']), 'embleme': t['embleme'] if t['embleme'] in EMBLEMES else None,
         'banniere': url_media('bannieres', t['banniere']), 'banniere_pos': t['banniere_pos'] if t['banniere_pos'] is not None else 50,
         'banniere_zoom': t['banniere_zoom'] or 100, 'ligue_num': t['ligue_num'], 'poule': t['poule'],
-        'hors_classement': bool(t['hors_classement']), 'place': place, 'membres': membres, 'max_membres': MAX_MEMBRES,
+        'hors_classement': bool(t['hors_classement']), 'place': place, 'membres': membres, 'max_membres': max_membres_jeu(db, t['jeu_id']),
         'matchs': matchs_de_team(db, team_id, limite=6), 'titres': titres,
         'cree_le': (t['created_at'] or '')[:10], 'c_est_moi': bool(moi and moi['id'] == t['createur_id'])})
 
@@ -2576,6 +2588,49 @@ def envoyer_discord(titre, texte, lien):
         return False
 
 
+AUTO_DISCORD = {'resultats': 'Résultats des matchs', 'tournois': 'Nouveaux tournois et champions', 'saison': 'Fin de saison (champions, montées)'}
+
+
+def auto_discord_actif(db, sujet):
+    r = db.execute('SELECT valeur FROM parametres WHERE cle = ?', (f'discord_auto_{sujet}',)).fetchone()
+    return bool(r and r['valeur'] == '1')
+
+
+def enfiler_discord(db, sujet, message):
+    """Met un message dans la file Discord (envoyé en arrière-plan, sans ralentir l'action en cours)."""
+    if auto_discord_actif(db, sujet):
+        db.execute("INSERT INTO discord_file (contenu, created_at) VALUES (?, datetime('now'))", (message[:1900],))
+
+
+def envoyer_file_discord(db, maximum=2):
+    """Envoie quelques messages en attente (appelé pendant les visites, au plus toutes les 30 s)."""
+    import json
+    import urllib.request
+    w = db.execute("SELECT valeur FROM parametres WHERE cle = 'discord_webhook'").fetchone()
+    if not w or not DISCORD_WEBHOOK_REGEX.match(w['valeur'] or ''):
+        return 0
+    envoyes = 0
+    for m in db.execute("""SELECT id, contenu FROM discord_file WHERE envoye_at IS NULL AND essais < 5
+                           ORDER BY id LIMIT ?""", (maximum,)).fetchall():
+        # On « prend » le message d'abord : deux visites simultanées ne l'envoient jamais deux fois
+        if not db.execute('UPDATE discord_file SET essais = essais + 1 WHERE id = ? AND envoye_at IS NULL', (m['id'],)).rowcount:
+            continue
+        db.commit()
+        corps = json.dumps({'content': m['contenu'], 'allowed_mentions': {'parse': []}}).encode()
+        req = urllib.request.Request(w['valeur'], data=corps, headers={'Content-Type': 'application/json', 'User-Agent': 'XHQLeague'})
+        try:
+            with urllib.request.urlopen(req, timeout=4) as rep:
+                if 200 <= rep.status < 300:
+                    db.execute("UPDATE discord_file SET envoye_at = datetime('now') WHERE id = ?", (m['id'],))
+                    db.commit()
+                    envoyes += 1
+        except Exception as e:
+            app.logger.warning('Message Discord automatique non envoyé : %s', e)
+    db.execute("DELETE FROM discord_file WHERE created_at < datetime('now', '-7 days')")
+    db.commit()
+    return envoyes
+
+
 def publier_annonces_dues(db):
     """Publie les annonces dont l'heure est arrivée : notification à tous les joueurs et Discord si demandé."""
     dues = db.execute("SELECT * FROM annonces WHERE publiee = 0 AND publier_at <= datetime('now') ORDER BY publier_at").fetchall()
@@ -2679,6 +2734,8 @@ def enregistrer_resultat(c, db, team1_id, team2_id, score1, score2, saisi_par):
     for moi, adv, a, b, pts in ((team1_id, t2['nom'], score1, score2, points1), (team2_id, t1['nom'], score2, score1, points2)):
         notifier(c, membres_de(c, moi), f"{'Victoire' if a > b else 'Défaite'} {a}-{b} contre {adv} ({'+' if pts else ''}{pts} pts)",
                  f'/team/{moi}')
+    gagnant, perdant = (t1['nom'], t2['nom']) if score1 > score2 else (t2['nom'], t1['nom'])
+    enfiler_discord(db, 'resultats', f"⚔️ **{gagnant}** bat **{perdant}** {max(score1, score2)}-{min(score1, score2)} · Ligue {ligue_num} poule {poule}")
     return {'match_id': match_id, 'gagnant': t1['nom'] if score1 > score2 else t2['nom'],
             'ligue_num': ligue_num, 'poule': poule}, None
 
@@ -3309,6 +3366,148 @@ def api_admin_badge(item_id):
     return jsonify({'success': True}), 200
 
 
+@app.route('/api/admin/auto', methods=['GET'])
+@api_admin
+def api_admin_auto():
+    db = get_db()
+    w = db.execute("SELECT valeur FROM parametres WHERE cle = 'discord_webhook'").fetchone()
+    jeux = []
+    for j in db.execute('SELECT id, code, nom, format, COALESCE(max_membres, ?) AS max_membres FROM jeux ORDER BY ordre, id', (MAX_MEMBRES,)):
+        j = dict(j)
+        j['teams'] = db.execute('SELECT COUNT(*) FROM teams WHERE jeu_id = ?', (j['id'],)).fetchone()[0]
+        j['de_base'] = j['code'] in [x[0] for x in JEUX_DEFAUT]
+        jeux.append(j)
+    recurrents = []
+    maintenant = datetime.now(fuseau_paris()).replace(tzinfo=None)
+    for r in db.execute('SELECT r.*, j.nom AS jeu_nom FROM tournois_recurrents r LEFT JOIN jeux j ON j.id = r.jeu_id ORDER BY r.id'):
+        r = dict(r)
+        prochaine = prochaine_date(r['jour'], r['heure'], maintenant)
+        r['jour_nom'] = JOURS_SEMAINE[r['jour']]
+        r['prochaine'] = date_fr(prochaine.strftime('%Y-%m-%dT%H:%M'))
+        r['ouverture'] = date_fr((prochaine - timedelta(days=r['ouvrir_avant_jours'])).strftime('%Y-%m-%dT%H:%M'))
+        recurrents.append(r)
+    return jsonify({'discord_relie': bool(w and w['valeur']), 'auto': {k: auto_discord_actif(db, k) for k in AUTO_DISCORD},
+                    'auto_noms': AUTO_DISCORD, 'en_attente': db.execute('SELECT COUNT(*) FROM discord_file WHERE envoye_at IS NULL AND essais < 5').fetchone()[0],
+                    'jeux': jeux, 'recurrents': recurrents, 'places': TOURNOI_PLACES}), 200
+
+
+@app.route('/api/admin/auto/discord', methods=['POST'])
+@api_admin
+def api_admin_auto_discord():
+    data = donnees_json()
+    db = get_db()
+    for k in AUTO_DISCORD:
+        if k in data:
+            db.execute('INSERT OR REPLACE INTO parametres (cle, valeur) VALUES (?, ?)', (f'discord_auto_{k}', '1' if data[k] else '0'))
+            journaliser(db, f"Discord automatique : {AUTO_DISCORD[k]} {'activé' if data[k] else 'désactivé'}")
+    db.commit()
+    return jsonify({'success': True}), 200
+
+
+@app.route('/api/admin/jeux', methods=['POST'])
+@api_admin
+def api_admin_jeux():
+    """Ajouter un jeu (Clash Royale 1v1, Valorant 5v5…) : il a ses propres teams, ligues, saisons et tournois."""
+    db = get_db()
+    data = donnees_json()
+    nom = re.sub(r'\s+', ' ', texte(data, 'nom', 30))
+    format_ = texte(data, 'format', 10)
+    max_m = entier(data.get('max_membres'))
+    if not 2 <= len(nom) <= 30 or not NOM_AUTORISE.match(nom):
+        return jsonify({'success': False, 'error': 'Nom du jeu : 2 à 30 caractères (lettres, chiffres, espaces)'}), 400
+    if not re.match(r'^\d{1,2}v\d{1,2}$', format_):
+        return jsonify({'success': False, 'error': 'Format : par exemple 1v1, 3v3 ou 5v5'}), 400
+    if max_m is None or not 1 <= max_m <= 20:
+        return jsonify({'success': False, 'error': 'Joueurs maximum par team : entre 1 et 20'}), 400
+    code = handle_depuis(nom).replace('.', '').replace('_', '')[:20] or 'jeu'
+    if db.execute('SELECT 1 FROM jeux WHERE code = ? OR lower(nom) = lower(?)', (code, nom)).fetchone():
+        return jsonify({'success': False, 'error': 'Ce jeu existe déjà'}), 400
+    ordre = db.execute('SELECT COALESCE(MAX(ordre), 0) + 1 FROM jeux').fetchone()[0]
+    db.execute('INSERT INTO jeux (code, nom, format, ordre, max_membres) VALUES (?, ?, ?, ?, ?)', (code, nom, format_, ordre, max_m))
+    journaliser(db, 'Jeu ajouté', f'{nom} ({format_})')
+    db.commit()
+    return jsonify({'success': True, 'code': code}), 201
+
+
+@app.route('/api/admin/jeux/<int:jeu_id>', methods=['POST'])
+@api_admin
+def api_admin_jeu(jeu_id):
+    db = get_db()
+    j = db.execute('SELECT * FROM jeux WHERE id = ?', (jeu_id,)).fetchone()
+    if not j:
+        return jsonify({'success': False, 'error': 'Jeu introuvable'}), 404
+    data = donnees_json()
+    if data.get('supprimer'):
+        if j['code'] in [x[0] for x in JEUX_DEFAUT]:
+            return jsonify({'success': False, 'error': 'Le jeu principal ne se supprime pas'}), 400
+        if db.execute('SELECT 1 FROM teams WHERE jeu_id = ?', (jeu_id,)).fetchone() or db.execute('SELECT 1 FROM tournois WHERE jeu_id = ?', (jeu_id,)).fetchone():
+            return jsonify({'success': False, 'error': 'Ce jeu a déjà des teams ou des tournois : on ne peut plus le supprimer'}), 400
+        db.execute('DELETE FROM tournois_recurrents WHERE jeu_id = ?', (jeu_id,))
+        db.execute('DELETE FROM jeux WHERE id = ?', (jeu_id,))
+        journaliser(db, 'Jeu supprimé', j['nom'])
+        db.commit()
+        return jsonify({'success': True}), 200
+    max_m = entier(data.get('max_membres'))
+    if max_m is None or not 1 <= max_m <= 20:
+        return jsonify({'success': False, 'error': 'Joueurs maximum par team : entre 1 et 20'}), 400
+    db.execute('UPDATE jeux SET max_membres = ? WHERE id = ?', (max_m, jeu_id))
+    journaliser(db, f'Jeu modifié : {max_m} joueurs max par team', j['nom'])
+    db.commit()
+    return jsonify({'success': True}), 200
+
+
+def lire_recurrent(db, data):
+    nom = texte(data, 'nom', 50)
+    if len(nom) < 3:
+        return None, 'Le nom doit faire au moins 3 caractères'
+    jeu_id, jour, places, avant = entier(data.get('jeu_id')), entier(data.get('jour')), entier(data.get('places')), entier(data.get('ouvrir_avant_jours'))
+    heure = texte(data, 'heure', 5)
+    if not db.execute('SELECT 1 FROM jeux WHERE id = ?', (jeu_id,)).fetchone():
+        return None, 'Choisis le jeu'
+    if jour is None or not 0 <= jour <= 6 or not re.match(r'^([01]\d|2[0-3]):[0-5]\d$', heure):
+        return None, 'Choisis le jour et l\'heure'
+    if places not in TOURNOI_PLACES:
+        return None, 'Nombre de places : ' + ', '.join(map(str, TOURNOI_PLACES))
+    if avant is None or not 1 <= avant <= 14:
+        return None, 'Ouverture des inscriptions : entre 1 et 14 jours avant'
+    return {'nom': nom, 'jeu_id': jeu_id, 'jour': jour, 'heure': heure, 'places': places, 'ouvrir_avant_jours': avant,
+            'description': texte(data, 'description', 500)}, None
+
+
+@app.route('/api/admin/recurrents', methods=['POST'])
+@api_admin
+def api_admin_recurrents():
+    db = get_db()
+    v, erreur = lire_recurrent(db, donnees_json())
+    if erreur:
+        return jsonify({'success': False, 'error': erreur}), 400
+    db.execute("""INSERT INTO tournois_recurrents (jeu_id, nom, places, description, jour, heure, ouvrir_avant_jours, created_at)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))""",
+               (v['jeu_id'], v['nom'], v['places'], v['description'], v['jour'], v['heure'], v['ouvrir_avant_jours']))
+    journaliser(db, 'Tournoi récurrent programmé', f"{v['nom']} · chaque {JOURS_SEMAINE[v['jour']]} à {v['heure']}")
+    db.commit()
+    creer_tournois_recurrents(db)   # si les inscriptions doivent déjà être ouvertes, le 1er tournoi est créé tout de suite
+    return jsonify({'success': True}), 201
+
+
+@app.route('/api/admin/recurrents/<int:rec_id>', methods=['POST'])
+@api_admin
+def api_admin_recurrent(rec_id):
+    db = get_db()
+    r = db.execute('SELECT * FROM tournois_recurrents WHERE id = ?', (rec_id,)).fetchone()
+    if not r:
+        return jsonify({'success': False, 'error': 'Introuvable'}), 404
+    data = donnees_json()
+    if data.get('supprimer'):
+        db.execute('DELETE FROM tournois_recurrents WHERE id = ?', (rec_id,))
+        journaliser(db, 'Tournoi récurrent arrêté', r['nom'])
+    else:
+        db.execute('UPDATE tournois_recurrents SET actif = ? WHERE id = ?', (1 if data.get('actif') else 0, rec_id))
+        journaliser(db, 'Tournoi récurrent ' + ('repris' if data.get('actif') else 'mis en pause'), r['nom'])
+    db.commit()
+    return jsonify({'success': True}), 200
+
+
 @app.route('/api/admin/journal', methods=['GET'])
 @api_admin
 def api_admin_journal():
@@ -3536,6 +3735,10 @@ def api_admin_cloturer_saison():
                       (choisir_poule(c, jeu['id'], p['destination']), p['team_id']))
         # 3) nouvelle saison : toutes les teams de ce jeu repartent à 0
         c.execute('UPDATE ligue SET points = 0 WHERE team_id IN (SELECT id FROM teams WHERE jeu_id = ?)', (jeu['id'],))
+        champion = next((p['team_name'] for p in classement if p['mouvement'] == 'champion'), None)
+        montees = [p['team_name'] for p in classement if p['mouvement'] in ('monte', 'repechage')]
+        enfiler_discord(c, 'saison', f"🏁 **Fin de la saison {saison}** ({jeu['nom']})" + (f"\n👑 Champion de Ligue 1 : **{champion}**" if champion else '')
+                        + (f"\n⬆️ Montent : {', '.join(montees[:15])}" if montees else '') + f"\nLa saison {saison + 1} commence maintenant !")
         db.commit()
     except sqlite3.IntegrityError:
         db.rollback()
@@ -3693,6 +3896,8 @@ def faire_avancer(c, match):
     c.execute("""UPDATE tournois SET statut = 'termine', champion_team_id = ?, champion_nom = ?,
                  termine_at = datetime('now') WHERE id = ?""", (match['vainqueur_id'], nom, t['id']))
     donner_badge_champion(c, match['vainqueur_id'], t['lance_at'])
+    titre_tournoi = c.execute('SELECT nom FROM tournois WHERE id = ?', (t['id'],)).fetchone()[0]
+    enfiler_discord(c, 'tournois', f"🏆 **{nom}** remporte **{titre_tournoi}** ! Bravo à toute l'équipe.")
     notifier(c, membres_de(c, match['vainqueur_id']), f"Ta team remporte {nom_tournoi(c, t['id'])} ! Badge Champion débloqué",
              f"/tournois/{t['id']}")
 
@@ -3899,15 +4104,61 @@ def api_admin_creer_tournoi():
         except ValueError:
             return jsonify({'success': False, 'error': 'Date de début invalide'}), 400
     quand = texte(data, 'quand', 80) or (date_fr(debut) if debut else '')
+    tournoi_id = creer_tournoi(db, jeu, nom, places, texte(data, 'description', 500), debut, quand)
+    journaliser(db, 'Tournoi créé', nom)
+    db.commit()
+    return jsonify({'success': True, 'tournoi_id': tournoi_id}), 201
+
+
+def creer_tournoi(db, jeu, nom, places, description, debut, quand):
+    """Crée un tournoi (inscriptions ouvertes), prévient les capitaines et Discord. Ne fait pas le commit."""
     c = db.cursor()
     c.execute("""INSERT INTO tournois (jeu_id, nom, description, quand, places, created_at, debut)
-                 VALUES (?, ?, ?, ?, ?, datetime('now'), ?)""",
-              (jeu['id'], nom, texte(data, 'description', 500), quand, places, debut))
-    journaliser(db, 'Tournoi créé', nom)
+                 VALUES (?, ?, ?, ?, ?, datetime('now'), ?)""", (jeu['id'], nom, description, quand, places, debut))
+    tournoi_id = c.lastrowid
     capitaines = [r[0] for r in db.execute('SELECT createur_id FROM teams WHERE jeu_id = ?', (jeu['id'],))]
-    notifier(db, capitaines, f"Nouveau tournoi : {nom}{' (' + quand + ')' if quand else ''}, inscriptions ouvertes", f'/tournois/{c.lastrowid}')
-    db.commit()
-    return jsonify({'success': True, 'tournoi_id': c.lastrowid}), 201
+    notifier(db, capitaines, f"Nouveau tournoi : {nom}{' (' + quand + ')' if quand else ''}, inscriptions ouvertes", f'/tournois/{tournoi_id}')
+    enfiler_discord(db, 'tournois', f"🎮 **Nouveau tournoi : {nom}** ({jeu['nom']}, {places} places)" + (f"\n🗓️ {quand}" if quand else '')
+                    + f"\nInscriptions ouvertes : {SITE_URL_DEFAUT}/tournois/{tournoi_id}")
+    return tournoi_id
+
+
+JOURS_SEMAINE = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche']
+
+
+def prochaine_date(jour, heure, apres):
+    """Prochaine date (heure de France, naïve) tombant ce jour de la semaine à cette heure, strictement après « apres »."""
+    h, m = map(int, heure.split(':'))
+    d = apres.replace(hour=h, minute=m, second=0, microsecond=0) + timedelta(days=(jour - apres.weekday()) % 7)
+    return d if d > apres else d + timedelta(days=7)
+
+
+def creer_tournois_recurrents(db):
+    """Crée les tournois récurrents dont la date d'ouverture des inscriptions est arrivée (un par semaine)."""
+    maintenant = datetime.now(fuseau_paris()).replace(tzinfo=None)
+    crees = 0
+    for r in db.execute('SELECT * FROM tournois_recurrents WHERE actif = 1').fetchall():
+        prochaine = prochaine_date(r['jour'], r['heure'], maintenant)
+        cle = prochaine.strftime('%Y-%m-%dT%H:%M')
+        if maintenant < prochaine - timedelta(days=r['ouvrir_avant_jours']) or r['dernier_pour'] == cle:
+            continue
+        # On « prend » cette date d'abord : jamais deux tournois pour la même semaine
+        if not db.execute('UPDATE tournois_recurrents SET dernier_pour = ?, compteur = compteur + 1 WHERE id = ? AND COALESCE(dernier_pour, \'\') != ?',
+                          (cle, r['id'], cle)).rowcount:
+            continue
+        jeu = db.execute('SELECT id, nom, code FROM jeux WHERE id = ?', (r['jeu_id'],)).fetchone()
+        if not jeu:
+            continue
+        numero = r['compteur'] + 1
+        nom = (r['nom'] + ' #' + str(numero))[:60]
+        tid = creer_tournoi(db, dict(jeu), nom, r['places'], r['description'] or '', cle, date_fr(cle))
+        ecrire_journal(db.cursor(), None, 'automatique', 'Tournoi récurrent créé', nom)
+        db.commit()
+        crees += 1
+    return crees
+
+
+_controle_auto = {'t': 0.0}
 
 
 @app.route('/api/admin/tournois/<int:tournoi_id>/poules', methods=['POST'])
@@ -4337,10 +4588,11 @@ def _sauvegarde_quotidienne():
         import time
         if time.time() - _controle_annonces['t'] > 30:
             _controle_annonces['t'] = time.time()
-            try:
-                publier_annonces_dues(get_db())
-            except Exception as e:   # une annonce ratée ne doit jamais casser une page
-                app.logger.warning('Publication des annonces impossible : %s', e)
+            for tache_auto in (publier_annonces_dues, creer_tournois_recurrents, envoyer_file_discord):
+                try:
+                    tache_auto(get_db())
+                except Exception as e:   # une tâche automatique ratée ne doit jamais casser une page
+                    app.logger.warning('Tâche automatique impossible (%s) : %s', tache_auto.__name__, e)
 
 
 @app.route('/admin/sauvegarde')

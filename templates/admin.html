@@ -165,6 +165,7 @@
             <button class="tab" type="button" data-tab="messages"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4z"/></svg>Messages<span class="pastille" id="pastille" hidden></span></button>
             <button class="tab" type="button" data-tab="annonces"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v2a1 1 0 0 0 1 1h3l5 4V6L7 10H4a1 1 0 0 0-1 1zM16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12"/></svg>Annonces</button>
             <button class="tab" type="button" data-tab="boutique"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1.2 12H6.2L5 8zM9 8V6a3 3 0 0 1 6 0v2"/></svg>Boutique</button>
+            <button class="tab" type="button" data-tab="auto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/><circle cx="12" cy="12" r="3"/></svg>Automatique</button>
             <button class="tab" type="button" data-tab="journal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6zM9 9h6M9 13h6M9 17h4"/></svg>Journal</button>
             <button class="tab" type="button" data-tab="sauvegardes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M4 19h16"/></svg>Sauvegardes</button>
         </div>
@@ -376,6 +377,50 @@
             </div>
         </div>
 
+        <!-- ============ AUTOMATIQUE ============ -->
+        <div class="panel" id="panel-auto">
+            <div class="section">
+                <h2 class="section-title">Discord automatique</h2>
+                <p class="hint">Coche ce qui doit partir tout seul dans ton salon Discord (relié dans l'onglet Annonces). Les messages partent en arrière-plan, dans la minute.</p>
+                <div id="auto-discord" class="muted">…</div>
+            </div>
+            <div class="section">
+                <h2 class="section-title">Tournois récurrents</h2>
+                <p class="hint">Un tournoi qui revient chaque semaine : il se crée tout seul (« XHQ Cup #1 », « #2 »…), les inscriptions s'ouvrent quelques jours avant, et les capitaines sont prévenus (et le Discord si coché au-dessus). Heure de France.</p>
+                <div class="cal-form">
+                    <div><label for="rec-nom">Nom</label><input type="text" id="rec-nom" maxlength="50" placeholder="XHQ Cup"></div>
+                    <div><label for="rec-jeu">Jeu</label><select id="rec-jeu"></select></div>
+                </div>
+                <div class="cal-form">
+                    <div><label for="rec-jour">Chaque</label><select id="rec-jour"><option value="0">lundi</option><option value="1">mardi</option><option value="2">mercredi</option><option value="3">jeudi</option><option value="4">vendredi</option><option value="5" selected>samedi</option><option value="6">dimanche</option></select></div>
+                    <div><label for="rec-heure">À</label><input type="time" id="rec-heure" value="18:00"></div>
+                </div>
+                <div class="cal-form">
+                    <div><label for="rec-places">Places</label><select id="rec-places"></select></div>
+                    <div><label for="rec-avant">Inscriptions ouvertes (jours avant)</label><input type="number" id="rec-avant" min="1" max="14" value="5"></div>
+                </div>
+                <div class="form-group"><label for="rec-desc">Description (facultatif)</label><input type="text" id="rec-desc" maxlength="500" placeholder="Format, récompenses…"></div>
+                <button class="btn" type="button" onclick="creerRecurrent()">Programmer</button>
+                <div id="liste-recurrents" style="margin-top:1rem"></div>
+            </div>
+            <div class="section">
+                <h2 class="section-title">Jeux</h2>
+                <p class="hint">Ajoute un jeu : il a aussitôt ses propres teams, ligues, saisons, calendrier et tournois, et apparaît dans le sélecteur de jeu du site.</p>
+                <div class="cal-form">
+                    <div><label for="jeu-nom">Nom</label><input type="text" id="jeu-nom" maxlength="30" placeholder="Clash Royale"></div>
+                    <div><label for="jeu-format">Format</label><input type="text" id="jeu-format" maxlength="10" placeholder="1v1"></div>
+                </div>
+                <div class="cal-form">
+                    <div><label for="jeu-max">Joueurs maximum par team (remplaçants compris)</label><input type="number" id="jeu-max" min="1" max="20" value="2"></div>
+                    <button class="btn" type="button" onclick="ajouterJeu()">Ajouter le jeu</button>
+                </div>
+                <div class="table-wrap" style="margin-top:1rem"><table>
+                    <thead><tr><th>Jeu</th><th>Format</th><th>Joueurs max</th><th>Teams</th><th></th></tr></thead>
+                    <tbody id="liste-jeux"></tbody>
+                </table></div>
+            </div>
+        </div>
+
         <!-- ============ JOURNAL ============ -->
         <div class="panel" id="panel-journal">
             <div class="section">
@@ -468,6 +513,7 @@
             if (nom === 'calendrier') chargerCalendrier();
             if (nom === 'sauvegardes') chargerSauvegardes();
             if (nom === 'journal') chargerJournal();
+            if (nom === 'auto') chargerAuto();
             if (nom === 'annonces') chargerAnnonces();
             if (nom === 'boutique') chargerBoutique();
             history.replaceState(null, '', nom === 'matchs' ? location.pathname : '#' + nom);
@@ -1043,6 +1089,62 @@
             const { ok, data } = await api(`/api/admin/boutique/${id}`, { method: 'POST', body: { donner: qui.trim() } });
             showMessage(ok ? `Badge donné à ${data.joueur}.` : (data.error || 'Erreur'), ok ? 'success' : 'error');
             chargerBoutique();
+        }
+
+        // ---------- automatique ----------
+        async function chargerAuto() {
+            const { ok, data } = await api('/api/admin/auto');
+            if (!ok) return;
+            document.getElementById('auto-discord').innerHTML = (data.discord_relie ? '' : '<p>⚠️ Relie d\'abord ton Discord (onglet Annonces, en bas).</p>')
+                + Object.entries(data.auto_noms).map(([cle, nom]) => `<label class="case-a-cocher"><input type="checkbox" data-auto="${escapeHtml(cle)}" ${data.auto[cle] ? 'checked' : ''} ${data.discord_relie ? '' : 'disabled'} onchange="changerAuto(this)"> ${escapeHtml(nom)}</label>`).join('')
+                + (data.en_attente ? `<p class="muted" style="margin-top:.6rem">${Number(data.en_attente)} message(s) en attente d'envoi.</p>` : '');
+            document.getElementById('rec-jeu').innerHTML = data.jeux.map(j => `<option value="${Number(j.id)}">${escapeHtml(j.nom)} (${escapeHtml(j.format)})</option>`).join('');
+            document.getElementById('rec-places').innerHTML = data.places.map(p => `<option value="${Number(p)}">${Number(p)} teams</option>`).join('');
+            document.getElementById('liste-recurrents').innerHTML = data.recurrents.length ? data.recurrents.map(r => `
+                <div class="an-carte"><span class="tag ${r.actif ? 'or' : 'suspendu'}">${r.actif ? 'ACTIF' : 'EN PAUSE'}</span>
+                    <b>${escapeHtml(r.nom)} · ${escapeHtml(r.jeu_nom || '?')} · ${Number(r.places)} places</b>
+                    <span class="muted">Chaque ${escapeHtml(r.jour_nom)} à ${escapeHtml(r.heure)} · ${Number(r.compteur)} déjà créé(s)${r.actif ? ` · prochain : ${escapeHtml(r.prochaine)} (inscriptions dès le ${escapeHtml(r.ouverture)})` : ''}</span>
+                    <div class="actions" style="margin-top:.5rem"><button class="btn-mini" type="button" onclick="actionRecurrent(${Number(r.id)}, { actif: ${!r.actif} })">${r.actif ? 'Mettre en pause' : 'Reprendre'}</button>
+                    <button class="btn-mini" type="button" onclick="actionRecurrent(${Number(r.id)}, { supprimer: true })">Arrêter</button></div></div>`).join('') : '<p class="muted">Aucun tournoi récurrent.</p>';
+            document.getElementById('liste-jeux').innerHTML = data.jeux.map(j => `<tr><td><strong>${escapeHtml(j.nom)}</strong></td><td>${escapeHtml(j.format)}</td>
+                <td><input type="number" min="1" max="20" value="${Number(j.max_membres)}" style="width:70px" id="jeu-max-${Number(j.id)}"> <button class="btn-mini" type="button" onclick="majJeu(${Number(j.id)})">OK</button></td>
+                <td>${Number(j.teams)}</td><td>${j.de_base || j.teams ? '' : `<button class="btn-mini" type="button" onclick="supprimerJeu(${Number(j.id)})">Supprimer</button>`}</td></tr>`).join('');
+        }
+        async function changerAuto(caseCochee) {
+            const { ok, data } = await api('/api/admin/auto/discord', { method: 'POST', body: { [caseCochee.dataset.auto]: caseCochee.checked } });
+            showMessage(ok ? 'Réglage enregistré.' : (data.error || 'Erreur'), ok ? 'success' : 'error');
+        }
+        async function creerRecurrent() {
+            const body = { nom: document.getElementById('rec-nom').value, jeu_id: Number(document.getElementById('rec-jeu').value),
+                jour: Number(document.getElementById('rec-jour').value), heure: document.getElementById('rec-heure').value,
+                places: Number(document.getElementById('rec-places').value), ouvrir_avant_jours: Number(document.getElementById('rec-avant').value),
+                description: document.getElementById('rec-desc').value };
+            const { ok, data } = await api('/api/admin/recurrents', { method: 'POST', body });
+            showMessage(ok ? 'Tournoi récurrent programmé : il se créera tout seul.' : (data.error || 'Erreur'), ok ? 'success' : 'error');
+            if (ok) { document.getElementById('rec-nom').value = ''; document.getElementById('rec-desc').value = ''; chargerAuto(); }
+        }
+        async function actionRecurrent(id, body) {
+            if (body.supprimer && !confirm('Arrêter ce tournoi récurrent ? (les tournois déjà créés restent)')) return;
+            const { ok, data } = await api(`/api/admin/recurrents/${id}`, { method: 'POST', body });
+            showMessage(ok ? 'C\'est fait.' : (data.error || 'Erreur'), ok ? 'success' : 'error');
+            chargerAuto();
+        }
+        async function ajouterJeu() {
+            const body = { nom: document.getElementById('jeu-nom').value, format: document.getElementById('jeu-format').value.trim().toLowerCase(),
+                max_membres: Number(document.getElementById('jeu-max').value) };
+            const { ok, data } = await api('/api/admin/jeux', { method: 'POST', body });
+            showMessage(ok ? 'Jeu ajouté : il est dans le sélecteur de jeu du site.' : (data.error || 'Erreur'), ok ? 'success' : 'error');
+            if (ok) { document.getElementById('jeu-nom').value = ''; document.getElementById('jeu-format').value = ''; chargerAuto(); }
+        }
+        async function majJeu(id) {
+            const { ok, data } = await api(`/api/admin/jeux/${id}`, { method: 'POST', body: { max_membres: Number(document.getElementById('jeu-max-' + id).value) } });
+            showMessage(ok ? 'Enregistré.' : (data.error || 'Erreur'), ok ? 'success' : 'error');
+        }
+        async function supprimerJeu(id) {
+            if (!confirm('Supprimer ce jeu ?')) return;
+            const { ok, data } = await api(`/api/admin/jeux/${id}`, { method: 'POST', body: { supprimer: true } });
+            showMessage(ok ? 'Jeu supprimé.' : (data.error || 'Erreur'), ok ? 'success' : 'error');
+            chargerAuto();
         }
 
         // ---------- journal ----------
