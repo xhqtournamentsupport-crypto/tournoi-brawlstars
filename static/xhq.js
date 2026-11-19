@@ -483,27 +483,25 @@ function editeurBanniere(racine, { url, pos = 50, zoom = 100, routes, message })
     });
 })();
 
-// Mode clair / sombre : le bouton soleil-lune bascule et le choix est gardé dans ce navigateur
+// Thème du site (Profil → Apparence) : sombre, clair, ou comme l'appareil. Gardé dans ce navigateur.
 (() => {
     const racine = document.documentElement;
-    const maj = () => {
-        const clair = racine.getAttribute('data-theme') === 'light';
-        document.querySelectorAll('[data-theme-bascule]').forEach(b => {
-            const label = clair ? 'Passer en mode sombre' : 'Passer en mode clair';
-            if (b.getAttribute('aria-label') !== label) b.setAttribute('aria-label', label);
-
-        });
-        const meta = document.querySelector('meta[name="theme-color"]'); if (meta) meta.content = clair ? '#f5f4fa' : '#0a0a0f';
+    const systeme = window.matchMedia ? matchMedia('(prefers-color-scheme: light)') : null;
+    const choixActuel = () => { try { const t = localStorage.getItem('xhq-theme'); return t === 'light' || t === 'dark' ? t : 'auto'; } catch (e) { return 'auto'; } };
+    const appliquer = (anim) => {
+        const choix = choixActuel();
+        const theme = choix === 'auto' ? (systeme && systeme.matches ? 'light' : 'dark') : choix;
+        if (anim) { racine.classList.add('theme-anim'); setTimeout(() => racine.classList.remove('theme-anim'), 400); }
+        if (racine.getAttribute('data-theme') !== theme) racine.setAttribute('data-theme', theme);
+        const meta = document.querySelector('meta[name="theme-color"]'); if (meta) meta.content = theme === 'light' ? '#f5f4fa' : '#0a0a0f';
+        document.querySelectorAll('[data-theme-choix]').forEach(b => b.setAttribute('aria-checked', String(b.dataset.themeChoix === choix)));
     };
+    if (systeme && systeme.addEventListener) systeme.addEventListener('change', () => { if (choixActuel() === 'auto') appliquer(true); });
     document.addEventListener('DOMContentLoaded', () => {
-        maj();
-        document.querySelectorAll('[data-theme-bascule]').forEach(b => b.addEventListener('click', () => {
-            const nouveau = racine.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
-            racine.classList.add('theme-anim');
-            racine.setAttribute('data-theme', nouveau);
-            try { localStorage.setItem('xhq-theme', nouveau); } catch (e) {}
-            maj();
-            setTimeout(() => racine.classList.remove('theme-anim'), 400);
+        appliquer(false);
+        document.querySelectorAll('[data-theme-choix]').forEach(b => b.addEventListener('click', () => {
+            try { if (b.dataset.themeChoix === 'auto') localStorage.removeItem('xhq-theme'); else localStorage.setItem('xhq-theme', b.dataset.themeChoix); } catch (e) {}
+            appliquer(true);
         }));
     });
 })();
