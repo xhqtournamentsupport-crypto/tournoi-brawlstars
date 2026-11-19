@@ -3036,8 +3036,14 @@ def envoyer_discord(titre, texte, lien):
     r = db.execute("SELECT valeur FROM parametres WHERE cle = 'discord_webhook'").fetchone()
     if not r or not DISCORD_WEBHOOK_REGEX.match(r['valeur'] or ''):
         return False
-    contenu = f"📢 **{titre}**\n{texte or ''}" + (f"\n{lien}" if lien else '')
-    return poster_discord(r['valeur'], contenu)[0]
+    return poster_discord(r['valeur'], message_annonce(titre, texte, lien))[0]
+
+
+def message_annonce(titre, texte, lien):
+    """Texte d'une annonce pour Discord ; un lien du site (« /teams ») devient une adresse complète, cliquable."""
+    if lien and lien.startswith('/'):
+        lien = ((config_mail() or {}).get('site') or SITE_URL_DEFAUT).rstrip('/') + lien
+    return f"📢 **{titre}**\n{texte or ''}" + (f"\n{lien}" if lien else '')
 
 
 AUTO_DISCORD = {'resultats': 'Résultats des matchs', 'tournois': 'Nouveaux tournois et champions', 'saison': 'Fin de saison (champions, montées)'}
@@ -3056,8 +3062,6 @@ def enfiler_discord(db, sujet, message):
 
 def envoyer_file_discord(db, maximum=2):
     """Envoie quelques messages en attente (appelé pendant les visites, au plus toutes les 30 s)."""
-    import json
-    import urllib.request
     w = db.execute("SELECT valeur FROM parametres WHERE cle = 'discord_webhook'").fetchone()
     if not w or not DISCORD_WEBHOOK_REGEX.match(w['valeur'] or ''):
         return 0
@@ -3068,16 +3072,14 @@ def envoyer_file_discord(db, maximum=2):
         if not db.execute('UPDATE discord_file SET essais = essais + 1 WHERE id = ? AND envoye_at IS NULL', (m['id'],)).rowcount:
             continue
         db.commit()
-        corps = json.dumps({'content': m['contenu'], 'allowed_mentions': {'parse': []}}).encode()
-        req = urllib.request.Request(w['valeur'], data=corps, headers={'Content-Type': 'application/json', 'User-Agent': UA_DISCORD})
-        try:
-            with urllib.request.urlopen(req, timeout=4) as rep:
-                if 200 <= rep.status < 300:
-                    db.execute("UPDATE discord_file SET envoye_at = datetime('now') WHERE id = ?", (m['id'],))
-                    db.commit()
-                    envoyes += 1
-        except Exception as e:
-            app.logger.warning('Message Discord automatique non envoyé : %s', e)
+        ok, raison = poster_discord(w['valeur'], m['contenu'], delai=4)
+        if ok:
+            db.execute("UPDATE discord_file SET envoye_at = datetime('now') WHERE id = ?", (m['id'],))
+            db.execute("DELETE FROM parametres WHERE cle = 'discord_erreur'")
+            envoyes += 1
+        else:   # gardée pour l'admin (Admin → Automatique), le message sera réessayé (5 fois en tout)
+            db.execute("INSERT OR REPLACE INTO parametres (cle, valeur) VALUES ('discord_erreur', ?)", (raison[:400],))
+        db.commit()
     db.execute("DELETE FROM discord_file WHERE created_at < datetime('now', '-7 days')")
     db.commit()
     return envoyes
@@ -3676,6 +3678,18 @@ def api_admin_annonce(annonce_id):
         journaliser(db, 'Annonce supprimée', a['titre'])
         db.commit()
         return jsonify({'success': True}), 200
+    if data.get('discord'):
+        # (Re)publier sur Discord une annonce déjà en ligne, avec la raison si ça échoue
+        if not a['publiee']:
+            return jsonify({'success': False, 'error': "L'annonce n'est pas encore publiée : elle partira sur Discord à l'heure prévue."}), 400
+        w = db.execute("SELECT valeur FROM parametres WHERE cle = 'discord_webhook'").fetchone()
+        if not w or not DISCORD_WEBHOOK_REGEX.match(w['valeur'] or ''):
+            return jsonify({'success': False, 'error': "Aucun Discord relié : colle d'abord l'adresse du webhook (plus bas)."}), 400
+        ok, raison = poster_discord(w['valeur'], message_annonce(a['titre'], a['texte'], a['lien']))
+        db.execute('UPDATE annonces SET discord = 1, discord_ok = ? WHERE id = ?', (1 if ok else 0, annonce_id))
+        journaliser(db, 'Annonce envoyée sur Discord' if ok else 'Annonce : envoi Discord raté', a['titre'])
+        db.commit()
+        return jsonify({'success': True, 'test': ok, 'raison': raison}), 200
     if data.get('terminer'):
         db.execute("UPDATE annonces SET fin_at = datetime('now') WHERE id = ?", (annonce_id,))
         journaliser(db, 'Annonce retirée de l\'accueil', a['titre'])
@@ -3856,6 +3870,9 @@ def api_admin_auto():
         recurrents.append(r)
     return jsonify({'discord_relie': bool(w and w['valeur']), 'auto': {k: auto_discord_actif(db, k) for k in AUTO_DISCORD},
                     'auto_noms': AUTO_DISCORD, 'en_attente': db.execute('SELECT COUNT(*) FROM discord_file WHERE envoye_at IS NULL AND essais < 5').fetchone()[0],
+                    'abandonnes': db.execute('SELECT COUNT(*) FROM discord_file WHERE envoye_at IS NULL AND essais >= 5').fetchone()[0],
+                    'envoyes': db.execute('SELECT COUNT(*) FROM discord_file WHERE envoye_at IS NOT NULL').fetchone()[0],
+                    'erreur': (db.execute("SELECT valeur FROM parametres WHERE cle = 'discord_erreur'").fetchone() or [None])[0],
                     'jeux': jeux, 'recurrents': recurrents, 'places': TOURNOI_PLACES}), 200
 
 

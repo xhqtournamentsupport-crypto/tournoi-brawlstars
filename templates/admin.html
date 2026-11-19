@@ -1239,6 +1239,7 @@
                     <b>${escapeHtml(a.titre)}</b>${a.texte ? `<p>${escapeHtml(a.texte)}</p>` : ''}
                     <div class="actions"><button class="btn-mini" type="button" onclick="modifierAnnonce(${Number(a.id)})">Modifier</button>
                     ${a.etat === 'en_ligne' ? `<button class="btn-mini" type="button" onclick="actionAnnonce(${Number(a.id)}, 'terminer')">Retirer de l'accueil</button>` : ''}
+                    ${a.publiee && a.discord_ok !== 1 ? `<button class="btn-mini" type="button" onclick="annonceDiscord(${Number(a.id)})">Envoyer sur Discord</button>` : ''}
                     <button class="btn-mini" type="button" onclick="actionAnnonce(${Number(a.id)}, 'supprimer')">Supprimer</button></div></div>`;
             }).join('') : 'Aucune annonce pour l\'instant.';
         }
@@ -1272,6 +1273,12 @@
             if (action === 'supprimer' && !confirm('Supprimer cette annonce (et ses notifications) ?')) return;
             const { ok, data } = await api(`/api/admin/annonces/${id}`, { method: 'POST', body: { [action]: true } });
             showMessage(ok ? 'C\'est fait.' : (data.error || 'Erreur'), ok ? 'success' : 'error');
+            chargerAnnonces();
+        }
+        async function annonceDiscord(id) {
+            const { ok, data } = await api(`/api/admin/annonces/${id}`, { method: 'POST', body: { discord: true } });
+            if (!ok) { showMessage(data.error || 'Erreur', 'error'); return; }
+            showMessage(data.test ? 'Annonce envoyée sur Discord ✓' : 'Pas parti sur Discord : ' + (data.raison || 'raison inconnue'), data.test ? 'success' : 'error');
             chargerAnnonces();
         }
         async function relierDiscord() {
@@ -1361,7 +1368,9 @@
             if (!ok) return;
             document.getElementById('auto-discord').innerHTML = (data.discord_relie ? '' : '<p>⚠️ Relie d\'abord ton Discord (onglet Annonces, en bas).</p>')
                 + Object.entries(data.auto_noms).map(([cle, nom]) => `<label class="case-a-cocher"><input type="checkbox" data-auto="${escapeHtml(cle)}" ${data.auto[cle] ? 'checked' : ''} ${data.discord_relie ? '' : 'disabled'} onchange="changerAuto(this)"> ${escapeHtml(nom)}</label>`).join('')
-                + (data.en_attente ? `<p class="muted" style="margin-top:.6rem">${Number(data.en_attente)} message(s) en attente d'envoi.</p>` : '');
+                + `<p class="muted" style="margin-top:.6rem">${Number(data.envoyes)} message(s) envoyé(s) ces 7 derniers jours${data.en_attente ? ` · ${Number(data.en_attente)} en attente (ils partent pendant les visites du site, dans la minute)` : ''}${data.abandonnes ? ` · ${Number(data.abandonnes)} abandonné(s) après 5 essais` : ''}.</p>`
+                + (data.erreur ? `<div class="sauvegarde-auto"><strong>Dernier envoi raté</strong><p>${escapeHtml(data.erreur)}</p></div>` : '')
+                + '<p class="hint" style="margin-top:.6rem">Seuls les nouveaux événements partent : les résultats validés, les tournois créés ou gagnés et les fins de saison <strong>à partir du moment où la case est cochée</strong>. Rien ne part tant qu\'il ne se passe rien. Pour vérifier le lien, utilise « Renvoyer un message de test » (onglet Annonces).</p>';
             document.getElementById('rec-jeu').innerHTML = data.jeux.map(j => `<option value="${Number(j.id)}">${escapeHtml(j.nom)} (${escapeHtml(j.format)})</option>`).join('');
             document.getElementById('rec-places').innerHTML = data.places.map(p => `<option value="${Number(p)}">${Number(p)} teams</option>`).join('');
             document.getElementById('liste-recurrents').innerHTML = data.recurrents.length ? data.recurrents.map(r => `
