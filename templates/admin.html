@@ -1235,7 +1235,7 @@
             document.getElementById('an-discord').disabled = !data.discord_relie;
             document.getElementById('liste-annonces').innerHTML = annonces.length ? annonces.map(a => {
                 const [etat, classe] = ETATS_ANNONCE[a.etat];
-                return `<div class="an-carte"><span class="tag ${classe}">${etat}</span> <span class="muted">${a.publiee ? 'Publiée' : 'Prévue'} ${escapeHtml(a.publier_fr)}${a.fin_fr ? ' · retirée ' + escapeHtml(a.fin_fr) : ''} · par ${escapeHtml(a.auteur || '?')}${a.discord ? (a.discord_ok === 1 ? ' · Discord ✓' : a.discord_ok === 0 ? ' · Discord ✗' : ' · Discord') : ''}</span>
+                return `<div class="an-carte"><span class="tag ${classe}">${etat}</span> <span class="muted">${a.publiee ? 'Publiée' : 'Prévue'} ${escapeHtml(a.publier_fr)}${a.fin_fr ? ' · retirée ' + escapeHtml(a.fin_fr) : ''} · par ${escapeHtml(a.auteur || '?')}${a.discord ? (a.discord_ok === 1 ? ' · Discord ✓' : a.discord_ok === 0 ? ' · Discord ✗' : (a.publiee ? ' · Discord : en file d\'attente (réessayé tout seul)' : ' · Discord')) : ''}</span>
                     <b>${escapeHtml(a.titre)}</b>${a.texte ? `<p>${escapeHtml(a.texte)}</p>` : ''}
                     <div class="actions"><button class="btn-mini" type="button" onclick="modifierAnnonce(${Number(a.id)})">Modifier</button>
                     ${a.etat === 'en_ligne' ? `<button class="btn-mini" type="button" onclick="actionAnnonce(${Number(a.id)}, 'terminer')">Retirer de l'accueil</button>` : ''}

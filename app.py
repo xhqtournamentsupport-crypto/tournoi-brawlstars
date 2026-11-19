@@ -3065,6 +3065,9 @@ def envoyer_file_discord(db, maximum=2):
     w = db.execute("SELECT valeur FROM parametres WHERE cle = 'discord_webhook'").fetchone()
     if not w or not DISCORD_WEBHOOK_REGEX.match(w['valeur'] or ''):
         return 0
+    pause = db.execute("SELECT valeur FROM parametres WHERE cle = 'discord_pause'").fetchone()
+    if pause and pause['valeur'] > datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'):
+        return 0          # Discord nous a demandé d'attendre : on ne le relance pas avant la fin de la pause
     envoyes = 0
     for m in db.execute("""SELECT id, contenu FROM discord_file WHERE envoye_at IS NULL AND essais < 5
                            ORDER BY id LIMIT ?""", (maximum,)).fetchall():
@@ -3077,8 +3080,15 @@ def envoyer_file_discord(db, maximum=2):
             db.execute("UPDATE discord_file SET envoye_at = datetime('now') WHERE id = ?", (m['id'],))
             db.execute("DELETE FROM parametres WHERE cle = 'discord_erreur'")
             envoyes += 1
-        else:   # gardée pour l'admin (Admin → Automatique), le message sera réessayé (5 fois en tout)
+        else:   # gardée pour l'admin (Admin → Automatique), le message sera réessayé
             db.execute("INSERT OR REPLACE INTO parametres (cle, valeur) VALUES ('discord_erreur', ?)", (raison[:400],))
+            if '429' in raison:
+                # Discord limite le serveur (fréquent sur un compte gratuit) : cet essai ne compte pas,
+                # on attend 15 minutes avant de réessayer
+                db.execute('UPDATE discord_file SET essais = essais - 1 WHERE id = ?', (m['id'],))
+                db.execute("INSERT OR REPLACE INTO parametres (cle, valeur) VALUES ('discord_pause', datetime('now', '+15 minutes'))")
+                db.commit()
+                break
         db.commit()
     db.execute("DELETE FROM discord_file WHERE created_at < datetime('now', '-7 days')")
     db.commit()
@@ -3098,7 +3108,11 @@ def publier_annonces_dues(db):
                        (f"📢 {a['titre']}"[:200], f"/annonces#annonce-{a['id']}"))
         db.commit()
         if a['discord']:
-            db.execute('UPDATE annonces SET discord_ok = ? WHERE id = ?', (1 if envoyer_discord(a['titre'], a['texte'], a['lien']) else 0, a['id']))
+            ok = envoyer_discord(a['titre'], a['texte'], a['lien'])
+            db.execute('UPDATE annonces SET discord_ok = ? WHERE id = ?', (1 if ok else None, a['id']))
+            if not ok:   # Discord indisponible : l'annonce part plus tard, toute seule, avec les messages automatiques
+                db.execute("INSERT INTO discord_file (contenu, created_at) VALUES (?, datetime('now'))",
+                           (message_annonce(a['titre'], a['texte'], a['lien'])[:1900],))
             db.commit()
     return len(dues)
 
