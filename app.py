@@ -5701,6 +5701,32 @@ if __name__ == '__main__':
         else:
             print(f"Erreur : aucun compte avec l'email {sys.argv[2]}. Inscris-toi d'abord sur le site.")
             sys.exit(1)
+    elif len(sys.argv) >= 2 and sys.argv[1] == 'discord':
+        # python app.py discord  -> teste l'envoi vers le Discord relié et affiche l'erreur exacte (jamais l'adresse)
+        import json
+        import urllib.error
+        import urllib.request
+        conn = sqlite3.connect(DB_PATH)
+        w = conn.execute("SELECT valeur FROM parametres WHERE cle = 'discord_webhook'").fetchone()
+        auto = dict(conn.execute("SELECT cle, valeur FROM parametres WHERE cle LIKE 'discord_auto_%'").fetchall())
+        attente = conn.execute('SELECT COUNT(*) FROM discord_file WHERE envoye_at IS NULL').fetchone()[0]
+        conn.close()
+        print('1) Webhook enregistré :', 'oui' if w and w[0] else 'NON -> Admin → Annonces → Relier le Discord')
+        if w and w[0]:
+            print('   Adresse au bon format :', 'oui' if DISCORD_WEBHOOK_REGEX.match(w[0]) else 'NON (ce n\'est pas une adresse de webhook)')
+        print('2) Envois automatiques cochés :', ', '.join(k.replace('discord_auto_', '') for k, v in auto.items() if v == '1') or 'aucun')
+        print('   Messages en attente :', attente)
+        print('3) Proxy du serveur :', 'oui' if (os.environ.get('https_proxy') or os.environ.get('HTTPS_PROXY')) else 'non')
+        if w and w[0]:
+            corps = json.dumps({'content': '🔧 Test depuis la console du serveur (XHQ League)', 'allowed_mentions': {'parse': []}}).encode()
+            req = urllib.request.Request(w[0], data=corps, headers={'Content-Type': 'application/json', 'User-Agent': UA_DISCORD})
+            try:
+                with urllib.request.urlopen(req, timeout=15) as rep:
+                    print('4) Envoi : OK, code', rep.status, '-> regarde ton salon Discord')
+            except urllib.error.HTTPError as e:
+                print('4) Envoi refusé par Discord : code', e.code, '-', (e.read() or b'')[:300].decode('utf-8', 'replace'))
+            except Exception as e:
+                print('4) Envoi impossible :', e.__class__.__name__, '-', str(e)[:300])
     elif len(sys.argv) >= 2 and sys.argv[1] == 'debloquer':
         # python app.py debloquer email@exemple.fr  -> lève le blocage (7 jours ou définitif) d'un compte, même admin
         if len(sys.argv) != 3:
