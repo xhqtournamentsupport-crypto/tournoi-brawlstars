@@ -910,7 +910,9 @@ def disponibilite(db, user_id, code):
             return False, f"Les {perso['quantite_max']} exemplaires sont partis"
         return True, None
     if code == 'pionnier':
-        rang = db.execute('SELECT COUNT(*) FROM users WHERE id <= ?', (user_id,)).fetchone()[0]
+        # Seuls les comptes confirmés comptent : des faux comptes non confirmés ne peuvent pas « pousser »
+        # les vrais joueurs hors des 100 premiers
+        rang = db.execute('SELECT COUNT(*) FROM users WHERE id <= ? AND COALESCE(email_verifie, 1) = 1', (user_id,)).fetchone()[0]
         if rang > PIONNIERS_MAX:
             return False, f'Réservé aux {PIONNIERS_MAX} premiers inscrits'
     if code == 'fondateur':
@@ -1073,7 +1075,8 @@ NOM_AUTORISE = re.compile(r"^[0-9A-Za-zÀ-ÖØ-öø-ÿŒœ _.'\-!?&#]+$")
 def simplifier(texte_brut):
     """Texte ramené à des lettres simples (sans accents, majuscules ni « l33t ») pour repérer les mots interdits."""
     import unicodedata
-    t = unicodedata.normalize('NFKD', texte_brut or '').encode('ascii', 'ignore').decode().lower()
+    sosies = str.maketrans('аеорсухкмтвнАЕОРСУХКМТВНіІјЈѕЅԁɡαοερτυνκιΑΟΕΡΤΥΝΚΙ', 'aeopcyxkmtbhAEOPCYXKMTBHiIjJsSdgaoeptuvkiAOEPTYNKI')
+    t = unicodedata.normalize('NFKD', (texte_brut or '').translate(sosies)).encode('ascii', 'ignore').decode().lower()
     return t.translate(str.maketrans({'0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's', '7': 't', '@': 'a', '$': 's', '!': 'i'}))
 
 
@@ -1642,6 +1645,21 @@ def logout():
 # ---------------------------------------------------------------------------
 # API : comptes
 # ---------------------------------------------------------------------------
+def email_canonique(email):
+    """Même boîte mail = même adresse : « jo+2@x.fr » -> « jo@x.fr » ; chez Gmail les points ne comptent pas
+    (« j.o@gmail.com » = « jo@gmail.com »). Empêche de créer plein de comptes avec une seule boîte."""
+    local, _, domaine = (email or '').strip().lower().partition('@')
+    local = local.split('+', 1)[0]
+    if domaine in ('gmail.com', 'googlemail.com'):
+        local, domaine = local.replace('.', ''), 'gmail.com'
+    return f'{local}@{domaine}'
+
+
+def email_deja_pris(db, email):
+    cible = email_canonique(email)
+    return any(email_canonique(r[0]) == cible for r in db.execute('SELECT email FROM users'))
+
+
 @app.route('/api/signup', methods=['POST'])
 def api_signup():
     data = donnees_json()
@@ -1662,7 +1680,7 @@ def api_signup():
     db = get_db()
     if limite_atteinte('signup:' + ip_client(), 20, 60):
         return jsonify({'success': False, 'error': TROP}), 429
-    if db.execute('SELECT 1 FROM users WHERE lower(email) = ?', (email,)).fetchone():
+    if db.execute('SELECT 1 FROM users WHERE lower(email) = ?', (email,)).fetchone() or email_deja_pris(db, email):
         return jsonify({'success': False, 'error': 'Cet email est déjà utilisé'}), 400
     if pseudo_refuse(db, username):
         return jsonify({'success': False, 'error': pseudo_refuse(db, username)}), 400
@@ -1700,11 +1718,39 @@ def exiger_email_confirme():
     return None
 
 
+CONFIRMATION_JOURS = 7    # durée du lien de confirmation ; un compte jamais confirmé est supprimé après
+
+
+def purger_comptes_non_confirmes(db):
+    """Supprime les comptes jamais confirmés depuis plus de 7 jours (faux comptes, pseudos réservés pour rien)."""
+    if not config_mail():
+        return 0
+    c = db.cursor()
+    ids = [r[0] for r in c.execute(f"""SELECT id FROM users WHERE email_verifie = 0 AND COALESCE(is_admin, 0) = 0
+                                       AND created_at < datetime('now', '-{CONFIRMATION_JOURS} days')""").fetchall()]
+    for uid in ids:
+        handle = c.execute('SELECT handle FROM users WHERE id = ?', (uid,)).fetchone()
+        supprimer_compte(db, c, uid)
+        if handle and handle['handle']:   # un faux compte ne bloque pas son @ pendant 90 jours
+            c.execute('DELETE FROM anciens_handles WHERE handle = ? AND user_id = 0', (handle['handle'],))
+    if ids:
+        ecrire_journal(c, None, 'automatique', f'{len(ids)} compte(s) jamais confirmé(s) supprimé(s)')
+    db.commit()
+    return len(ids)
+
+
 def envoyer_confirmation_email(db, user_id):
     u = db.execute('SELECT username, email FROM users WHERE id = ?', (user_id,)).fetchone()
     conf = config_mail()
     if not u or not conf:
         return False
+    # 200 confirmations par jour au plus (le quota Gmail du site est de 300) : il en reste toujours
+    # pour les « mot de passe oublié », même si quelqu'un crée des comptes en masse
+    if has_request_context():
+        if limite_atteinte('mail-confirmation', 200, 24 * 60):
+            app.logger.error('Quota quotidien des emails de confirmation atteint')
+            return False
+        noter_action('mail-confirmation')
     jeton = secrets.token_urlsafe(32)
     db.execute("UPDATE users SET verif_jeton = ?, verif_envoye_at = datetime('now') WHERE id = ?", (hash_jeton(jeton), user_id))
     db.commit()
@@ -1724,7 +1770,8 @@ L'équipe XHQ""")
 @app.route('/confirmer-email/<jeton>')
 def confirmer_email(jeton):
     db = get_db()
-    u = db.execute('SELECT id FROM users WHERE verif_jeton = ? AND email_verifie = 0', (hash_jeton(jeton[:100]),)).fetchone()
+    u = db.execute(f"""SELECT id FROM users WHERE verif_jeton = ? AND email_verifie = 0
+                       AND verif_envoye_at > datetime('now', '-{CONFIRMATION_JOURS} days')""", (hash_jeton(jeton[:100]),)).fetchone()
     if u:
         db.execute('UPDATE users SET email_verifie = 1, verif_jeton = NULL WHERE id = ?', (u['id'],))
         db.commit()
@@ -2146,7 +2193,7 @@ def cadrage_valide():
 @app.route('/api/profil/photo', methods=['POST'])
 @api_connectee
 def api_profil_photo():
-    return remplacer_image('photo', 'avatars', 'avatar')
+    return exiger_email_confirme() or remplacer_image('photo', 'avatars', 'avatar')
 
 
 @app.route('/api/profil/photo/supprimer', methods=['POST'])
@@ -2158,7 +2205,7 @@ def api_profil_photo_supprimer():
 @app.route('/api/profil/banniere', methods=['POST'])
 @api_connectee
 def api_profil_banniere():
-    return remplacer_image('banniere', 'bannieres', 'banniere')
+    return exiger_email_confirme() or remplacer_image('banniere', 'bannieres', 'banniere')
 
 
 @app.route('/api/profil/banniere/supprimer', methods=['POST'])
@@ -2779,7 +2826,7 @@ def api_shop():
     uid = session['user_id']
     db = get_db()
     equipe = apparence(db, uid)
-    nb_users = db.execute('SELECT COUNT(*) FROM users').fetchone()[0]
+    nb_users = db.execute('SELECT COUNT(*) FROM users WHERE COALESCE(email_verifie, 1) = 1').fetchone()[0]
     items = []
     for r in db.execute("""SELECT id, code, nom, description, prix, type, mode, quantite_max, style, COALESCE(perso, 0) AS perso
                            FROM shop_items WHERE code IS NOT NULL AND COALESCE(actif, 1) = 1 ORDER BY id""").fetchall():
@@ -3049,8 +3096,11 @@ def poster_via_relais(relais, secret, url, contenu, delai=15):
     except urllib.error.HTTPError as e:
         if e.code not in (301, 302, 303, 307):
             return False, f"Le relais Google a répondu une erreur (code {e.code}). Vérifie qu'il est déployé en « Application Web », accès « Tout le monde »."
+        suite = e.headers.get('Location', '')
+        if not re.match(r'^https://script\.googleusercontent\.com/', suite):
+            return True, ''          # le script a tourné ; on ne suit jamais une redirection vers un autre site
         try:   # page de résultat du script
-            with urllib.request.urlopen(urllib.request.Request(e.headers.get('Location', ''), headers={'User-Agent': UA_DISCORD}), timeout=delai) as r2:
+            with urllib.request.urlopen(urllib.request.Request(suite, headers={'User-Agent': UA_DISCORD}), timeout=delai) as r2:
                 resultat = r2.read(200).decode('utf-8', 'replace').strip()
         except Exception:
             return True, ''          # le script a tourné, mais sa réponse n'est pas lisible depuis le serveur
@@ -4267,8 +4317,16 @@ def place_libre(c, jeu_id):
     return None
 
 
+def verrou_ecriture(c):
+    """Prend tout de suite le verrou d'écriture de la base (si ce n'est pas déjà fait) : ce qu'on lit
+    ensuite ne peut plus changer sous nos pieds avant notre enregistrement."""
+    if not c.connection.in_transaction:
+        c.execute('BEGIN IMMEDIATE')
+
+
 def inscrire_en_ligue(c, jeu_id, team_id):
     """Met la team dans la plus haute ligue libre (Ligue 1 d'abord), sinon en liste d'attente. Renvoie (ligue, poule) ou None."""
+    verrou_ecriture(c)
     place = place_libre(c, jeu_id)
     if place:
         c.execute('INSERT INTO ligue (team_id, ligue_num, points, poule) VALUES (?, ?, 0, ?)', (team_id, place[0], place[1]))
@@ -4291,6 +4349,9 @@ def placer_liste_attente(c, jeu_id, exclure=()):
     """Les teams en attente (les plus anciennes d'abord) prennent les places libres. Renvoie leurs noms.
     `exclure` : teams qui viennent de sortir à cette fin de saison (elles ne reprennent pas leur place)."""
     entrees = []
+    if not c.execute('SELECT 1 FROM teams WHERE jeu_id = ? AND attente_depuis IS NOT NULL LIMIT 1', (jeu_id,)).fetchone():
+        return entrees
+    verrou_ecriture(c)
     for t in c.execute("""SELECT id, nom FROM teams WHERE jeu_id = ? AND attente_depuis IS NOT NULL
                           ORDER BY attente_depuis, id""", (jeu_id,)).fetchall():
         if t['id'] in exclure:
@@ -4344,13 +4405,13 @@ def debut_saison_paris(db, jeu_id):
 
 def programme_ligue(db, jeu_id, saison, ligue_num):
     """(calendrier, coup d'envoi) prévus pour une ligue pleine pas encore lancée, en heure de France."""
+    if not ligue_pleine(db, jeu_id, ligue_num):
+        return None, None
     r = db.execute('SELECT valeur FROM parametres WHERE cle = ?', (f'pleine_{jeu_id}_{saison}_{ligue_num}',)).fetchone()
     if r:
         pleine = datetime.strptime(r['valeur'], '%Y-%m-%d %H:%M:%S')
-    elif ligue_pleine(db, jeu_id, ligue_num):
-        pleine = maintenant_paris()      # vient d'être remplie : la tâche automatique la notera à la prochaine visite
     else:
-        return None, None
+        pleine = maintenant_paris()      # vient d'être remplie : la tâche automatique la notera à la prochaine visite
     debut_saison = debut_saison_paris(db, jeu_id)
     if debut_saison and pleine <= debut_saison + timedelta(hours=2):
         calendrier = pleine        # pleine dès la fin de la saison d'avant : on repart tous ensemble tout de suite
@@ -4393,8 +4454,12 @@ def lancement_auto(db):
         lancees = ligues_lancees(db, jeu['id'], saison)
         for n in LIGUES:
             cle = f"pleine_{jeu['id']}_{saison}_{n}"
-            if n in lancees or not ligue_pleine(db, jeu['id'], n):
+            if n in lancees:
                 c.execute('DELETE FROM parametres WHERE cle = ?', (cle,))
+                continue
+            if not ligue_pleine(db, jeu['id'], n):
+                # On garde l'heure où elle a été pleine la 1re fois : une team qui part et revient
+                # (ou un capitaine qui supprime puis recrée sa team) ne peut pas repousser le lancement sans fin
                 continue
             c.execute('INSERT OR IGNORE INTO parametres (cle, valeur) VALUES (?, ?)', (cle, maintenant.strftime('%Y-%m-%d %H:%M:%S')))
             calendrier, coup_envoi = programme_ligue(db, jeu['id'], saison, n)
@@ -4460,7 +4525,12 @@ def api_admin_lancement():
 def calculer_fin_saison(db, jeu_id):
     """Classement final de chaque poule + destination de chaque team (sans rien modifier)."""
     resultats = []
-    lancees = ligues_lancees(db, jeu_id, avec_matchs=True)
+    # Ligues vraiment commencées : premier match déjà passé (ou match saisi à la main). Une ligue dont le
+    # calendrier vient de sortir n'a encore rien pu jouer : ses teams ne sont ni retirées ni pénalisées.
+    maintenant = maintenant_paris().strftime('%Y-%m-%dT%H:%M')
+    lancees = {n for n, d in ligues_lancees(db, jeu_id).items() if d <= maintenant}
+    lancees |= {r[0] for r in db.execute('SELECT DISTINCT ligue_num FROM matchs WHERE jeu_id = ? AND saison = ?',
+                                         (jeu_id, saison_actuelle(db, jeu_id)))}
     for ligue_num in LIGUES:
         for poule in lettres_poules(ligue_num):
             for place in classement_poule(db, jeu_id, ligue_num, poule, penalites=ligue_num in lancees):
@@ -5489,6 +5559,7 @@ def sauvegarde_auto_si_besoin():
                 db = get_db()
                 db.execute("DELETE FROM notifications WHERE created_at < datetime('now', '-90 days')")
                 db.commit()
+                purger_comptes_non_confirmes(db)
     except Exception as e:   # une sauvegarde ratée ne doit jamais casser le site
         app.logger.warning('Sauvegarde automatique impossible : %s', e)
 
