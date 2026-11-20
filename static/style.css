@@ -151,6 +151,9 @@ body {
     -webkit-font-smoothing: antialiased;
     overflow-x: hidden;
 }
+/* « clip » coupe aussi ce qui dépasse sur les côtés, sans faire du body une zone de défilement :
+   sur iPhone, « hidden » empêchait parfois de remonter tout en haut et cassait la barre collante */
+@supports (overflow: clip) { body { overflow-x: clip; } }
 
 /* Halo violet qui dérive lentement derrière la page */
 body::before {
