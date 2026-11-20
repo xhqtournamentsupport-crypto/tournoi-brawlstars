@@ -31,7 +31,7 @@
         
         <div class="content">
             <h2>1. Qui gère tes données</h2>
-            <p>XHQ League, organisation e-sport amateur. Contact : {{ contact_email or 'via le formulaire de contact' }}. Le site est hébergé par PythonAnywhere (Anaconda, Inc.).</p>
+            <p>XHQ League, organisation e-sport amateur. Contact : {{ contact_email or 'via le formulaire de contact' }}. Le site est hébergé par PythonAnywhere (Anaconda, Inc.) et passe par Cloudflare (Cloudflare, Inc.), qui le protège contre les attaques et fournit l'adresse xhqleague.fr avec une connexion chiffrée (cadenas). Les polices d'écriture sont chargées depuis Google Fonts.</p>
 
             <h2>2. Ce que nous enregistrons</h2>
             <ul>
@@ -39,7 +39,7 @@
                 <li><strong>Profil</strong> : photo, bannière et son cadrage, bio, badge équipé.</li>
                 <li><strong>Jeu</strong> : teams, matchs, scores, classements, inscriptions et résultats de tournois.</li>
                 <li><strong>Messages</strong> envoyés via le formulaire de contact, et notifications reçues sur le site.</li>
-                <li><strong>Technique</strong> : l'hébergeur garde des journaux d'accès (adresse IP, page demandée) pour la sécurité. Le site note aussi ton adresse IP pendant 24 heures maximum pour bloquer le spam et les essais de mot de passe à répétition, et compte les essais de connexion ratés sur ton compte (pour le protéger contre le piratage).</li>
+                <li><strong>Technique</strong> : l'hébergeur et Cloudflare gardent des journaux d'accès (adresse IP, page demandée) pour la sécurité. Le site note aussi ton adresse IP pendant 24 heures maximum pour bloquer le spam et les essais de mot de passe à répétition, et compte les essais de connexion ratés sur ton compte (pour le protéger contre le piratage).</li>
                 <li><strong>Actions des admins</strong> : chaque action d'un admin (suppression, modération, droits…) est notée dans un journal interne avec son pseudo, pour éviter les abus.</li>
             </ul>
             <p>Il n'y a <strong>aucun paiement</strong>, aucune publicité, aucun outil de mesure d'audience ou de pistage.</p>
@@ -50,12 +50,18 @@
             <h2>4. À quoi elles servent</h2>
             <ul>
                 <li>Faire fonctionner ton compte, les ligues, le calendrier et les tournois.</li>
-                <li>T'envoyer un email uniquement si tu demandes à réinitialiser ton mot de passe.</li>
+                <li>T'envoyer un email uniquement pour confirmer ton adresse à l'inscription ou si tu demandes à réinitialiser ton mot de passe.</li>
                 <li>Modérer le site (signalements, contenus retirés, comptes suspendus).</li>
             </ul>
 
             <h2>5. Cookies</h2>
-            <p>Un seul cookie, indispensable : celui qui garde ta session connectée (et la liste des comptes connectés sur ton navigateur si tu en as ajouté plusieurs). Il disparaît quand tu te déconnectes ou quand tu fermes ton navigateur. Aucun cookie publicitaire.</p>
+            <p>Le site n'utilise que des cookies <strong>indispensables</strong>, c'est pour ça qu'il n'y a pas de bandeau « accepter les cookies » :</p>
+            <ul>
+                <li><strong>Session</strong> : garde ta session connectée (et la liste des comptes connectés sur ton navigateur si tu en as ajouté plusieurs). Il disparaît quand tu te déconnectes ou quand tu fermes ton navigateur.</li>
+                <li><strong>Sécurité Cloudflare</strong> : Cloudflare peut poser un cookie technique pour reconnaître les robots et bloquer les attaques. Il ne sert pas à te suivre.</li>
+                <li><strong>Thème</strong> : ton choix clair / sombre est gardé dans ton navigateur (pas envoyé au site).</li>
+            </ul>
+            <p>Aucun cookie publicitaire, aucune mesure d'audience, aucun pistage.</p>
 
             <h2>6. Durée de conservation</h2>
             <ul>
