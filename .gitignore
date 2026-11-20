@@ -9,3 +9,4 @@ secret_key.txt
 uploads/
 sauvegardes/
 config_mail.json
+proxy_secret.txt

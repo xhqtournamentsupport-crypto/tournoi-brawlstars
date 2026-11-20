@@ -63,6 +63,55 @@ BLOCAGE_JOURS = 7        # 1er blocage : 7 jours ; 10 essais ratés de plus = ve
 from werkzeug.security import generate_password_hash as _gph
 HASH_FACTICE = _gph('compte-inexistant')
 SITE_URL_DEFAUT = 'https://xhqtounament.pythonanywhere.com'
+# Nom de domaine servi par Cloudflare (Worker) qui va chercher les pages ici. Le Worker prouve qu'il est bien
+# le nôtre avec une clé secrète (fichier proxy_secret.txt, jamais sur GitHub) : sans elle, ses en-têtes sont ignorés.
+DOMAINE_PUBLIC = 'xhqleague.fr'
+PROXY_FICHIER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'proxy_secret.txt')
+_domaine = {'vu': None}
+
+
+def cle_proxy():
+    cle = os.environ.get('XHQ_PROXY_SECRET', '')
+    if not cle and os.path.exists(PROXY_FICHIER):
+        with open(PROXY_FICHIER) as f:
+            cle = f.read().strip()
+    return cle if len(cle) >= 32 else ''
+
+
+def via_domaine():
+    """Vrai si la requête arrive par xhqleague.fr (Worker Cloudflare authentifié par la clé secrète)."""
+    if not has_request_context():
+        return False
+    if 'via_domaine' not in g:
+        import hmac
+        cle, recu = cle_proxy(), request.headers.get('X-XHQ-Proxy', '')
+        g.via_domaine = bool(cle and recu and hmac.compare_digest(cle, recu))
+    return g.via_domaine
+
+
+def hote_public():
+    """Adresse que le visiteur voit dans sa barre (pour vérifier qu'une action vient bien de notre site)."""
+    return DOMAINE_PUBLIC if via_domaine() else request.host
+
+
+def domaine_actif():
+    """Vrai dès que xhqleague.fr a servi une page : les liens envoyés (emails, Discord) l'utilisent alors."""
+    if _domaine['vu'] is None:
+        try:
+            db = sqlite3.connect(DB_PATH)
+            _domaine['vu'] = bool(db.execute("SELECT 1 FROM parametres WHERE cle = 'domaine_vu'").fetchone())
+            db.close()
+        except sqlite3.Error:
+            return False
+    return _domaine['vu']
+
+
+def site_public(conf=None):
+    if domaine_actif():
+        return 'https://' + DOMAINE_PUBLIC
+    return ((conf if conf is not None else (config_mail() or {})).get('site') or SITE_URL_DEFAUT).rstrip('/')
+
+
 LIMITES_ACTIVES = True   # limites anti-spam / anti-force brute (coupées sur le serveur de test local)
 
 
@@ -75,8 +124,16 @@ def _securite_requete():
     if request.method == 'POST':
         from urllib.parse import urlparse
         origine = request.headers.get('Origin') or request.headers.get('Referer')
-        if origine and urlparse(origine).netloc != request.host:
+        if origine and urlparse(origine).netloc != hote_public():
             return jsonify({'success': False, 'error': 'Requête refusée (origine inconnue)'}), 403
+    if via_domaine() and not domaine_actif():
+        try:
+            db = sqlite3.connect(DB_PATH)
+            db.execute("INSERT OR REPLACE INTO parametres (cle, valeur) VALUES ('domaine_vu', datetime('now'))")
+            db.commit(); db.close()
+            _domaine['vu'] = True
+        except sqlite3.Error:
+            pass
 
 
 @app.errorhandler(OverflowError)
@@ -119,6 +176,8 @@ CSP = ("default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 
 def ip_client():
     """Adresse IP du visiteur. PythonAnywhere la fournit dans X-Real-IP (posé par son proxy).
     Sinon, la DERNIÈRE adresse de X-Forwarded-For (les précédentes peuvent être inventées par le visiteur)."""
+    if via_domaine() and request.headers.get('X-XHQ-IP'):
+        return request.headers['X-XHQ-IP'].strip()[:64]       # vraie adresse du visiteur, donnée par Cloudflare
     if request.headers.get('X-Real-IP'):
         return request.headers['X-Real-IP'].strip()[:64]
     transmis = [x.strip() for x in request.headers.get('X-Forwarded-For', '').split(',') if x.strip()]
@@ -1717,7 +1776,7 @@ def logout():
     """Déconnecte le compte actuel ; s'il en reste un autre sur ce navigateur, on bascule dessus."""
     from urllib.parse import urlparse
     venant_de = request.headers.get('Referer')
-    if venant_de and urlparse(venant_de).netloc != request.host:
+    if venant_de and urlparse(venant_de).netloc != hote_public():
         return redirect('/')   # lien piégé sur un autre site : on ne déconnecte pas
     restants = [c for c in session.get('comptes', []) if isinstance(c, int) and c != session.get('user_id')]
     session.clear()
@@ -1842,7 +1901,7 @@ def envoyer_confirmation_email(db, user_id):
     jeton = secrets.token_urlsafe(32)
     db.execute("UPDATE users SET verif_jeton = ?, verif_envoye_at = datetime('now') WHERE id = ?", (hash_jeton(jeton), user_id))
     db.commit()
-    site = (conf.get('site') or SITE_URL_DEFAUT).rstrip('/')
+    site = site_public(conf)
     return envoyer_mail(u['email'], 'XHQ League · Confirme ton email', f"""Salut {u['username']},
 
 Bienvenue sur XHQ League ! Clique sur ce lien pour confirmer ton email et débloquer ton compte
@@ -3275,7 +3334,7 @@ def envoyer_discord(titre, texte, lien):
 def message_annonce(titre, texte, lien):
     """Texte d'une annonce pour Discord ; un lien du site (« /teams ») devient une adresse complète, cliquable."""
     if lien and lien.startswith('/'):
-        lien = ((config_mail() or {}).get('site') or SITE_URL_DEFAUT).rstrip('/') + lien
+        lien = site_public() + lien
     return f"📢 **{titre}**\n{texte or ''}" + (f"\n{lien}" if lien else '')
 
 
@@ -5274,7 +5333,7 @@ def creer_tournoi(db, jeu, nom, places, description, debut, quand, recompense=''
     notifier(db, capitaines, f"Nouveau tournoi : {nom}{' (' + quand + ')' if quand else ''}, inscriptions ouvertes", f'/tournois/{tournoi_id}')
     enfiler_discord(db, 'tournois', f"🎮 **Nouveau tournoi : {nom}** ({jeu['nom']}, {places} places)" + (f"\n🗓️ {quand}" if quand else '')
                     + (f"\n🎁 À gagner : {recompense}" if recompense else '')
-                    + f"\nInscriptions ouvertes : {SITE_URL_DEFAUT}/tournois/{tournoi_id}")
+                    + f"\nInscriptions ouvertes : {site_public()}/tournois/{tournoi_id}")
     return tournoi_id
 
 
@@ -5562,7 +5621,7 @@ def envoyer_lien_reinitialisation(db, user_id):
     cur = db.execute("""INSERT INTO reinitialisations (user_id, jeton_hash, expire_at, created_at)
                         VALUES (?, ?, ?, datetime('now'))""", (user['id'], hash_jeton(jeton), expire))
     db.commit()
-    site = (conf.get('site') or SITE_URL_DEFAUT).rstrip('/')
+    site = site_public(conf)
     envoye = envoyer_mail(user['email'], 'XHQ League · Réinitialiser ton mot de passe', f"""Salut {user['username']},
 
 Tu as demandé à changer ton mot de passe XHQ League. Clique sur ce lien (valable {REINIT_DUREE_MINUTES} minutes) :
@@ -6084,6 +6143,15 @@ if __name__ == '__main__':
         else:
             print(f"Erreur : aucun compte avec l'email {sys.argv[2]}. Inscris-toi d'abord sur le site.")
             sys.exit(1)
+    elif len(sys.argv) >= 2 and sys.argv[1] == 'domaine':
+        # python3.10 app.py domaine  -> crée (une seule fois) la clé secrète à coller dans le Worker Cloudflare
+        if not cle_proxy():
+            with open(PROXY_FICHIER, 'w') as f:
+                f.write(secrets.token_urlsafe(48))
+            os.chmod(PROXY_FICHIER, 0o600)
+        print('Clé à coller dans Cloudflare (variable CLE du Worker, type « Secret »). Ne la montre à personne :')
+        print(cle_proxy())
+        print("Puis : onglet Web de PythonAnywhere -> Recharger.")
     elif len(sys.argv) >= 2 and sys.argv[1] == 'discord':
         # python app.py discord  -> teste l'envoi vers le Discord relié et affiche l'erreur exacte (jamais l'adresse)
         import json
