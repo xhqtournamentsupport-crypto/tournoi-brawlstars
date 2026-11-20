@@ -118,7 +118,7 @@
                 : '<p class="vide-tournois">Aucun tournoi prévu pour le moment. Rejoins le Discord pour être prévenu du prochain.</p>';
             document.getElementById('liste-termines').innerHTML = termines.length
                 ? termines.map(carte).join('')
-                : '<p class="vide-tournois">Aucun tournoi terminé pour l\'instant.</p>';
+                : '<p class="vide-tournois">Aucun tournoi terminé pour l\'instant</p>';
             if (data.admin) {
                 const sel = document.getElementById('t-places');
                 if (!sel.options.length) sel.innerHTML = data.places_possibles.map(p => `<option value="${p}"${p === 16 ? ' selected' : ''}>${p} teams</option>`).join('');

@@ -25,6 +25,8 @@
         .scene::before { content: ''; position: absolute; inset: auto 0 0 0; height: 40%; z-index: -1; background: linear-gradient(transparent, var(--bg)); }
 
         .scene-grille { max-width: 1180px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 3rem; align-items: center; }
+        @media (min-width: 1600px) { .scene-grille { max-width: 1400px; } }
+        @media (min-width: 2200px) { .scene-grille { max-width: 1640px; } }
         .scene .jeux-switch { margin: 0 0 2rem; background: rgba(var(--fond), 0.45); backdrop-filter: blur(10px); }
         /* Bandeau de la dernière annonce de l'orga */
         /* Dernière annonce de l'orga : carte en haut de la colonne de droite */
@@ -47,6 +49,7 @@
         .carte-annonce:hover .ca-lire span { transform: translateX(4px); }
         @media (max-width: 620px) { .carte-annonce { width: 100%; margin-left: 0; transform: none; } }
         .titre-geant { font-size: clamp(2.8rem, 6.1vw, 5.3rem); line-height: 0.98; letter-spacing: -0.045em; }
+        @media (max-width: 620px) { .titre-geant { letter-spacing: -0.022em; line-height: 1.06; } }   /* téléphone : lettres moins serrées */
         .titre-geant span { display: block; animation: entree 0.9s var(--courbe) both; }
         .titre-geant span:nth-child(2) { animation-delay: 0.1s; }
         .titre-geant span:nth-child(3) { animation-delay: 0.2s; }
@@ -280,7 +283,7 @@
             <div class="scene-texte">
                 {% include '_jeux.html' %}
                 <span class="kicker"><i class="direct"></i>{{ jeu_actuel.nom }} · Saison {{ chiffres.saison }} en cours</span>
-                <h1 class="titre-geant"><span>{{ textes.accueil_ligne1 }}</span><span class="brille">{{ textes.accueil_ligne2 }}</span><span>{{ textes.accueil_ligne3 }}</span></h1>
+                <h1 class="titre-geant"><span>{{ textes.accueil_ligne1 }}</span><span class="brille">{{ textes.accueil_ligne2 }}</span><span>{{ textes.accueil_ligne3.rstrip('.') }}</span></h1>
                 <p>{{ textes.accueil_texte }}</p>
                 <div class="scene-actions">
                     {% if current_user %}
@@ -314,7 +317,7 @@
                         {% for t in top %}
                         <div class="ligne-top"><span class="r">{{ loop.index }}</span><b>{{ t.nom }}</b><small>L{{ t.ligue_num }}</small><span class="p">{{ t.points }} pts</span></div>
                         {% else %}
-                        <p class="carte-vide">Les 5 premières teams inscrites apparaîtront ici.</p>
+                        <p class="carte-vide">Les 5 premières teams inscrites apparaîtront ici</p>
                         {% endfor %}
                     </div>
                     {% if derniers %}
@@ -363,7 +366,7 @@
 
         <!-- ===================== BENTO ===================== -->
         <section>
-            <div class="titre-sec"><div><h2>Le point sur la saison</h2><p>Classement, prochain tournoi et tout ce qui bouge en ce moment.</p></div></div>
+            <div class="titre-sec"><div><h2>Le point sur la saison</h2><p>Classement, prochain tournoi et tout ce qui bouge en ce moment</p></div></div>
             <div class="bento">
                 <!-- Classement Ligue 1 -->
                 <div class="tuile t-cl">
@@ -401,7 +404,7 @@
                     {% elif prochain.statut != 'inscriptions' %}
                     <div class="en-cours">{{ prochain.statut_label }} : suis les matchs en direct sur la page du tournoi.</div>
                     {% else %}
-                    <div class="en-cours">Inscriptions ouvertes, la date sera annoncée sur le Discord.</div>
+                    <div class="en-cours">Inscriptions ouvertes, la date sera annoncée sur le Discord</div>
                     {% endif %}
                     <div class="places"><span>Teams inscrites</span><strong>{{ prochain.inscrits }} / {{ prochain.places }}</strong></div>
                     <div class="jauge"><i style="width:{{ (100 * prochain.inscrits / prochain.places) | round | int }}%"></i></div>
@@ -424,7 +427,7 @@
                     <span class="forme">{% for r in en_forme.forme %}<i class="{{ 'v' if r == 'V' }}">{{ r }}</i>{% endfor %}</span>
                     <span class="grand-chiffre">{{ en_forme.serie }}</span>
                     {% else %}
-                    <strong>Personne… encore</strong><p>2 victoires d'affilée et c'est toi.</p>
+                    <strong>Personne… encore</strong><p>2 victoires d'affilée et c'est toi</p>
                     {% endif %}
                 </div>
 
@@ -435,7 +438,7 @@
                     <strong>{{ leader.team_name }}</strong><p>{{ leader.points }} pts · {{ leader.victoires }}V {{ leader.defaites }}D</p>
                     <span class="grand-chiffre">1</span>
                     {% else %}
-                    <strong>Place à prendre</strong><p>Aucun match en Ligue 1.</p>
+                    <strong>Place à prendre</strong><p>Aucun match en Ligue 1</p>
                     {% endif %}
                 </div>
 
@@ -468,13 +471,13 @@
                     {% elif palmares %}
                     <span class="etiq">Champion S{{ palmares[0].numero }}</span><strong>{{ palmares[0].champion or '—' }}</strong><p>Vainqueur de la Ligue 1</p>
                     {% else %}
-                    <span class="etiq">Dernier vainqueur</span><strong>Le trophée t'attend</strong><p>Aucun tournoi terminé.</p>
+                    <span class="etiq">Dernier vainqueur</span><strong>Le trophée t'attend</strong><p>Aucun tournoi terminé</p>
                     {% endif %}
                 </div>
 
                 <!-- Discord -->
                 <div class="tuile t-dc">
-                    <div><h3>Rejoins le Discord</h3><p>Annonces des tournois, recherche de mates, résultats.</p></div>
+                    <div><h3>Rejoins le Discord</h3><p>Annonces des tournois, recherche de mates, résultats</p></div>
                     {% if discord_url %}<a href="{{ discord_url }}" class="btn btn-fleche" target="_blank" rel="noopener">Rejoindre</a>{% endif %}
                 </div>
             </div>
@@ -483,7 +486,7 @@
         <!-- ===================== PROCHAINS MATCHS ===================== -->
         {% if prochains_matchs %}
         <section>
-            <div class="titre-sec"><div><h2>Prochains matchs</h2><p>Le programme des poules, journée par journée.</p></div><a href="/calendrier?jeu={{ jeu_actuel.code }}">Tout le calendrier →</a></div>
+            <div class="titre-sec"><div><h2>Prochains matchs</h2><p>Le programme des poules, journée par journée</p></div><a href="/calendrier?jeu={{ jeu_actuel.code }}">Tout le calendrier →</a></div>
             <div class="prochains-grille">
                 {% for r in prochains_matchs %}
                 <div class="carte-prochain">
@@ -502,7 +505,7 @@
         <!-- ===================== RÉSULTATS ===================== -->
         {% if derniers %}
         <section>
-            <div class="titre-sec"><div><h2>Derniers résultats</h2><p>Saisis et vérifiés par l'orga.</p></div><a href="/ligue?jeu={{ jeu_actuel.code }}">Classements →</a></div>
+            <div class="titre-sec"><div><h2>Derniers résultats</h2><p>Saisis et vérifiés par l'orga</p></div><a href="/ligue?jeu={{ jeu_actuel.code }}">Classements →</a></div>
             <div class="resultats-grille">
                 {% for m in derniers %}
                 <div class="carte-match">
@@ -517,7 +520,7 @@
 
         <!-- ===================== COMMENT ÇA MARCHE ===================== -->
         <section>
-            <div class="titre-sec"><div><h2>Comment ça marche</h2><p>Trois étapes, et ta team est en jeu.</p></div></div>
+            <div class="titre-sec"><div><h2>Comment ça marche</h2><p>Trois étapes, et ta team est en jeu</p></div></div>
             <div class="etapes">
                 <div class="etape"><h3>Monte ta team</h3><p>Un compte, une team de 3 à 5 joueurs. C'est gratuit. Dès qu'elle a 3 joueurs, ta team prend la plus haute ligue encore libre (la Ligue 1 se remplit en premier), dans une poule de {{ par_poule }}.</p></div>
                 <div class="etape"><h3>Joue tes matchs</h3><p>Dès que ta ligue est pleine : calendrier le dimanche à 15h, coup d'envoi le lundi à 9h, un match tous les 3 jours.</p></div>

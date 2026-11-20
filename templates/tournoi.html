@@ -203,7 +203,7 @@
                     ${retirer ? `<button class="btn-mini rouge" type="button" onclick="retirerTeam(${i.team_id})">Retirer</button>` : ''}
                 </div>`).join('');
             return `<section class="bloc"><h2 class="section-title">Teams inscrites (${d.inscrits.length}/${d.tournoi.places})</h2>
-                ${d.inscrits.length ? `<div class="inscrits">${liste}</div>` : '<p class="muted">Aucune team inscrite pour le moment.</p>'}</section>`;
+                ${d.inscrits.length ? `<div class="inscrits">${liste}</div>` : '<p class="muted">Aucune team inscrite pour le moment</p>'}</section>`;
         }
 
         function ligneMatch(m, editable) {
@@ -281,7 +281,7 @@
                 if (t.statut === 'termine') {
                     suite = t.recompense_envoyee ? ' <span class="tag">✓ Remise au champion</span>'
                         : (d.moi.team && d.moi.team.capitaine && d.moi.team.id === t.champion_team_id
-                            ? '<br><small>Bravo ! Ouvre un ticket sur le Discord XHQ (catégorie Support) pour recevoir ta récompense.</small>' : ' <span class="tag">En cours de remise</span>');
+                            ? '<br><small>Bravo ! Ouvre un ticket sur le Discord XHQ (catégorie Support) pour recevoir ta récompense</small>' : ' <span class="tag">En cours de remise</span>');
                     if (d.fondateur) suite += ` <button class="btn-mini" type="button" onclick="recompenseRemise(${t.recompense_envoyee ? 'false' : 'true'})">${t.recompense_envoyee ? 'Annuler « remise »' : 'Récompense remise'}</button>`;
                 }
                 html += `<p class="recompense-tournoi">🎁 <strong>À gagner :</strong> ${escapeHtml(t.recompense)}${suite}</p>`;

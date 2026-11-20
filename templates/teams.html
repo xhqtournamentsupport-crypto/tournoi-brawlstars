@@ -361,7 +361,7 @@
                             </div>
                             <div class="eb-reglages eb-avec" hidden><label>Taille</label><input type="range" class="eb-zoom" min="100" max="250" value="100"></div>
                             </div>
-                            <p class="hint">Format paysage conseillé (1500 × 500).</p>
+                            <p class="hint">Format paysage conseillé (1500 × 500)</p>
 
                             <h4 class="sous-titre-edit">Logo</h4>
                             <div class="logo-edit">
@@ -369,7 +369,7 @@
                                 <div>
                                     <label class="btn secondaire petit">Ajouter un logo<input type="file" id="logo-fichier" accept="image/png,image/jpeg,image/webp,image/gif" hidden></label>
                                     ${myTeam.logo ? `<button class="btn-mini" type="button" onclick="retirerLogo(${myTeam.id})">Retirer le logo</button>` : ''}
-                                    <p class="hint">Sans logo, c'est l'emblème choisi ci-dessous qui s'affiche.</p>
+                                    <p class="hint">Sans logo, c'est l'emblème choisi ci-dessous qui s'affiche</p>
                                 </div>
                             </div>
                             <label>Emblème</label>
@@ -382,7 +382,7 @@
                             ${prochains.length ? prochains.map(r => {
                                 const adv = r.team1_id === myTeam.id ? r.team2_nom : r.team1_nom;
                                 return `<div class="match-ligne"><span class="match-res a-venir">↗</span><span class="match-adv">vs ${escapeHtml(adv)}</span><span class="match-pts">${escapeHtml(r.date_fr)}</span></div>`;
-                            }).join('') + '<a class="lien-page" href="/calendrier?team=moi">Tout mon calendrier →</a>' : '<p>Aucun match prévu pour l\'instant.</p>'}
+                            }).join('') + '<a class="lien-page" href="/calendrier?team=moi">Tout mon calendrier →</a>' : '<p>Aucun match prévu pour l\'instant</p>'}
                         </div>
                         <div class="team-matchs">
                             <h4>Derniers matchs</h4>
@@ -443,8 +443,8 @@
                     <span class="tiret">–</span>
                     <div><label for="decl-contre">Eux</label><input type="number" id="decl-contre" min="0" max="99" value="0"></div>
                     <button class="btn" type="button" id="decl-envoyer" onclick="declarer()">Déclarer</button>
-                </div>` : '<p class="muted">Pas encore d\'autre équipe dans ta poule.</p>')
-                : '<p class="muted" style="margin:0">Seul le capitaine déclare les scores.</p>';
+                </div>` : '<p class="muted">Pas encore d\'autre équipe dans ta poule</p>')
+                : '<p class="muted" style="margin:0">Seul le capitaine déclare les scores</p>';
             return `<div class="resultats" id="resultats">
                 <h4>Résultats</h4>
                 <p>Après chaque match, le capitaine déclare le score. L'équipe adverse confirme ou conteste (sans réponse sous ${Number(r.delai_h)} h, c'est validé). En cas de désaccord, un admin tranche.</p>

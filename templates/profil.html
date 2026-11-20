@@ -170,7 +170,7 @@
                 <textarea id="bio-input" maxlength="500" placeholder="Ton main, ton rang, tes dispos pour jouer…"></textarea>
             </div>
 
-            <div class="success-message" id="success-message">Profil enregistré.</div>
+            <div class="success-message" id="success-message">Profil enregistré</div>
             <div class="error-message" id="error-message"></div>
             <button class="btn" type="button" onclick="updateProfil()">Enregistrer</button>
         </div>
@@ -206,7 +206,7 @@
         
         <div class="section">
             <h2 class="section-title">Changer mon mot de passe</h2>
-            <div class="success-message" id="pwd-success">Mot de passe modifié.</div>
+            <div class="success-message" id="pwd-success">Mot de passe modifié</div>
             <div class="error-message" id="pwd-error"></div>
             <div class="password-grid">
                 <div class="form-group">
@@ -294,7 +294,7 @@
             }
             box.innerHTML = d.objets.filter(o => o.type === 'badge').map(o => {
                 const equipe = (o.type === 'badge' && o.code === d.badge_code) || (o.type === 'cadre' && o.code === d.cadre);
-                let action = '<div class="inv-etat">Débloqués dans le sélecteur d\'avatar.</div>';
+                let action = '<div class="inv-etat">Débloqués dans le sélecteur d\'avatar</div>';
                 if (o.type === 'badge' || o.type === 'cadre') {
                     action = `<div class="inv-etat">${equipe ? 'Affiché sur ton profil.' : 'Pas affiché.'}</div>
                         <button class="btn ${equipe ? 'secondaire' : ''} petit" type="button"

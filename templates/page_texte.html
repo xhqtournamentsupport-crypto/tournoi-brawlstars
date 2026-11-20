@@ -34,7 +34,7 @@
             {% for q in faq %}
             <details><summary>{{ q.q }}</summary>{% if q.r %}<p>{{ q.r }}</p>{% endif %}</details>
             {% else %}
-            <p class="empty">Pas encore de questions.</p>
+            <p class="empty">Pas encore de questions</p>
             {% endfor %}
         </div>
         {% else %}

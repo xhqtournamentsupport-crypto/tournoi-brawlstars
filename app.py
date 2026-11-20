@@ -1408,7 +1408,7 @@ pussy
 rape
 """
 
-ACCUEIL_DEFAUT = {'accueil_ligne1': 'La ligue où', 'accueil_ligne2': 'chaque match', 'accueil_ligne3': 'compte.',
+ACCUEIL_DEFAUT = {'accueil_ligne1': 'La ligue où', 'accueil_ligne2': 'chaque match', 'accueil_ligne3': 'compte',
                   'accueil_texte': "Monte ta team, prends ta place dans la ligue et vise la Ligue 1. Des saisons de 3 semaines, "
                                    "des résultats vérifiés par l'orga, et un palmarès qui reste."}
 

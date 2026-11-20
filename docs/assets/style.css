@@ -426,6 +426,20 @@ a { color: var(--bleu-clair); }
 .xhq-main { flex: 1; width: 100%; padding: 2.2rem 1.6rem 4rem; }
 .xhq-main.center { display: flex; align-items: center; justify-content: center; }
 .container { width: 100%; max-width: 1180px; margin: 0 auto; }
+/* Grands écrans (1600 px et plus) : le site prend plus de place, le texte grandit un peu */
+@media (min-width: 1600px) {
+    html { font-size: 17px; }
+    .container, .scene-grille { max-width: 1400px; }
+    .bandeau-email { max-width: 1460px; }
+    .decor-bracket { width: calc((100vw - 1460px) / 2); }
+}
+@media (min-width: 1600px) and (max-width: 1799px) { .decor-bracket { display: none; } }
+@media (min-width: 2200px) {
+    html { font-size: 18px; }
+    .container, .scene-grille { max-width: 1640px; }
+    .bandeau-email { max-width: 1700px; }
+    .decor-bracket { width: calc((100vw - 1700px) / 2); }
+}
 
 .header-nav, .header {
     display: flex;
