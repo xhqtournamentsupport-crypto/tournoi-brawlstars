@@ -64,6 +64,8 @@
                 <div><label for="t-nom">Nom</label><input type="text" id="t-nom" maxlength="60" placeholder="XHQ Cup #1"></div>
                 <div><label for="t-debut">Début (date et heure)</label><input type="datetime-local" id="t-debut"></div>
                 <div><label for="t-places">Places</label><select id="t-places"></select></div>
+                <div class="large" id="t-recompense-bloc" hidden><label for="t-recompense">Récompense du champion (facultatif)</label><input type="text" id="t-recompense" maxlength="100" placeholder="Ex. : 1 Brawl Pass par joueur, 15 € de cartes cadeaux…">
+                    <p class="hint muted" style="margin:.35rem 0 0">Rien ne passe par le site : à la fin, le capitaine gagnant est prévenu d'ouvrir un ticket sur Discord, tu lui remets toi-même la récompense, puis tu cliques « Récompense remise » sur la page du tournoi.</p></div>
                 <div class="large"><label for="t-desc">Description (facultatif)</label><textarea id="t-desc" maxlength="500" placeholder="Format, règles, lien Discord…"></textarea></div>
             </div>
             <p class="hint muted" style="margin:0.8rem 0">La date lance un compte à rebours sur l'accueil. Format : poules de 4 tirées au sort, les 2 premiers de chaque poule passent en phase finale (élimination directe). Le champion gagne le badge exclusif « Champion ».</p>
@@ -100,6 +102,7 @@
                     <span class="statut ${t.statut}">${escapeHtml(t.statut_label)}</span>
                     <h3>${escapeHtml(t.nom)}</h3>
                     ${t.quand ? `<span class="quand">${escapeHtml(t.quand)}</span>` : ''}
+                    ${t.recompense ? `<span class="quand">🎁 ${escapeHtml(t.recompense)}</span>` : ''}
                     ${t.description ? `<p class="desc">${escapeHtml(t.description.length > 140 ? t.description.slice(0, 140) + '…' : t.description)}</p>` : ''}
                     <span class="carte-bas">${bas}</span>
                 </a>`;
@@ -120,6 +123,7 @@
                 const sel = document.getElementById('t-places');
                 if (!sel.options.length) sel.innerHTML = data.places_possibles.map(p => `<option value="${p}"${p === 16 ? ' selected' : ''}>${p} teams</option>`).join('');
                 document.getElementById('creer').hidden = false;
+                document.getElementById('t-recompense-bloc').hidden = !data.fondateur;
             }
         }
 
@@ -132,6 +136,7 @@
                     nom: document.getElementById('t-nom').value,
                     debut: document.getElementById('t-debut').value,
                     description: document.getElementById('t-desc').value,
+                    recompense: document.getElementById('t-recompense').value,
                     places: Number(document.getElementById('t-places').value)
                 }
             });

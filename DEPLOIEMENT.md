@@ -158,3 +158,12 @@ et repasse en formation ; une fois la ligue commencée, elle la garde. Les teams
 Toute nouvelle action d'administration est réservée aux fondateurs tant qu'elle n'est pas explicitement ouverte
 aux admins (liste `ACTIONS_ADMIN` dans `app.py`). Il reste toujours au moins un fondateur : le dernier ne peut
 ni perdre son badge ni supprimer son compte.
+
+## Récompenses des tournois
+
+En créant un tournoi (ou un tournoi récurrent), le **fondateur** peut remplir « Récompense du champion » (ex. : 1 Brawl Pass par joueur). Les admins ne peuvent pas promettre de récompense.
+
+Aucun argent ne passe par le site :
+1. À la fin de la finale, le capitaine gagnant reçoit une notification : « ouvre un ticket sur le Discord ».
+2. Dans l'Admin, « Récompense à remettre » apparaît dans les choses à faire.
+3. Tu remets la récompense toi-même (carte cadeau, Brawl Pass offert…), puis tu cliques « Récompense remise » sur la page du tournoi.

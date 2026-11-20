@@ -691,6 +691,9 @@ def init_db():
         if not doublons:
             c.execute(f'CREATE UNIQUE INDEX IF NOT EXISTS {index} ON {table} (lower({colonne}))')
     ajouter_colonne(c, 'tournois', 'debut', 'TEXT')
+    ajouter_colonne(c, 'tournois', 'recompense', "TEXT DEFAULT ''")   # ce que gagne le champion (texte libre, remis à la main)
+    ajouter_colonne(c, 'tournois', 'recompense_envoyee_at', 'TEXT')
+    ajouter_colonne(c, 'tournois_recurrents', 'recompense', "TEXT DEFAULT ''")
     ajouter_colonne(c, 'tournois', 'lance_at', 'TEXT')   # début réel (lancement des poules)   # 'AAAA-MM-JJTHH:MM' (heure de France)
     c.execute("UPDATE users SET created_at = datetime('now') WHERE created_at IS NULL")
     c.execute("UPDATE teams SET created_at = datetime('now') WHERE created_at IS NULL")
@@ -2877,15 +2880,14 @@ def api_shop():
     nb_users = db.execute('SELECT COUNT(*) FROM users WHERE COALESCE(email_verifie, 1) = 1').fetchone()[0]
     items = []
     for r in db.execute("""SELECT id, code, nom, description, prix, type, mode, quantite_max, style, COALESCE(perso, 0) AS perso
-                           FROM shop_items WHERE code IS NOT NULL AND COALESCE(actif, 1) = 1 ORDER BY id""").fetchall():
+                           FROM shop_items WHERE code IS NOT NULL AND COALESCE(actif, 1) = 1
+                           AND code NOT IN ('fondateur', 'admin') ORDER BY id""").fetchall():   # ces 2 badges sont donnés par le fondateur
         item = dict(r)
         item['possede'] = possede(db, uid, item['code'])
         item['disponible'], item['raison'] = disponibilite(db, uid, item['code'])
         item['equipe'] = item['code'] in (equipe['badge_code'], equipe['cadre'])
         if item['code'] == 'pionnier':
             item['places_restantes'] = max(0, PIONNIERS_MAX - nb_users)
-        if item['code'] == 'fondateur':
-            item['places_restantes'] = max(0, FONDATEURS_MAX - porteurs(db, 'fondateur'))
         if item['perso'] and item['mode'] == 'limite' and item['quantite_max'] is not None:
             item['places_restantes'] = max(0, item['quantite_max'] - porteurs(db, item['code']))
         items.append(item)
@@ -3316,6 +3318,9 @@ def a_faire_admin(db, jeu_id, saison):
     tournois = [dict(r) for r in db.execute(
         """SELECT t.id, t.nom, t.statut, t.places, (SELECT COUNT(*) FROM tournoi_inscriptions i WHERE i.tournoi_id = t.id) AS inscrits
            FROM tournois t WHERE t.jeu_id = ? AND t.statut != 'termine' ORDER BY t.id""", (jeu_id,))]
+    recompenses = [dict(r) for r in db.execute(
+        """SELECT id, nom, champion_nom, recompense FROM tournois WHERE jeu_id = ? AND statut = 'termine'
+           AND COALESCE(recompense, '') != '' AND recompense_envoyee_at IS NULL ORDER BY id""", (jeu_id,))]
     derniere = None
     if os.path.isdir(SAUVEGARDE_DIR):
         zips = [os.path.join(SAUVEGARDE_DIR, f) for f in os.listdir(SAUVEGARDE_DIR) if f.startswith('xhq-') and f.endswith('.zip')]
@@ -3331,6 +3336,7 @@ def a_faire_admin(db, jeu_id, saison):
                                    jeu_id, saison),
         'suspendus': compter('SELECT COUNT(*) FROM users WHERE bloque = 1'),
         'tournois': tournois,
+        'recompenses': recompenses,
         'sauvegarde_jours': derniere,
         'outils_vieux': outils_a_mettre_a_jour(),
     }
@@ -4180,7 +4186,7 @@ def lire_recurrent(db, data):
     if avant is None or not 1 <= avant <= 14:
         return None, 'Ouverture des inscriptions : entre 1 et 14 jours avant'
     return {'nom': nom, 'jeu_id': jeu_id, 'jour': jour, 'heure': heure, 'places': places, 'ouvrir_avant_jours': avant,
-            'description': texte(data, 'description', 500)}, None
+            'description': texte(data, 'description', 500), 'recompense': texte(data, 'recompense', RECOMPENSE_MAX)}, None
 
 
 @app.route('/api/admin/recurrents', methods=['POST'])
@@ -4190,9 +4196,9 @@ def api_admin_recurrents():
     v, erreur = lire_recurrent(db, donnees_json())
     if erreur:
         return jsonify({'success': False, 'error': erreur}), 400
-    db.execute("""INSERT INTO tournois_recurrents (jeu_id, nom, places, description, jour, heure, ouvrir_avant_jours, created_at)
-                  VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))""",
-               (v['jeu_id'], v['nom'], v['places'], v['description'], v['jour'], v['heure'], v['ouvrir_avant_jours']))
+    db.execute("""INSERT INTO tournois_recurrents (jeu_id, nom, places, description, jour, heure, ouvrir_avant_jours, created_at, recompense)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), ?)""",
+               (v['jeu_id'], v['nom'], v['places'], v['description'], v['jour'], v['heure'], v['ouvrir_avant_jours'], v['recompense']))
     journaliser(db, 'Tournoi récurrent programmé', f"{v['nom']} · chaque {JOURS_SEMAINE[v['jour']]} à {v['heure']}")
     db.commit()
     creer_tournois_recurrents(db)   # si les inscriptions doivent déjà être ouvertes, le 1er tournoi est créé tout de suite
@@ -4974,10 +4980,16 @@ def faire_avancer(c, match):
     c.execute("""UPDATE tournois SET statut = 'termine', champion_team_id = ?, champion_nom = ?,
                  termine_at = datetime('now') WHERE id = ?""", (match['vainqueur_id'], nom, t['id']))
     donner_badge_champion(c, match['vainqueur_id'], t['lance_at'])
-    titre_tournoi = c.execute('SELECT nom FROM tournois WHERE id = ?', (t['id'],)).fetchone()[0]
-    enfiler_discord(c, 'tournois', f"🏆 **{nom}** remporte **{titre_tournoi}** ! Bravo à toute l'équipe.")
-    notifier(c, membres_de(c, match['vainqueur_id']), f"Ta team remporte {nom_tournoi(c, t['id'])} ! Badge Champion débloqué",
+    titre_tournoi, recompense = c.execute('SELECT nom, recompense FROM tournois WHERE id = ?', (t['id'],)).fetchone()
+    enfiler_discord(c, 'tournois', f"🏆 **{nom}** remporte **{titre_tournoi}** ! Bravo à toute l'équipe."
+                    + (f"\n🎁 Récompense : {recompense}" if recompense else ''))
+    notifier(c, membres_de(c, match['vainqueur_id']), f"Ta team remporte {titre_tournoi} ! Badge Champion débloqué",
              f"/tournois/{t['id']}")
+    if recompense:
+        capitaine = c.execute('SELECT createur_id FROM teams WHERE id = ?', (match['vainqueur_id'],)).fetchone()
+        if capitaine:
+            notifier(c, [capitaine[0]], f"🎁 Récompense gagnée : {recompense}. Ouvre un ticket sur le Discord XHQ pour la recevoir",
+                     f"/tournois/{t['id']}")
 
 
 def nom_tournoi(c, tournoi_id):
@@ -4989,7 +5001,9 @@ def resume_tournoi(db, t):
     jeu = db.execute('SELECT code, nom, format FROM jeux WHERE id = ?', (t['jeu_id'],)).fetchone()
     return {'id': t['id'], 'nom': t['nom'], 'description': t['description'], 'quand': t['quand'],
             'places': t['places'], 'inscrits': nb, 'statut': t['statut'], 'statut_label': STATUTS_TOURNOI[t['statut']],
-            'champion': t['champion_nom'], 'jeu': dict(jeu) if jeu else None, 'debut': t['debut']}
+            'champion': t['champion_nom'], 'jeu': dict(jeu) if jeu else None, 'debut': t['debut'],
+            'recompense': t['recompense'] or '', 'recompense_envoyee': bool(t['recompense_envoyee_at']),
+            'champion_team_id': t['champion_team_id']}
 
 
 def ma_team_dans_jeu(db, jeu_id):
@@ -5032,7 +5046,7 @@ def api_tournois():
     lignes = db.execute("""SELECT * FROM tournois WHERE jeu_id = ?
                            ORDER BY CASE statut WHEN 'termine' THEN 1 ELSE 0 END, id DESC""", (jeu['id'],)).fetchall()
     return jsonify({'jeu': jeu, 'tournois': [resume_tournoi(db, t) for t in lignes],
-                    'admin': est_admin(), 'places_possibles': TOURNOI_PLACES}), 200
+                    'admin': est_admin(), 'fondateur': est_fondateur(), 'places_possibles': TOURNOI_PLACES}), 200
 
 
 @app.route('/api/tournois/<int:tournoi_id>', methods=['GET'])
@@ -5099,7 +5113,7 @@ def api_tournoi(tournoi_id):
         'bracket': bracket,
         'moi': {'connecte': bool(utilisateur_connecte()), 'team': ma_team, 'inscrit': inscrit,
                 'peut_agir': raison is None, 'raison': raison},
-        'admin': est_admin(),
+        'admin': est_admin(), 'fondateur': est_fondateur(),
         'actions': {
             'lancer_poules': t['statut'] == 'inscriptions' and len(inscrits) >= TOURNOI_MIN_TEAMS,
             'lancer_bracket': t['statut'] == 'poules' and poules_jouees,
@@ -5185,21 +5199,26 @@ def api_admin_creer_tournoi():
         except ValueError:
             return jsonify({'success': False, 'error': 'Date de début invalide'}), 400
     quand = texte(data, 'quand', 80) or (date_fr(debut) if debut else '')
-    tournoi_id = creer_tournoi(db, jeu, nom, places, texte(data, 'description', 500), debut, quand)
+    tournoi_id = creer_tournoi(db, jeu, nom, places, texte(data, 'description', 500), debut, quand,
+                               texte(data, 'recompense', RECOMPENSE_MAX) if est_fondateur() else '')   # le fondateur paie : lui seul promet
     journaliser(db, 'Tournoi créé', nom)
     db.commit()
     return jsonify({'success': True, 'tournoi_id': tournoi_id}), 201
 
 
-def creer_tournoi(db, jeu, nom, places, description, debut, quand):
+RECOMPENSE_MAX = 100
+
+
+def creer_tournoi(db, jeu, nom, places, description, debut, quand, recompense=''):
     """Crée un tournoi (inscriptions ouvertes), prévient les capitaines et Discord. Ne fait pas le commit."""
     c = db.cursor()
-    c.execute("""INSERT INTO tournois (jeu_id, nom, description, quand, places, created_at, debut)
-                 VALUES (?, ?, ?, ?, ?, datetime('now'), ?)""", (jeu['id'], nom, description, quand, places, debut))
+    c.execute("""INSERT INTO tournois (jeu_id, nom, description, quand, places, created_at, debut, recompense)
+                 VALUES (?, ?, ?, ?, ?, datetime('now'), ?, ?)""", (jeu['id'], nom, description, quand, places, debut, recompense or ''))
     tournoi_id = c.lastrowid
     capitaines = [r[0] for r in db.execute('SELECT createur_id FROM teams WHERE jeu_id = ?', (jeu['id'],))]
     notifier(db, capitaines, f"Nouveau tournoi : {nom}{' (' + quand + ')' if quand else ''}, inscriptions ouvertes", f'/tournois/{tournoi_id}')
     enfiler_discord(db, 'tournois', f"🎮 **Nouveau tournoi : {nom}** ({jeu['nom']}, {places} places)" + (f"\n🗓️ {quand}" if quand else '')
+                    + (f"\n🎁 À gagner : {recompense}" if recompense else '')
                     + f"\nInscriptions ouvertes : {SITE_URL_DEFAUT}/tournois/{tournoi_id}")
     return tournoi_id
 
@@ -5232,7 +5251,7 @@ def creer_tournois_recurrents(db):
             continue
         numero = r['compteur'] + 1
         nom = (r['nom'] + ' #' + str(numero))[:60]
-        tid = creer_tournoi(db, dict(jeu), nom, r['places'], r['description'] or '', cle, date_fr(cle))
+        tid = creer_tournoi(db, dict(jeu), nom, r['places'], r['description'] or '', cle, date_fr(cle), r['recompense'] or '')
         ecrire_journal(db.cursor(), None, 'automatique', 'Tournoi récurrent créé', nom)
         db.commit()
         crees += 1
@@ -5384,6 +5403,24 @@ def api_admin_supprimer_tournoi(tournoi_id):
         db.execute(f'DELETE FROM {table} WHERE tournoi_id = ?', (t['id'],))
     journaliser(db, 'Tournoi supprimé', t['nom'])
     db.execute('DELETE FROM tournois WHERE id = ?', (t['id'],))
+    db.commit()
+    return jsonify({'success': True}), 200
+
+
+@app.route('/api/admin/tournois/<int:tournoi_id>/recompense', methods=['POST'])
+@api_admin
+def api_admin_recompense_envoyee(tournoi_id):
+    """Le fondateur note qu'il a remis la récompense au champion (ou annule s'il s'est trompé)."""
+    db = get_db()
+    t, erreur = tournoi_ou_404(db, tournoi_id)
+    if erreur:
+        return erreur
+    if t['statut'] != 'termine' or not t['recompense']:
+        return jsonify({'success': False, 'error': "Ce tournoi n'a pas de récompense à remettre"}), 400
+    envoyee = bool(donnees_json().get('envoyee', True))
+    db.execute("UPDATE tournois SET recompense_envoyee_at = CASE WHEN ? THEN datetime('now') END WHERE id = ?", (envoyee, t['id']))
+    journaliser(db, 'Récompense remise' if envoyee else 'Récompense : remise annulée',
+                f"{t['nom']} · {t['champion_nom'] or '?'} · {t['recompense']}")
     db.commit()
     return jsonify({'success': True}), 200
 

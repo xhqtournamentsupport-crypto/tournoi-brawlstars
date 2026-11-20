@@ -119,7 +119,6 @@
         <div class="filtres" id="filtres">
             <button class="filtre actif" type="button" data-filtre="tout">Tout</button>
             <button class="filtre" type="button" data-filtre="badge">Badges</button>
-            <button class="filtre" type="button" data-filtre="manquants">À récupérer</button>
         </div>
 
         <div class="message" id="shop-message"></div>
@@ -168,9 +167,7 @@
         }
 
         function majCollection() {
-            // Les badges réservés (Fondateur, Admin) ne comptent que si on les a
-            const comptes = objets.filter(o => o.possede || !['fondateur', 'admin'].includes(o.code));
-            const total = comptes.length, eus = objets.filter(o => o.possede).length;
+            const total = objets.length, eus = objets.filter(o => o.possede).length;
             const barreColl = document.querySelector('.barre-coll');
             if (majCollection.avant !== undefined && eus > majCollection.avant) { barreColl.classList.remove('eclat'); void barreColl.offsetWidth; barreColl.classList.add('eclat'); }
             majCollection.avant = eus;
@@ -203,9 +200,7 @@
             }
             let limite = '<span class="item-price">Gratuit</span>';
             let barre = '';
-            if (item.code === 'fondateur' && !item.possede) {
-                limite = `<span class="item-limite">${Number(item.places_restantes)} / 3 encore libre(s)</span>`;
-            } else if (item.perso && item.mode === 'limite' && !item.possede && item.disponible) {
+            if (item.perso && item.mode === 'limite' && !item.possede && item.disponible) {
                 limite = `<span class="item-limite">${Number(item.places_restantes)} exemplaire(s) restant(s)</span>`;
             } else if (item.code === 'pionnier' && !item.possede && item.disponible) {
                 limite = `<span class="item-limite">${Number(item.places_restantes)} place(s) restante(s)</span>`;
@@ -228,10 +223,12 @@
         }
 
         function afficher() {
-            const liste = objets.filter(o => filtre === 'tout' || (filtre === 'manquants' ? !o.possede : o.type === filtre));
+            // Ce que tu as déjà récupéré n'est plus dans le shop : tu le retrouves (et l'équipes) dans ton Profil
+            const aPrendre = objets.filter(o => !o.possede);
+            const liste = aPrendre.filter(o => filtre === 'tout' || o.type === filtre);
             document.getElementById('shop-list').innerHTML = liste.length
                 ? liste.map(carte).join('')
-                : '<div class="empty">' + (filtre === 'manquants' ? 'Tu as tout récupéré, bravo !' : 'Rien dans cette catégorie.') + '</div>';
+                : '<div class="empty">' + (!aPrendre.length ? 'Tu as tout récupéré, bravo ! Tes objets sont dans ton <a href="/profil">Profil</a>.' : 'Rien dans cette catégorie.') + '</div>';
         }
 
         async function loadShop() {
@@ -261,7 +258,7 @@
                 const carteEl = bouton && bouton.closest('.item-card');
                 if (window.xhqEclatSur && bouton) xhqEclatSur(bouton, 50);
                 if (window.xhqVoler && carteEl) xhqVoler(carteEl.querySelector('.item-image > :first-child'), document.getElementById('look-av'));
-                showMessage(`${data.item} ajouté à ta collection.`, 'success');
+                showMessage(`${data.item} ajouté à ta collection : équipe-le depuis ton Profil.`, 'success');
                 majLook(data);
                 loadShop();
             } else {

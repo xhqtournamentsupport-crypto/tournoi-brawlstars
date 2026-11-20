@@ -10,6 +10,8 @@
         .statut { padding: 0.15rem 0.7rem; border-radius: 999px; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; background: var(--panel-2); border: 1px solid var(--line-2); color: var(--text); }
         .statut.inscriptions { background: var(--accent); color: #fff; }
         .statut.termine { background: var(--gold); color: #fff; }
+        .recompense-tournoi { max-width: 760px; margin: 0 0 1.2rem; padding: .8rem 1rem; border: 1px solid rgba(255, 196, 0, .45); background: rgba(255, 196, 0, .08); border-radius: 14px; }
+        .recompense-tournoi small { color: var(--text-soft); }
         .description { max-width: 760px; color: var(--text-soft); white-space: pre-line; margin-bottom: 1.6rem; }
 
         /* Étapes du tournoi : 4 pastilles reliées */
@@ -274,6 +276,16 @@
                 // Pluie de confettis à la première ouverture de la page du champion
                 if (!window.confettisFaits && window.xhqConfettis) { window.confettisFaits = true; setTimeout(() => xhqConfettis(), 350); }
             }
+            if (t.recompense) {
+                let suite = '';
+                if (t.statut === 'termine') {
+                    suite = t.recompense_envoyee ? ' <span class="tag">✓ Remise au champion</span>'
+                        : (d.moi.team && d.moi.team.capitaine && d.moi.team.id === t.champion_team_id
+                            ? '<br><small>Bravo ! Ouvre un ticket sur le Discord XHQ (catégorie Support) pour recevoir ta récompense.</small>' : ' <span class="tag">En cours de remise</span>');
+                    if (d.fondateur) suite += ` <button class="btn-mini" type="button" onclick="recompenseRemise(${t.recompense_envoyee ? 'false' : 'true'})">${t.recompense_envoyee ? 'Annuler « remise »' : 'Récompense remise'}</button>`;
+                }
+                html += `<p class="recompense-tournoi">🎁 <strong>À gagner :</strong> ${escapeHtml(t.recompense)}${suite}</p>`;
+            }
             html += htmlEtapes(t.statut);
             if (t.description) html += `<p class="description">${escapeHtml(t.description)}</p>`;
             html += htmlAdmin(d) + htmlInscription(d) + htmlBracket(d) + htmlPoules(d) + htmlInscrits(d);
@@ -294,6 +306,8 @@
             return data;
         }
 
+        const recompenseRemise = envoyee => (envoyee ? confirm('Tu as bien remis la récompense au champion ?') : true)
+            && poster(`/api/admin/tournois/${TOURNOI_ID}/recompense`, { envoyee }, envoyee ? 'Récompense notée comme remise.' : 'Remise annulée.');
         const inscrire = () => poster(`/api/tournois/${TOURNOI_ID}/inscription`, {}, 'Ta team est inscrite !');
         const desinscrire = () => confirm('Désinscrire ta team de ce tournoi ?') && poster(`/api/tournois/${TOURNOI_ID}/desinscription`, {}, 'Ta team est désinscrite.');
         const retirerTeam = id => confirm('Retirer cette team du tournoi ?') && poster(`/api/tournois/${TOURNOI_ID}/desinscription`, { team_id: id }, 'Team retirée.');
