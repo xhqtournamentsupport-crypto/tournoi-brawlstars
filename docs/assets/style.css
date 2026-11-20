@@ -109,9 +109,9 @@
     --halo: rgba(124, 108, 255, 0.16);
     color-scheme: light;
 }
-.xhq-logo img.logo-clair-seul { display: none; }
-:root[data-theme="light"] .xhq-logo img.logo-sombre-seul { display: none; }
-:root[data-theme="light"] .xhq-logo img.logo-clair-seul { display: block; }
+img.logo-clair-seul { display: none !important; }
+:root[data-theme="light"] img.logo-sombre-seul { display: none !important; }
+:root[data-theme="light"] img.logo-clair-seul { display: block !important; }
 
 /* Bandeau « Confirme ton email » (sous la barre du haut) */
 .bandeau-email { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 0.6rem 1rem; margin: 0.6rem auto 0; max-width: 1240px; width: calc(100% - 2rem);
