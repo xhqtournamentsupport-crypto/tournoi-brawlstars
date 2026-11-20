@@ -1639,6 +1639,11 @@ def confidentialite_page():
     return render_template('confidentialite.html')
 
 
+@app.route('/favicon.ico')
+def favicon_ico():
+    return send_from_directory(os.path.join(BASE_DIR, 'static'), 'favicon.ico', max_age=86400)
+
+
 @app.route('/discord')
 def discord_page():
     """Adresse fixe à partager (bios, site) : envoie vers le lien du widget Discord du moment (sans nom
