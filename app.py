@@ -264,7 +264,7 @@ JEU_DEFAUT = 'brawlstars'
 
 # Contact affiché sur le site (page Contact, pied de page, accueil)
 CONTACT_EMAIL = 'xhqtournamentsupport@gmail.com'
-DISCORD_URL = 'https://discord.com/invite/KEKGtEk3'      # lien d'origine (remplaçable dans Admin → Réglages)
+DISCORD_URL = 'https://discord.gg/cwMZ7VQW74'      # lien d'origine (remplaçable dans Admin → Réglages)
 DISCORD_INVITE_REGEX = re.compile(r'^https://(discord\.gg|discord\.com/invite)/[A-Za-z0-9-]{2,32}$')
 
 
