@@ -526,6 +526,12 @@
                 <button class="btn" type="button" onclick="enregistrerReglages()">Enregistrer les réglages</button>
             </div>
             <div class="section">
+                <h2 class="section-title">Lien d'invitation Discord</h2>
+                <p class="hint">Le lien des boutons « Rejoins le Discord » (accueil, contact, bas de page). Si Discord change ton lien, colle le nouveau ici. Vide = lien d'origine.</p>
+                <input type="text" id="discord-invite" maxlength="80" placeholder="https://discord.gg/…">
+                <button class="btn" type="button" onclick="envoyerReglages({ discord_invite: document.getElementById('discord-invite').value }, 'Lien Discord enregistré : il est déjà sur le site.')">Enregistrer le lien</button>
+            </div>
+            <div class="section">
                 <h2 class="section-title">Mots interdits</h2>
                 <p class="hint">Un mot par ligne. Ils sont refusés dans les pseudos, noms de team et bios, même écrits en l33t, avec des accents, des points ou des lettres répétées (« c.o.n », « c0nnn »). Les mots de 4 lettres ou moins ne sont bloqués que seuls (« con » ne bloque pas « Conor »).</p>
                 <textarea id="mots-interdits" rows="10" maxlength="5000" class="texte-long" placeholder="un mot par ligne"></textarea>
@@ -1057,6 +1063,7 @@
                 <input type="number" id="rg-${escapeHtml(r.cle)}" data-reglage="${escapeHtml(r.cle)}" min="${Number(r.min)}" max="${Number(r.max)}" value="${Number(r.valeur)}">
                 <small>de ${Number(r.min)} à ${Number(r.max)} · d'origine : ${Number(r.defaut)}</small></div>`).join('');
             document.getElementById('mots-interdits').value = data.mots_interdits || '';
+            document.getElementById('discord-invite').value = data.discord_invite || '';
         }
         async function envoyerReglages(body, texteOk) {
             const { ok, data } = await api('/api/admin/reglages', { method: 'POST', body });

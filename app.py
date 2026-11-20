@@ -199,7 +199,14 @@ JEU_DEFAUT = 'brawlstars'
 
 # Contact affiché sur le site (page Contact, pied de page, accueil)
 CONTACT_EMAIL = 'xhqtournamentsupport@gmail.com'
-DISCORD_URL = 'https://discord.gg/cwMZ7VQW74'
+DISCORD_URL = 'https://discord.gg/cwMZ7VQW74'      # lien d'origine (remplaçable dans Admin → Réglages)
+DISCORD_INVITE_REGEX = re.compile(r'^https://(discord\.gg|discord\.com/invite)/[A-Za-z0-9-]{2,32}$')
+
+
+def lien_discord(db):
+    """Lien d'invitation Discord affiché sur le site : celui choisi par le fondateur, sinon celui d'origine."""
+    r = db.execute("SELECT valeur FROM parametres WHERE cle = 'discord_invite'").fetchone()
+    return r['valeur'] if r and DISCORD_INVITE_REGEX.match(r['valeur'] or '') else DISCORD_URL
 
 # Tout le monde démarre à 0 €
 SOLDE_DEPART = 0
@@ -956,7 +963,7 @@ def injecter_utilisateur():
     except Exception:
         pass
     return {'current_user': current_user, 'jeux': jeux, 'jeu': jeu or (jeux[0] if jeux else None),
-            'contact_email': CONTACT_EMAIL, 'discord_url': DISCORD_URL}
+            'contact_email': CONTACT_EMAIL, 'discord_url': lien_discord(db)}
 
 
 def page_connectee(f):
@@ -1503,6 +1510,17 @@ def api_admin_reglages():
                 v = entier(data[cle])
                 db.execute('INSERT OR REPLACE INTO parametres (cle, valeur) VALUES (?, ?)', (f'reglage_{cle}', str(v)))
                 journaliser(db, f'Réglage : {libelle} = {v}')
+        if 'discord_invite' in data:
+            lien = sans_invisibles(str(data['discord_invite'] or '')).strip()
+            if lien.startswith('discord.gg/'):
+                lien = 'https://' + lien
+            if lien and not DISCORD_INVITE_REGEX.match(lien):
+                return jsonify({'success': False, 'error': 'Lien Discord invalide : il doit ressembler à https://discord.gg/AbCd123 ou https://discord.com/invite/AbCd123'}), 400
+            if lien:
+                db.execute("INSERT OR REPLACE INTO parametres (cle, valeur) VALUES ('discord_invite', ?)", (lien,))
+            else:
+                db.execute("DELETE FROM parametres WHERE cle = 'discord_invite'")
+            journaliser(db, 'Lien d\'invitation Discord changé', lien or 'lien d\'origine')
         if 'mots_interdits' in data:
             mots = '\n'.join(sorted({m.strip().lower() for m in str(data['mots_interdits']).splitlines() if m.strip()}))[:5000]
             db.execute("INSERT OR REPLACE INTO parametres (cle, valeur) VALUES ('mots_interdits', ?)", (mots,))
@@ -1513,7 +1531,8 @@ def api_admin_reglages():
     mots = db.execute("SELECT valeur FROM parametres WHERE cle = 'mots_interdits'").fetchone()
     return jsonify({'reglages': [{'cle': k, 'valeur': reglage(k), 'defaut': d, 'min': mi, 'max': ma, 'libelle': l}
                                  for k, (d, mi, ma, l) in REGLAGES.items()],
-                    'mots_interdits': mots['valeur'] if mots else MOTS_INTERDITS_DEFAUT.strip()}), 200
+                    'mots_interdits': mots['valeur'] if mots else MOTS_INTERDITS_DEFAUT.strip(),
+                    'discord_invite': lien_discord(db)}), 200
 
 
 @app.route('/api/admin/statistiques', methods=['GET'])
