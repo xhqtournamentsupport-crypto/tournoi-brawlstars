@@ -5417,7 +5417,7 @@ def api_admin_recompense_envoyee(tournoi_id):
         return erreur
     if t['statut'] != 'termine' or not t['recompense']:
         return jsonify({'success': False, 'error': "Ce tournoi n'a pas de récompense à remettre"}), 400
-    envoyee = bool(donnees_json().get('envoyee', True))
+    envoyee = donnees_json().get('envoyee', True) is True   # seul un vrai « true » compte (pas « 'false' » ni 1)
     db.execute("UPDATE tournois SET recompense_envoyee_at = CASE WHEN ? THEN datetime('now') END WHERE id = ?", (envoyee, t['id']))
     journaliser(db, 'Récompense remise' if envoyee else 'Récompense : remise annulée',
                 f"{t['nom']} · {t['champion_nom'] or '?'} · {t['recompense']}")
