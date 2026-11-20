@@ -7,7 +7,7 @@ import sys
 import sqlite3
 from functools import wraps
 
-from flask import Flask, render_template, request, jsonify, session, redirect, g, abort, has_request_context, send_from_directory
+from flask import Flask, render_template, request, jsonify, session, redirect, g, abort, has_request_context, send_from_directory, make_response
 from werkzeug.security import generate_password_hash, check_password_hash
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -201,6 +201,14 @@ JEU_DEFAUT = 'brawlstars'
 CONTACT_EMAIL = 'xhqtournamentsupport@gmail.com'
 DISCORD_URL = 'https://discord.com/invite/KEKGtEk3'      # lien d'origine (remplaçable dans Admin → Réglages)
 DISCORD_INVITE_REGEX = re.compile(r'^https://(discord\.gg|discord\.com/invite)/[A-Za-z0-9-]{2,32}$')
+
+
+DISCORD_SERVEUR_REGEX = re.compile(r'^\d{17,20}$')
+
+
+def discord_serveur_id(db):
+    r = db.execute("SELECT valeur FROM parametres WHERE cle = 'discord_serveur_id'").fetchone()
+    return r['valeur'] if r and DISCORD_SERVEUR_REGEX.match(r['valeur'] or '') else ''
 
 
 def lien_discord(db):
@@ -963,7 +971,7 @@ def injecter_utilisateur():
     except Exception:
         pass
     return {'current_user': current_user, 'jeux': jeux, 'jeu': jeu or (jeux[0] if jeux else None),
-            'contact_email': CONTACT_EMAIL, 'discord_url': lien_discord(db)}
+            'contact_email': CONTACT_EMAIL, 'discord_url': '/discord'}
 
 
 def page_connectee(f):
@@ -1510,6 +1518,15 @@ def api_admin_reglages():
                 v = entier(data[cle])
                 db.execute('INSERT OR REPLACE INTO parametres (cle, valeur) VALUES (?, ?)', (f'reglage_{cle}', str(v)))
                 journaliser(db, f'Réglage : {libelle} = {v}')
+        if 'discord_serveur_id' in data:
+            sid = str(data['discord_serveur_id'] or '').strip()
+            if sid and not DISCORD_SERVEUR_REGEX.match(sid):
+                return jsonify({'success': False, 'error': "ID du serveur Discord invalide : c'est un nombre de 17 à 20 chiffres"}), 400
+            if sid:
+                db.execute("INSERT OR REPLACE INTO parametres (cle, valeur) VALUES ('discord_serveur_id', ?)", (sid,))
+            else:
+                db.execute("DELETE FROM parametres WHERE cle = 'discord_serveur_id'")
+            journaliser(db, 'Widget Discord : ID du serveur ' + ('enregistré' if sid else 'retiré'))
         if 'discord_invite' in data:
             lien = sans_invisibles(str(data['discord_invite'] or '')).strip()
             if lien.startswith('discord.gg/'):
@@ -1532,7 +1549,7 @@ def api_admin_reglages():
     return jsonify({'reglages': [{'cle': k, 'valeur': reglage(k), 'defaut': d, 'min': mi, 'max': ma, 'libelle': l}
                                  for k, (d, mi, ma, l) in REGLAGES.items()],
                     'mots_interdits': mots['valeur'] if mots else MOTS_INTERDITS_DEFAUT.strip(),
-                    'discord_invite': lien_discord(db)}), 200
+                    'discord_invite': lien_discord(db), 'discord_serveur_id': discord_serveur_id(db)}), 200
 
 
 @app.route('/api/admin/statistiques', methods=['GET'])
@@ -1620,6 +1637,20 @@ def cgv_page():
 @app.route('/confidentialite')
 def confidentialite_page():
     return render_template('confidentialite.html')
+
+
+@app.route('/discord')
+def discord_page():
+    """Adresse fixe à partager (bios, site) : envoie vers le lien du widget Discord du moment (sans nom
+    d'invitant, renouvelé par Discord), sinon vers le lien d'invitation enregistré dans les réglages."""
+    db = get_db()
+    secours, serveur = lien_discord(db), discord_serveur_id(db)
+    if not serveur:
+        return redirect(secours, code=302)
+    reponse = make_response(render_template('discord.html', serveur=serveur, secours=secours))
+    reponse.headers['Content-Security-Policy'] = CSP.replace("connect-src 'self'", "connect-src 'self' https://discord.com")
+    reponse.headers['Cache-Control'] = 'no-store'
+    return reponse
 
 
 @app.route('/contact')
