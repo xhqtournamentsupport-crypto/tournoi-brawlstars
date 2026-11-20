@@ -7,6 +7,12 @@
       if (t !== 'light' && t !== 'dark') t = window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
       document.documentElement.setAttribute('data-theme', t);
       var m = document.querySelector('meta[name="theme-color"]'); if (m && t === 'light') m.content = '#f5f4fa'; })();</script>
+    <script>/* page ouverte ou rechargée : on démarre tout en haut (le téléphone ne la rouvre plus « à moitié descendue ») ;
+       retour arrière et liens vers une section (#...) gardent leur position */
+    (function () { try { var n = performance.getEntriesByType('navigation')[0];
+      if (location.hash || (n && n.type === 'back_forward')) return;
+      if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+      window.scrollTo(0, 0); addEventListener('load', function () { if (scrollY < 400) window.scrollTo(0, 0); }); } catch (e) {} })();</script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap">
