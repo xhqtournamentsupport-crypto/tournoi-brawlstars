@@ -66,6 +66,7 @@ SITE_URL_DEFAUT = 'https://xhqtounament.pythonanywhere.com'
 # Nom de domaine servi par Cloudflare (Worker) qui va chercher les pages ici. Le Worker prouve qu'il est bien
 # le nôtre avec une clé secrète (fichier proxy_secret.txt, jamais sur GitHub) : sans elle, ses en-têtes sont ignorés.
 DOMAINE_PUBLIC = 'xhqleague.fr'
+HOTE_ORIGINE = 'xhqtounament.pythonanywhere.com'
 PROXY_FICHIER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'proxy_secret.txt')
 _domaine = {'vu': None}
 
@@ -120,6 +121,11 @@ def _securite_requete():
     # Site en ligne : on force HTTPS (le proxy de PythonAnywhere indique le protocole d'origine)
     if request.headers.get('X-Forwarded-Proto', '').lower() == 'http':
         return redirect(request.url.replace('http://', 'https://', 1), code=301)
+    # Ancienne adresse (…pythonanywhere.com) : une fois xhqleague.fr en service, les visiteurs y sont renvoyés.
+    # Jamais quand la requête vient de Cloudflare (en-tête X-XHQ-Proxy présent, même faux) : pas de boucle infinie.
+    if (request.method in ('GET', 'HEAD') and request.host == HOTE_ORIGINE
+            and 'X-XHQ-Proxy' not in request.headers and domaine_actif()):
+        return redirect('https://' + DOMAINE_PUBLIC + request.full_path.rstrip('?'), code=301)
     # Anti-CSRF : une action (POST) doit venir d'une page de ce site, jamais d'un autre site
     if request.method == 'POST':
         from urllib.parse import urlparse
@@ -6143,6 +6149,11 @@ if __name__ == '__main__':
         else:
             print(f"Erreur : aucun compte avec l'email {sys.argv[2]}. Inscris-toi d'abord sur le site.")
             sys.exit(1)
+    elif len(sys.argv) >= 3 and sys.argv[1] == 'domaine' and sys.argv[2] == 'off':
+        # Secours si Cloudflare est en panne : l'ancienne adresse redevient utilisable (plus de renvoi vers xhqleague.fr)
+        db = sqlite3.connect(DB_PATH); db.execute("DELETE FROM parametres WHERE cle = 'domaine_vu'"); db.commit(); db.close()
+        print("OK : l'adresse xhqtounament.pythonanywhere.com fonctionne de nouveau seule. Onglet Web -> Recharger.")
+        print("(Dès que xhqleague.fr sera de nouveau visité, le renvoi se réactivera tout seul.)")
     elif len(sys.argv) >= 2 and sys.argv[1] == 'domaine':
         # python3.10 app.py domaine  -> crée (une seule fois) la clé secrète à coller dans le Worker Cloudflare
         if not cle_proxy():
